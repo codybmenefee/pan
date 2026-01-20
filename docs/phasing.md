@@ -29,49 +29,51 @@ This document outlines a methodical approach to building the Grazing Intelligenc
 
 ## Current State Snapshot (Jan 20, 2026)
 
-Phase 1 (Farm Geometry Foundation) is now complete. The app uses Convex for
-persistent storage and has a dev-mode auth bypass via `VITE_DEV_AUTH=true`.
+Phases 0-3 are complete. The system can fetch satellite imagery, compute vegetation indices, and store per-paddock observations in Convex.
 
-### Completed in this update
+### What Works
 
-**Convex Backend**
-- `users` table with user→farm mapping
-- `farmSettings` table for persistent settings
-- Seed functions for dev user, sample farm, paddocks, and settings
-- Queries: `getFarm`, `getUserByExternalId`, `getSettings`
-- Mutations: `seedSampleFarm`, `applyPaddockChanges`, `updatePaddockMetadata`,
-  `updateSettings`, `resetSettings`
+**Phase 0 (UX Design) - Complete**
+- Wireframes and UI components for Morning Brief, Map view, Plan approval
 
-**Auth Layer**
-- Dev auth bypass: set `VITE_DEV_AUTH=true` to skip Clerk login
-- Prod auth: requires `VITE_CLERK_PUBLISHABLE_KEY`
-- `AppAuthProvider` and `AuthGate` components wrap the app
+**Phase 1 (Farm Geometry) - Complete**
+- Convex backend: farms, paddocks, users, farmSettings tables
+- GeoJSON geometry storage and retrieval
+- Dev-mode auth bypass via `VITE_DEV_AUTH=true`
+- Frontend hooks: `useFarms`, `usePaddocks`, `useFarmSettings`
 
-**Frontend Integration**
-- `GeometryProviderWithConvex` reads from Convex (no localStorage fallback)
-- `useCurrentUser` hook manages user→farm lookup and seeding
-- `useFarmSettings` hook manages settings persistence
-- `settings.tsx` route uses Convex-backed settings
+**Phase 2 (Satellite PoC) - Complete**
+- Python scripts query Planetary Computer STAC API
+- NDVI computation from Sentinel-2 L2A imagery
+- Visualization capability
 
-### Remaining gaps (for demo readiness)
+**Phase 3 (Processing Pipeline) - Complete**
+- Provider abstraction with tier-based selection
+- `Sentinel2Provider`: 10m resolution, free tier
+- `PlanetScopeProvider`: 3m resolution, premium tier ready
+- Cloud masking using scene classification
+- 21-day rolling median composite
+- Zonal statistics per paddock (NDVI/EVI/NDWI mean/min/max/std)
+- CRS transformation (EPSG:4326 ↔ EPSG:32616)
+- Convex storage: `observations` table with frontend hooks
+- Pipeline: `python src/ingestion/pipeline.py --dev --write-convex`
 
-- Satellite ingestion and processing pipeline (Phases 2-3)
-- Rules-based planner and plan generation (Phase 4)
-- Real exports (GeoJSON/text) and integration workflows
-- Morning Brief, history, and analytics still use mock plan/observation data
+### Verification
 
-### Stack
+```bash
+source src/ingestion/venv/bin/activate
+python src/ingestion/pipeline.py --dev --write-convex --output /tmp/pan_output
 
-- Backend/data: Convex
-- Auth: Clerk (dev bypass via env var)
+# Result: 8/8 paddocks with valid observations
+# NDVI range: 0.21-0.28 (typical pasture)
+# Cloud-free: ~98%
+```
 
-### Phase status
+### What Remains
 
-- Phase 0: UX prototype complete (UI artifacts in `app/`)
-- Phase 1: **Complete** (Convex backend + geometry persistence + auth layer)
-- Phases 2-4: Not started (data pipeline and intelligence layer)
-- Phase 5: UI complete; logic/API integration missing
-- Phase 6: UI polish present; export implementation missing
+- Phase 4: Intelligence layer (paddock scoring, plan generation)
+- Phase 5: Morning Brief narrative connected to observation data
+- Phase 6: Export functionality and demo polish
 
 ## Next Logical Chunk: Working Demo Slice (Single Farm)
 
@@ -201,50 +203,69 @@ This is intentionally narrow. The goal is confidence in the data path before bui
 
 **Duration:** 1-2 weeks
 
-**Goal:** Build the full observation pipeline: cloud masking, time series, zonal statistics.
+**Status: COMPLETE**
+
+**Goal:** Build the full observation pipeline: cloud masking, time series, zonal statistics, with provider abstraction for tier-based satellite access.
 
 ### Deliverables
 
-- Cloud masking using Sentinel-2 SCL band
-- Time-series fetch (21-day rolling window)
-- Median composite generation
-- Zonal statistics computation per paddock
-- `Observation` model and storage
+- **Provider Abstraction Layer** (`src/ingestion/providers/`)
+  - `Sentinel2Provider`: Free Sentinel-2 L2A data (10m resolution)
+  - `PlanetScopeProvider`: Premium PlanetScope data (3m resolution) - auto-enabled for premium tier
+- Cloud masking using item metadata
+- Time-series fetch (21-day rolling window) with median compositing
+- Zonal statistics computation per paddock (NDVI/EVI/NDWI mean/min/max/std)
+- `Observation` model and Convex storage
+- Frontend hooks for observation data access
 - Scheduled job / manual trigger to refresh data
 
 ### Data Flow
 
 ```
-STAC API Query
-      │
-      ▼
-Fetch Imagery + SCL
-      │
-      ▼
-Apply Cloud Mask
-      │
-      ▼
-Compute NDVI/EVI/NDWI
-      │
-      ▼
-Time-Series Median Composite
-      │
-      ▼
-Zonal Statistics per Paddock
-      │
-      ▼
-Observations Table (Database)
+Provider Abstraction (Factory Pattern)
+        │
+        ├── Free Tier ──► Sentinel2Provider (10m, free)
+        │
+        └── Premium Tier ──► Sentinel2Provider + PlanetScopeProvider (merged 3m)
+                              │
+                              ▼
+                    STAC API Query (21-day window)
+                              │
+                              ▼
+                    Load Bands + Cloud Mask
+                              │
+                              ▼
+                    Compute NDVI/EVI/NDWI
+                              │
+                              ▼
+                    Time-Series Median Composite
+                              │
+                              ▼
+                    CRS Transform (EPSG:4326 → EPSG:32616)
+                              │
+                              ▼
+                    Zonal Statistics per Paddock
+                              │
+                              ▼
+                    Observations Table (Convex)
 ```
 
 ### What Gets Tested
 
-- Do composite values look reasonable compared to raw images?
-- Are zonal statistics stable across runs?
-- Is cloud masking excluding appropriate pixels?
+- Do composite values look reasonable compared to raw images? ✓
+- Are zonal statistics stable across runs? ✓
+- Is cloud masking excluding appropriate pixels? ✓
+- Does tier-based provider selection work? ✓
+- Can we add new providers without changing the pipeline? ✓
 
-### Stub Strategy
+### Tier-Based Access
 
-Until Phase 4, the frontend can display raw paddock observations without the intelligence layer. This proves the data path.
+| Tier | Provider | Resolution | Cost |
+|------|----------|------------|------|
+| Free | Sentinel-2 | 10m | Free |
+| Premium | Sentinel-2 + PlanetScope | 3m (merged) | Paid |
+
+Free farms automatically get all Sentinel-2 functionality. Premium farms (configured via `subscriptionTier` in `farmSettings`) automatically get merged Sentinel-2 + PlanetScope data at 3m resolution.
 
 ---
 

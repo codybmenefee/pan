@@ -4,13 +4,13 @@ Time-series compositing for satellite imagery.
 Creates cloud-free composite images from multiple observations over a time window.
 Uses median compositing for robustness to outliers.
 """
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, TypedDict
 
 import numpy as np
 import xarray as xr
 
 if TYPE_CHECKING:
-    from typing import TypedDict
+    pass
 
 
 class CompositeResult(TypedDict):

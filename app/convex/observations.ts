@@ -73,12 +73,11 @@ export const getObservationsByDate = query({
     date: v.string(),
   },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const allObs = await ctx.db
       .query('observations')
-      .withIndex('by_farm_date', (q) =>
-        q.eq('farmExternalId', args.farmId).eq('date', args.date)
-      )
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', args.farmId))
       .collect()
+    return allObs.filter(o => o.date === args.date)
   },
 })
 
@@ -95,10 +94,9 @@ export const refreshObservations = mutation({
     for (const obs of args.observations) {
       const existing = await ctx.db
         .query('observations')
-        .withIndex('by_paddock_date', (q) =>
-          q.eq('paddockExternalId', obs.paddockExternalId).eq('date', obs.date)
-        )
-        .first()
+        .withIndex('by_paddock_date', (q) => q.eq('paddockExternalId', obs.paddockExternalId))
+        .collect()
+        .then(obsList => obsList.find(o => o.date === obs.date))
 
       if (existing) {
         await ctx.db.patch(existing._id, {

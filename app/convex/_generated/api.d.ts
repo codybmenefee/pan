@@ -9,6 +9,9 @@
  */
 
 import type * as farms from "../farms.js";
+import type * as intelligence from "../intelligence.js";
+import type * as intelligenceActions from "../intelligenceActions.js";
+import type * as observations from "../observations.js";
 import type * as paddocks from "../paddocks.js";
 import type * as seedData from "../seedData.js";
 import type * as settings from "../settings.js";
@@ -22,6 +25,9 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   farms: typeof farms;
+  intelligence: typeof intelligence;
+  intelligenceActions: typeof intelligenceActions;
+  observations: typeof observations;
   paddocks: typeof paddocks;
   seedData: typeof seedData;
   settings: typeof settings;

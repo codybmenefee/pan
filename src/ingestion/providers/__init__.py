@@ -108,7 +108,8 @@ class SatelliteProvider(Protocol):
     def cloud_mask(
         self,
         data: 'xr.DataArray',
-        items: list
+        items: list,
+        bbox: list[float] | None = None
     ) -> tuple['xr.DataArray', float]:
         """
         Apply cloud masking to the data.
@@ -116,6 +117,7 @@ class SatelliteProvider(Protocol):
         Args:
             data: xarray DataArray with band data
             items: STAC items used to load the data
+            bbox: Optional bounding box [west, south, east, north]
 
         Returns:
             Tuple of (masked_data, cloud_free_percentage)
@@ -253,10 +255,12 @@ class ProviderFactory:
         providers: list[SatelliteProvider] = []
 
         # Free tier: Sentinel-2 only
+        from .sentinel2 import Sentinel2Provider
         providers.append(Sentinel2Provider())
 
         # Premium tier: Add PlanetScope if API key available
         if tier == "premium" and planet_api_key:
+            from .planet_scope import PlanetScopeProvider
             providers.append(PlanetScopeProvider(api_key=planet_api_key))
         elif tier == "premium" and not planet_api_key:
             # Premium tier but no API key - log warning but continue with Sentinel-2 only

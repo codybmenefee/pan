@@ -109,9 +109,26 @@ def compute_zonal_stats(
     """
     import rioxarray  # Enables .rio accessor
 
-    # Ensure data has proper CRS
-    if not hasattr(data.rio, "crs"):
-        data = data.rio.write_crs("6")
+    # Get raster CRS - odc-stac loads data in EPSG:4326 by default
+    raster_crs = None
+    if hasattr(data, 'rio') and hasattr(data.rio, 'crs'):
+        raster_crs = data.rio.crs
+        print(f"DEBUG: Found raster CRS from rio: {raster_crs}")
+    else:
+        # Set default CRS for data from odc-stac
+        raster_crs = "EPSG:4326"
+        data = data.rio.write_crs(raster_crs)
+        print(f"DEBUG: Set raster CRS to: {raster_crs}")
+
+    print(f"DEBUG: Data shape: {data.shape}")
+    print(f"DEBUG: Data dims: {data.dims}")
+
+    # Check data bounds
+    if 'x' in data.coords and 'y' in data.coords:
+        x_coords = data.coords['x'].values
+        y_coords = data.coords['y'].values
+        print(f"DEBUG: X range: {x_coords.min():.4f} to {x_coords.max():.4f}")
+        print(f"DEBUG: Y range: {y_coords.min():.4f} to {y_coords.max():.4f}")
 
     # Create GeoDataFrame from paddocks
     geometries = []
@@ -125,10 +142,17 @@ def compute_zonal_stats(
         elif hasattr(geom, "geom_type"):
             geometry = geom
         else:
-            raise ValueError(f"Invalid geometry for paddock {paddock.get('id')}")
+            print(f"WARNING: Invalid geometry for paddock {paddock.get('externalId') or paddock.get('id')}")
+            continue
 
         geometries.append(geometry)
-        paddock_ids.append(paddock.get("id"))
+        # Use externalId if available, fallback to id
+        paddock_id = paddock.get("externalId") or paddock.get("id") or f"paddock_{len(paddock_ids)}"
+        paddock_ids.append(str(paddock_id))
+
+    if not geometries:
+        print("DEBUG: No valid geometries found")
+        return [create_invalid_result(p.get("id", "unknown")) for p in paddocks]
 
     gdf = gpd.GeoDataFrame(
         {"paddock_id": paddock_ids},
@@ -136,22 +160,64 @@ def compute_zonal_stats(
         crs="EPSG:4326"
     )
 
+    print(f"DEBUG: Paddock GeoDataFrame CRS: {gdf.crs}")
+
+    # Check paddock bounds
+    for idx, row in gdf.iterrows():
+        geom = row["geometry"]
+        print(f"DEBUG: Row {idx}: geometry type = {type(geom)}")
+        if hasattr(geom, 'bounds'):
+            bounds = geom.bounds
+            print(f"DEBUG: Paddock {row['paddock_id']} bounds: {bounds}")
+        else:
+            print(f"DEBUG: Geometry has no bounds attribute")
+
+    # If raster and polygons are in different CRS, transform polygons to raster CRS
+    if gdf.crs != raster_crs:
+        print(f"DEBUG: Transforming polygons from {gdf.crs} to {raster_crs}")
+        gdf = gdf.to_crs(raster_crs)
+        # Re-check bounds after transformation
+        for idx, row in gdf.iterrows():
+            bounds = row.geometry.bounds
+            print(f"DEBUG: Transformed paddock {row['paddock_id']} bounds: {bounds}")
+
     # Clip data to each paddock and compute statistics
     results = []
 
     for idx, row in gdf.iterrows():
-        paddock_id = row["paddock_id"]
+        paddock_id = str(row["paddock_id"])
         polygon = row["geometry"]
 
         try:
-            # Clip raster to polygon
-            clipped = data.rio.clip([polygon], from_disk=True)
+            # Get polygon bounds for quick check
+            poly_bounds = polygon.bounds
+            data_x = data.coords['x'].values
+            data_y = data.coords['y'].values
+
+            # Quick bounds check - does polygon overlap with data?
+            if (poly_bounds[2] < data_x.min() or poly_bounds[0] > data_x.max() or
+                poly_bounds[3] < data_y.min() or poly_bounds[1] > data_y.max()):
+                print(f"DEBUG: Paddock {paddock_id} does not overlap with raster bounds, skipping")
+                results.append(create_invalid_result(paddock_id))
+                continue
+
+            # Clip raster to polygon - use all_touched to include boundary pixels
+            clipped = data.rio.clip([polygon], all_touched=True)
+
+            print(f"DEBUG: Clipped data shape for {paddock_id}: {clipped.shape}")
+
+            # Check if we got valid data
+            if clipped.isnull().all():
+                print(f"DEBUG: All NaN values for {paddock_id}, skipping")
+                results.append(create_invalid_result(paddock_id))
+                continue
 
             # Get pixel values as numpy array
             # Handle both banded and single-band data
             if "band" in clipped.dims:
                 # Multi-band data - extract each band
                 band_names = list(clipped.coords.get("band", range(clipped.sizes["band"])))
+                print(f"DEBUG: Band names: {band_names}")
 
                 # For NDVI, we need nir and red bands
                 ndvi_data = compute_ndvi_from_bands(clipped, band_names)
@@ -168,6 +234,7 @@ def compute_zonal_stats(
 
             if len(valid_ndvi) == 0:
                 # No valid pixels in this paddock
+                print(f"DEBUG: No valid NDVI pixels for {paddock_id}")
                 results.append(create_invalid_result(paddock_id))
                 continue
 
@@ -193,13 +260,14 @@ def compute_zonal_stats(
             # Pixel count
             pixel_count = len(valid_ndvi)
 
-            # Determine validity based on pixel count and data quality
-            # A paddock is valid if it has at least 10% of expected pixels
-            paddock_area = row.geometry.area * 111000 * 111000  # Approximate area in m²
-            expected_pixels = paddock_area / (resolution_meters ** 2)
-            min_pixels = max(10, expected_pixels * 0.1)
+            # Determine validity based on pixel count
+            # For a ~15ha paddock at 10m resolution, we expect ~1500 pixels
+            # Use a minimum threshold of 100 pixels (1 hectare equivalent)
+            min_pixels = 100
 
             is_valid = pixel_count >= min_pixels
+
+            print(f"DEBUG: {paddock_id}: ndvi_mean={ndvi_mean:.3f}, pixels={pixel_count}, valid={is_valid}")
 
             results.append(ZonalStatsResult(
                 paddock_id=paddock_id,
@@ -214,9 +282,9 @@ def compute_zonal_stats(
             ))
 
         except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Error computing stats for paddock {paddock_id}: {e}")
+            import traceback
+            print(f"DEBUG: Error computing stats for paddock {paddock_id}: {e}")
+            traceback.print_exc()
             results.append(create_invalid_result(paddock_id))
 
     return results

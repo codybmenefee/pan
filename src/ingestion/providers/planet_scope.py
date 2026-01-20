@@ -345,7 +345,8 @@ class PlanetScopeProvider(BaseSatelliteProvider):
     def cloud_mask(
         self,
         data: 'xr.DataArray',
-        items: list
+        items: list,
+        bbox: list[float] | None = None
     ) -> tuple['xr.DataArray', float]:
         """
         Apply cloud mask using PlanetScope Quality Assessment (QA) band.
@@ -363,6 +364,7 @@ class PlanetScopeProvider(BaseSatelliteProvider):
         Args:
             data: xarray DataArray with band data
             items: Item metadata from query()
+            bbox: Optional bounding box (not used but kept for interface compatibility)
 
         Returns:
             Tuple of (masked_data, cloud_free_percentage)

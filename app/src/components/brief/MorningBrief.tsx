@@ -7,164 +7,159 @@ import { ApprovedState } from './ApprovedState'
 import { FeedbackModal } from './FeedbackModal'
 import { BriefSkeleton } from '@/components/ui/loading'
 import { LowConfidenceWarning } from '@/components/ui/error'
-import { todaysPlan, getFormattedDate } from '@/data/mock/plan'
+import { getFormattedDate } from '@/data/mock/plan'
 import type { PlanStatus } from '@/lib/types'
 import { useGeometry } from '@/lib/geometry'
+import { useTodayPlan } from '@/lib/convex/usePlan'
 
-// Simulated loading state for demo
-const SIMULATE_LOADING = true
-const LOADING_DURATION = 1500
-
-// Low confidence threshold for showing warning
 const LOW_CONFIDENCE_THRESHOLD = 70
 
-export function MorningBrief() {
+export function MorningBrief({ farmExternalId }: { farmExternalId: string }) {
   const { getPaddockById } = useGeometry()
-  const [isLoading, setIsLoading] = useState(SIMULATE_LOADING)
-  const [planStatus, setPlanStatus] = useState<PlanStatus>(todaysPlan.status)
+  const { plan, isLoading, isError, generatePlan, approvePlan, submitFeedback } = useTodayPlan(farmExternalId)
+
+  const [planStatus, setPlanStatus] = useState<PlanStatus>('pending')
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [approvedAt, setApprovedAt] = useState<string | null>(null)
   const [showLowConfidenceWarning, setShowLowConfidenceWarning] = useState(false)
 
-  const recommendedPaddock = getPaddockById(todaysPlan.recommendedPaddockId)
-
-  // Simulate loading on mount
   useEffect(() => {
-    if (SIMULATE_LOADING) {
-      const timer = setTimeout(() => {
-        setIsLoading(false)
-        // Show low confidence warning if applicable
-        if (todaysPlan.confidence < LOW_CONFIDENCE_THRESHOLD) {
-          setShowLowConfidenceWarning(true)
-        }
-      }, LOADING_DURATION)
-      return () => clearTimeout(timer)
+    if (plan) {
+      setPlanStatus(plan.status)
+      if (plan.confidenceScore && plan.confidenceScore < LOW_CONFIDENCE_THRESHOLD) {
+        setShowLowConfidenceWarning(true)
+      }
     }
-  }, [])
+  }, [plan])
 
-  const handleApprove = () => {
-    setPlanStatus('approved')
-    setApprovedAt(new Date().toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit',
-      hour12: true 
-    }))
+  const handleGeneratePlan = async () => {
+    await generatePlan()
+  }
+
+  const handleApprove = async () => {
+    if (plan) {
+      setPlanStatus('approved')
+      setApprovedAt(new Date().toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      }))
+      await approvePlan(plan._id, 'current-user')
+    }
   }
 
   const handleModify = () => {
     setFeedbackOpen(true)
   }
 
-  const handleFeedbackSubmit = () => {
-    setPlanStatus('modified')
-    setFeedbackOpen(false)
-    setApprovedAt(new Date().toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit',
-      hour12: true 
-    }))
+  const handleFeedbackSubmit = async (feedback: string) => {
+    if (plan) {
+      setPlanStatus('modified')
+      setFeedbackOpen(false)
+      setApprovedAt(new Date().toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      }))
+      await submitFeedback(plan._id, feedback)
+    }
   }
 
   const handleProceedWithLowConfidence = () => {
     setShowLowConfidenceWarning(false)
   }
 
-  // Show loading skeleton
   if (isLoading) {
     return <BriefSkeleton />
   }
 
-  // Show approved state
+  if (isError || !plan) {
+    return (
+      <div className="p-4 xl:p-6 2xl:p-8">
+        <div className="mb-4 xl:mb-6">
+          <h1 className="text-lg xl:text-xl font-semibold">Morning Brief</h1>
+          <p className="text-xs xl:text-sm text-muted-foreground">{getFormattedDate()}</p>
+        </div>
+        <div className="rounded-md border border-border bg-card p-4 text-center">
+          <p className="text-sm text-muted-foreground mb-4">No plan available for today</p>
+          <button
+            onClick={handleGeneratePlan}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm"
+          >
+            Generate Plan
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const recommendedPaddock = getPaddockById(plan.primaryPaddockExternalId || '')
+
   if (planStatus === 'approved' || planStatus === 'modified') {
     return (
-      <ApprovedState 
+      <ApprovedState
         paddock={recommendedPaddock!}
-        currentPaddockId={todaysPlan.currentPaddockId}
+        currentPaddockId={plan.primaryPaddockExternalId || ''}
         approvedAt={approvedAt!}
-        confidence={todaysPlan.confidence}
+        confidence={plan.confidenceScore || 0}
         wasModified={planStatus === 'modified'}
-        section={todaysPlan.recommendedSection}
-        daysInCurrentPaddock={todaysPlan.daysInCurrentPaddock}
-        totalDaysPlanned={todaysPlan.totalDaysPlanned}
-        isPaddockTransition={todaysPlan.isPaddockTransition}
-        previousSections={todaysPlan.previousSections}
+        section={plan.sectionGeometry}
+        daysInCurrentPaddock={2}
+        totalDaysPlanned={4}
+        isPaddockTransition={false}
+        previousSections={[]}
       />
     )
   }
 
+  const briefNarrative = plan.reasoning?.length > 0
+    ? `Based on satellite analysis, we recommend ${plan.primaryPaddockExternalId || 'the current paddock'} today. ${plan.reasoning[0]}`
+    : 'Analyzing pasture conditions for today\'s grazing recommendation.'
+
   return (
     <div className="p-4 xl:p-6 2xl:p-8">
-      {/* Header */}
       <div className="mb-4 xl:mb-6">
         <h1 className="text-lg xl:text-xl font-semibold">Morning Brief</h1>
         <p className="text-xs xl:text-sm text-muted-foreground">{getFormattedDate()}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:gap-6 lg:grid-cols-3">
-        {/* Main content - 2 columns */}
         <div className="lg:col-span-2 space-y-4 xl:space-y-6">
-          {/* Low confidence warning */}
           {showLowConfidenceWarning && (
             <LowConfidenceWarning
               cloudCover={65}
               cloudCoverThreshold={50}
               lastClearImage="5 days ago"
-              confidence={todaysPlan.confidence}
+              confidence={plan.confidenceScore || 0}
               onProceed={handleProceedWithLowConfidence}
               onWait={() => setShowLowConfidenceWarning(false)}
             />
           )}
 
-          {/* Narrative */}
           <div className="rounded-md border border-border bg-card p-3 xl:p-4">
             <p className="text-sm xl:text-base leading-relaxed">
-              {todaysPlan.briefNarrative}
+              {briefNarrative}
             </p>
           </div>
 
-          {/* Recommendation */}
           {recommendedPaddock && (
             <BriefCard
-              currentPaddockId={todaysPlan.currentPaddockId}
+              currentPaddockId={plan.primaryPaddockExternalId || ''}
               paddock={recommendedPaddock}
-              confidence={todaysPlan.confidence}
-              reasoning={todaysPlan.reasoning}
+              confidence={plan.confidenceScore || 0}
+              reasoning={plan.reasoning || []}
               onApprove={handleApprove}
               onModify={handleModify}
-              section={todaysPlan.recommendedSection}
-              daysInCurrentPaddock={todaysPlan.daysInCurrentPaddock}
-              totalDaysPlanned={todaysPlan.totalDaysPlanned}
-              isPaddockTransition={todaysPlan.isPaddockTransition}
-              previousSections={todaysPlan.previousSections}
-              sectionAlternatives={todaysPlan.sectionAlternatives}
+              section={plan.sectionGeometry}
+              daysInCurrentPaddock={2}
+              totalDaysPlanned={4}
+              isPaddockTransition={false}
+              previousSections={[]}
+              sectionAlternatives={[]}
             />
-          )}
-
-          {/* Paddock Alternatives - only shown for paddock transitions */}
-          {todaysPlan.isPaddockTransition && todaysPlan.paddockAlternatives.length > 0 && (
-            <div>
-              <h2 className="mb-2 xl:mb-3 text-xs xl:text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                Alternative Paddocks
-              </h2>
-              <div className="grid grid-cols-1 gap-2 xl:gap-3 sm:grid-cols-3">
-                {todaysPlan.paddockAlternatives.map((alt) => {
-                  const paddock = getPaddockById(alt.paddockId)
-                  if (!paddock) return null
-                  return (
-                    <AlternativeCard
-                      key={alt.paddockId}
-                      paddock={paddock}
-                      confidence={alt.confidence}
-                      currentPaddockId={todaysPlan.currentPaddockId}
-                    />
-                  )
-                })}
-              </div>
-            </div>
           )}
         </div>
 
-        {/* Sidebar - 1 column */}
         <div className="space-y-4 xl:space-y-6">
           <FarmOverview />
           <DataStatusCard />
@@ -174,7 +169,7 @@ export function MorningBrief() {
       <FeedbackModal
         open={feedbackOpen}
         onOpenChange={setFeedbackOpen}
-        alternatives={todaysPlan.paddockAlternatives}
+        alternatives={[]}
         onSubmit={handleFeedbackSubmit}
       />
     </div>

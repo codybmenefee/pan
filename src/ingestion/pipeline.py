@@ -15,7 +15,7 @@ import logging
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TypedDict, Optional, Callable, Any
+from typing import TypedDict, Optional, Callable, Any, Union
 
 from config import (
     PipelineConfig,
@@ -94,8 +94,8 @@ def get_date_range(window_days: int) -> tuple[str, str]:
 
 def run_pipeline_for_farm(
     farm_config: FarmConfig,
-    pipeline_config: PipelineConfig | None = None,
-    convex_writer: callable | None = None
+    pipeline_config: Optional[PipelineConfig] = None,
+    convex_writer: Optional[Callable[[list[ObservationRecord]], int]] = None
 ) -> PipelineResult:
     """
     Run the complete processing pipeline for a single farm.
@@ -173,11 +173,13 @@ def run_pipeline_for_farm(
 
             # Apply cloud masking
             logger.info("  Applying cloud mask...")
-            masked_data, cloud_free_pct = provider.cloud_mask(data, items)
+            masked_data, cloud_free_pct = provider.cloud_mask(data, items, bbox)
             logger.info(f"  Cloud-free pixels: {cloud_free_pct:.1%}")
 
             all_provider_data.append(masked_data)
-            all_provider_masks.append(~masked_data.isnull().any(dim="band", keepdims=True).squeeze())
+            # Create mask where True = valid pixel
+            valid_mask = ~masked_data.isnull()
+            all_provider_masks.append(valid_mask)
             all_provider_cloud_pcts.append(cloud_free_pct)
 
         except Exception as e:
@@ -305,7 +307,7 @@ def run_pipeline_for_farm(
 def run_pipeline_for_dev_farm(
     sample_farm_geometry: dict,
     sample_paddocks: list[dict],
-    convex_writer: callable | None = None
+    convex_writer: Optional[Callable[[list[ObservationRecord]], int]] = None
 ) -> PipelineResult:
     """
     Run the pipeline using hardcoded sample data for development.
@@ -396,8 +398,7 @@ def main():
             convex_writer = write_to_convex
 
         # Use default sample farm
-        sys.path.insert(0, str(Path(__file__).parent.parent / "app"))
-        from app.convex.seedData import sampleFarm, samplePaddocks
+        from sample_data import sampleFarm, samplePaddocks
 
         result = run_pipeline_for_dev_farm(
             sample_farm_geometry=sampleFarm["geometry"],
@@ -413,8 +414,7 @@ def main():
         # For now, use sample data
         logger.warning("Convex fetch not yet implemented, using sample data")
 
-        sys.path.insert(0, str(Path(__file__).parent.parent / "app"))
-        from app.convex.seedData import sampleFarm, samplePaddocks
+        from sample_data import sampleFarm, samplePaddocks
         farm_config = FarmConfig(
             farm_id=args.farm_id,
             external_id=args.farm_id,

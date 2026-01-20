@@ -1,0 +1,84 @@
+## FARM CONTEXT
+
+**Farm**: {{farm_name}}
+**Date**: {{date}}
+
+## ACTIVE PADDLOCK STATUS
+
+| Field | Value |
+|-------|-------|
+| ID | {{active_paddock_id}} |
+| Name | {{active_paddock_name}} |
+| Area | {{active_paddock_area}} ha |
+| NDVI Mean | {{active_ndvi_mean}} |
+| NDVI Std | {{active_ndvi_std}} |
+| NDVI Trend | {{active_ndvi_trend}} |
+| Rest Days | {{active_rest_days}} |
+| Days in Rotation | {{active_days_grazed}} / {{active_total_planned}} |
+| Rotation Progress | {{active_progress_pct}}% |
+
+## ALTERNATIVE PADDLOCKS
+
+| ID | Name | Area | NDVI | Rest Days | Readiness Score |
+|----|------|------|------|-----------|-----------------|
+{{alternatives_table}}
+
+## DETERMINISTIC SCORES (for reference)
+
+| Paddock | Score | NDVI Check | Rest Check | Slope Check |
+|---------|-------|------------|------------|-------------|
+{{deterministic_scores_table}}
+
+## PREVIOUS SECTIONS (in active paddock)
+
+{{previous_sections}}
+
+## FARM SETTINGS
+
+- Minimum NDVI threshold: {{min_ndvi_threshold}}
+- Minimum rest period: {{min_rest_period}} days
+- Default section percent: {{default_section_pct}}%
+
+## YOUR TASK
+
+Determine today's grazing recommendation:
+
+1. **If active paddock rotation progress < 60%**:
+   - Recommend staying in active paddock
+   - Use tools to explore NDVI patterns
+   - Identify best section based on vegetation distribution
+
+2. **If active paddock rotation progress >= 60%**:
+   - Recommend transition to best alternative
+   - Identify starting section in new paddock
+
+3. **For the section polygon**:
+   - Output 10-20 sparse vertices as [lon, lat] pairs
+   - Follow natural NDVI contours
+   - Stay within paddock boundaries
+   - Target approximately {{default_section_pct}}% of the paddock
+
+## OUTPUT
+
+Provide your recommendation as a JSON object:
+
+```json
+{
+  "action": "stay" | "transition",
+  "targetPaddockId": "p4",
+  "targetPaddockName": "East Ridge",
+  "confidence": 0.85,
+  "vertices": [
+    [174.505, -36.801],
+    [174.510, -36.805],
+    ...
+  ],
+  "reasoning": [
+    "High NDVI zone in northeast corner (0.62-0.67)",
+    "Avoids previously grazed sections to south",
+    "Follows natural contour where vegetation declines"
+  ]
+}
+```
+
+Begin by exploring the NDVI distribution using available tools.

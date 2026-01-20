@@ -67,7 +67,7 @@ export default defineSchema({
     apiKey: v.optional(v.string()),
     createdAt: v.string(),
     updatedAt: v.string(),
-  }).index('by_farm', ['farmExternalId']),
+  })    .index('by_farm', ['farmExternalId']),
   observations: defineTable({
     farmExternalId: v.string(),
     paddockExternalId: v.string(),
@@ -86,6 +86,42 @@ export default defineSchema({
     createdAt: v.string(),
   })
     .index('by_paddock_date', ['paddockExternalId', 'date'])
+    .index('by_farm_date', ['farmExternalId', 'date'])
+    .index('by_farm', ['farmExternalId']),
+  grazingEvents: defineTable({
+    farmExternalId: v.string(),
+    paddockExternalId: v.string(),
+    date: v.string(),
+    durationDays: v.optional(v.number()),
+    notes: v.optional(v.string()),
+    createdAt: v.string(),
+  })
+    .index('by_paddock', ['paddockExternalId'])
+    .index('by_farm', ['farmExternalId']),
+  plans: defineTable({
+    farmExternalId: v.string(),
+    date: v.string(),
+    primaryPaddockExternalId: v.optional(v.string()),
+    alternativePaddockExternalIds: v.optional(v.array(v.string())),
+    confidenceScore: v.number(),
+    reasoning: v.array(v.string()),
+    status: v.union(
+      v.literal('pending'),
+      v.literal('approved'),
+      v.literal('rejected'),
+      v.literal('executed'),
+      v.literal('modified')
+    ),
+    approvedAt: v.optional(v.string()),
+    approvedBy: v.optional(v.string()),
+    feedback: v.optional(v.string()),
+    sectionGeometry: v.optional(polygonFeature),
+    sectionAreaHectares: v.optional(v.number()),
+    sectionCentroid: v.optional(v.array(v.number())),
+    sectionAvgNdvi: v.optional(v.number()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
     .index('by_farm_date', ['farmExternalId', 'date'])
     .index('by_farm', ['farmExternalId']),
 })
