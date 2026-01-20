@@ -55,6 +55,8 @@ export default defineSchema({
   }).index('by_externalId', ['externalId']),
   farmSettings: defineTable({
     farmExternalId: v.string(),
+    subscriptionTier: v.optional(v.union(v.literal('free'), v.literal('premium'))),
+    planetScopeApiKey: v.optional(v.string()),
     minNDVIThreshold: v.number(),
     minRestPeriod: v.number(),
     cloudCoverTolerance: v.number(),
@@ -66,4 +68,24 @@ export default defineSchema({
     createdAt: v.string(),
     updatedAt: v.string(),
   }).index('by_farm', ['farmExternalId']),
+  observations: defineTable({
+    farmExternalId: v.string(),
+    paddockExternalId: v.string(),
+    date: v.string(),
+    ndviMean: v.number(),
+    ndviMin: v.number(),
+    ndviMax: v.number(),
+    ndviStd: v.number(),
+    eviMean: v.number(),
+    ndwiMean: v.number(),
+    cloudFreePct: v.number(),
+    pixelCount: v.number(),
+    isValid: v.boolean(),
+    sourceProvider: v.string(),
+    resolutionMeters: v.number(),
+    createdAt: v.string(),
+  })
+    .index('by_paddock_date', ['paddockExternalId', 'date'])
+    .index('by_farm_date', ['farmExternalId', 'date'])
+    .index('by_farm', ['farmExternalId']),
 })

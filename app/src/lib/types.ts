@@ -78,8 +78,17 @@ export interface Observation {
   id: string
   paddockId: string
   date: string
-  ndvi: number
-  cloudCoverage: number
+  ndviMean: number
+  ndviMin: number
+  ndviMax: number
+  ndviStd: number
+  eviMean: number
+  ndwiMean: number
+  cloudFreePct: number
+  pixelCount: number
+  isValid: boolean
+  sourceProvider: string
+  resolutionMeters: number
 }
 
 export interface DataStatus {
