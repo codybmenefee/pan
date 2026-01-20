@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react'
 import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
 
@@ -14,7 +15,7 @@ interface ThresholdSliderProps {
   className?: string
 }
 
-export function ThresholdSlider({
+export const ThresholdSlider = memo(function ThresholdSlider({
   label,
   description,
   value,
@@ -27,6 +28,7 @@ export function ThresholdSlider({
   className,
 }: ThresholdSliderProps) {
   const displayValue = formatValue ? formatValue(value) : value.toString()
+  const sliderValue = useMemo(() => [value], [value])
 
   return (
     <div className={cn('space-y-3', className)}>
@@ -42,7 +44,7 @@ export function ThresholdSlider({
         </span>
       </div>
       <Slider
-        value={[value]}
+        value={sliderValue}
         min={min}
         max={max}
         step={step}
@@ -55,4 +57,4 @@ export function ThresholdSlider({
       </div>
     </div>
   )
-}
+})

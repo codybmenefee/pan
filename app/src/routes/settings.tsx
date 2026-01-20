@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { SettingsForm } from '@/components/settings'
 import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
-import { defaultSettings } from '@/data/mock/settings'
 import { useFarmSettings } from '@/lib/convex/useFarmSettings'
 import type { FarmSettings } from '@/lib/types'
 
@@ -12,39 +11,34 @@ export const Route = createFileRoute('/settings')({
 })
 
 function SettingsPage() {
-  const { settings: storedSettings, isLoading, saveSettings, resetSettings } = useFarmSettings()
-  const [settings, setSettings] = useState<FarmSettings>(defaultSettings)
-  const [hasChanges, setHasChanges] = useState(false)
+  const { settings, isLoading, saveSettings, resetSettings } = useFarmSettings()
+  const [pendingSettings, setPendingSettings] = useState<FarmSettings | null>(null)
   const [saved, setSaved] = useState(false)
 
-  useEffect(() => {
-    if (isLoading) return
-    setSettings(storedSettings)
-    setHasChanges(false)
-  }, [isLoading, storedSettings])
+  const displaySettings = pendingSettings ?? settings
+  const hasChanges = pendingSettings !== null
 
   const handleChange = (newSettings: FarmSettings) => {
-    setSettings(newSettings)
-    setHasChanges(true)
+    setPendingSettings(newSettings)
     setSaved(false)
   }
 
   const handleSave = async () => {
-    await saveSettings(settings)
-    setHasChanges(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    if (pendingSettings) {
+      await saveSettings(pendingSettings)
+      setPendingSettings(null)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    }
   }
 
   const handleReset = async () => {
     await resetSettings()
-    setSettings(defaultSettings)
-    setHasChanges(false)
+    setPendingSettings(null)
   }
 
   const handleCancel = () => {
-    setSettings(storedSettings)
-    setHasChanges(false)
+    setPendingSettings(null)
   }
 
   if (isLoading) {
@@ -65,7 +59,7 @@ function SettingsPage() {
         </p>
       </div>
 
-      <SettingsForm settings={settings} onChange={handleChange} />
+      <SettingsForm settings={displaySettings} onChange={handleChange} />
 
       {/* Actions */}
       <div className="flex items-center justify-between pt-4 border-t">
