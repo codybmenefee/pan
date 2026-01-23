@@ -1,5 +1,6 @@
 import { mutationGeneric as mutation, queryGeneric as query } from 'convex/server'
 import { v } from 'convex/values'
+import { api } from './_generated/api'
 
 const observationShape = {
   farmExternalId: v.string(),
@@ -135,8 +136,8 @@ export const createBatch = mutation({
   args: {
     observations: v.array(v.object(observationShape)),
   },
-  handler: async (ctx, args) => {
-    const result = await ctx.runMutation('observations:refreshObservations', {
+  handler: async (ctx, args): Promise<{ count: number }> => {
+    const result: { inserted: number; updated: number; skipped: number } = await ctx.runMutation(api.observations.refreshObservations, {
       observations: args.observations,
     })
     return { count: result.inserted + result.updated }

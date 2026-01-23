@@ -97,7 +97,19 @@ export const agentGateway = action({
     userId: v.string(),
     additionalContext: v.optional(v.any()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx: ActionCtx, args): Promise<{
+    success: boolean
+    trigger: 'morning_brief' | 'observation_refresh' | 'plan_execution'
+    context: {
+      farm: any
+      settings: any
+      paddocks: any[]
+      observations: any[]
+      farmerObservations: any[]
+      plans: any[]
+    }
+    message: string
+  }> => {
     // Fetch farm context
     const context = await ctx.runQuery(api.grazingAgentGateway.getFarmContext, {
       farmId: args.farmId,

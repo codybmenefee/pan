@@ -8,8 +8,10 @@
  * @module
  */
 
+import type * as farmerObservations from "../farmerObservations.js";
 import type * as farms from "../farms.js";
 import type * as grazingAgentDirect from "../grazingAgentDirect.js";
+import type * as grazingAgentGateway from "../grazingAgentGateway.js";
 import type * as grazingAgentTools from "../grazingAgentTools.js";
 import type * as intelligence from "../intelligence.js";
 import type * as intelligenceActions from "../intelligenceActions.js";
@@ -18,6 +20,7 @@ import type * as paddocks from "../paddocks.js";
 import type * as seedData from "../seedData.js";
 import type * as settings from "../settings.js";
 import type * as users from "../users.js";
+import type * as zones from "../zones.js";
 
 import type {
   ApiFromModules,
@@ -26,8 +29,10 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  farmerObservations: typeof farmerObservations;
   farms: typeof farms;
   grazingAgentDirect: typeof grazingAgentDirect;
+  grazingAgentGateway: typeof grazingAgentGateway;
   grazingAgentTools: typeof grazingAgentTools;
   intelligence: typeof intelligence;
   intelligenceActions: typeof intelligenceActions;
@@ -36,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   seedData: typeof seedData;
   settings: typeof settings;
   users: typeof users;
+  zones: typeof zones;
 }>;
 
 /**

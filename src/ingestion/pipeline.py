@@ -35,6 +35,7 @@ from composite import (
 )
 from zonal_stats import compute_zonal_stats
 from writer import write_observations_to_convex
+from observation_types import ObservationRecord
 
 
 logging.basicConfig(
@@ -42,25 +43,6 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
-
-
-class ObservationRecord(TypedDict):
-    """Observation record for Convex storage."""
-    farmExternalId: str
-    paddockExternalId: str
-    date: str
-    ndviMean: float
-    ndviMin: float
-    ndviMax: float
-    ndviStd: float
-    eviMean: float
-    ndwiMean: float
-    cloudFreePct: float
-    pixelCount: int
-    isValid: bool
-    sourceProvider: str
-    resolutionMeters: int
-    createdAt: str
 
 
 class PipelineResult(TypedDict):
@@ -284,10 +266,16 @@ def run_pipeline_for_farm(
 
     valid_count = sum(1 for o in observations if o["isValid"])
     logger.info(f"  Valid observations: {valid_count}/{len(observations)}")
+    
+    # Debug: Log each observation being created
+    logger.info(f"  DEBUG: Created {len(observations)} observation records:")
+    for idx, obs in enumerate(observations):
+        logger.info(f"    [{idx}] farm={obs['farmExternalId']}, paddock={obs['paddockExternalId']}, date={obs['date']}, ndvi={obs['ndviMean']:.3f}")
 
     # Step 8: Write to Convex if configured
     if pipeline_config.write_to_convex:
         logger.info("Writing observations to Convex...")
+        logger.info(f"  DEBUG: About to write {len(observations)} observations to Convex")
         try:
             if convex_writer:
                 # Use provided writer function
@@ -298,7 +286,7 @@ def run_pipeline_for_farm(
                 result = write_observations_to_convex(observations)
                 logger.info(f"  Wrote {result} observations")
         except Exception as e:
-            logger.error(f"  Error writing to Convex: {e}")
+            logger.error(f"  Error writing to Convex: {e}", exc_info=True)
 
     return PipelineResult(
         farm_id=farm_config.external_id,
@@ -393,16 +381,11 @@ def main():
         # Use sample data
         logger.info("Running pipeline in DEV mode with sample data")
 
-        # Create mock convex writer if needed
+        # Use real Convex writer if requested
         convex_writer: Optional[Callable[[list[ObservationRecord]], int]] = None
         if args.write_convex:
-            def write_to_convex(observations):
-                # In dev mode, just save to JSON
-                output_file = output_dir / "observations.json"
-                with open(output_file, "w") as f:
-                    json.dump(observations, f, indent=2)
-                return len(observations)
-            convex_writer = write_to_convex
+            # Use the real Convex writer, not a mock
+            convex_writer = write_observations_to_convex
 
         # Use default sample farm
         from sample_data import sampleFarm, samplePaddocks
