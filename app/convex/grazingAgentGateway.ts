@@ -31,6 +31,23 @@ import type { ActionCtx } from './_generated/server'
 import { runGrazingAgent } from './grazingAgentDirect'
 
 /**
+ * Type definition for morning_brief trigger additional context
+ * This allows passing event-specific data to avoid duplicate queries
+ */
+type MorningBriefContext = {
+  planGenerationData: {
+    existingPlanId: any | null
+    observations: any[] | null
+    grazingEvents: any[] | null
+    settings: any | null
+    farm: any | null
+    mostRecentGrazingEvent: any | null
+    paddocks: any[] | null
+  }
+  farmName: string
+}
+
+/**
  * Get complete farm context for agent prompts.
  */
 export const getFarmContext = query({
@@ -125,7 +142,10 @@ export const agentGateway = action({
     farmId: v.id('farms'),
     farmExternalId: v.string(),
     userId: v.string(),
-    additionalContext: v.optional(v.any()),
+    additionalContext: v.optional(v.object({
+      planGenerationData: v.any(), // PlanGenerationData type
+      farmName: v.string(),
+    })),
   },
   handler: async (ctx: ActionCtx, args): Promise<{
     success: boolean
@@ -134,21 +154,49 @@ export const agentGateway = action({
     error?: string
     message: string
   }> => {
-    // Fetch farm context
-    const context = await ctx.runQuery(api.grazingAgentGateway.getFarmContext, {
-      farmId: args.farmId,
+    console.log('[agentGateway] START:', {
+      trigger: args.trigger,
+      farmId: args.farmId.toString(),
+      farmExternalId: args.farmExternalId,
+      userId: args.userId,
+      hasAdditionalContext: !!args.additionalContext,
+      contextKeys: args.additionalContext ? Object.keys(args.additionalContext) : [],
     })
 
     // For morning_brief trigger, generate a daily plan
     if (args.trigger === 'morning_brief') {
-      // Get plan generation data to determine active paddock
       const today = new Date().toISOString().split('T')[0]
-      const planData = await ctx.runQuery(api.intelligence.getPlanGenerationData as any, {
-        farmExternalId: args.farmExternalId,
-        date: today,
-      }) as any
+      
+      // Use provided context or fetch plan generation data
+      const hasProvidedContext = !!args.additionalContext?.planGenerationData
+      console.log('[agentGateway] Data source decision:', {
+        hasProvidedContext,
+        willFetch: !hasProvidedContext,
+        optimization: hasProvidedContext ? 'Using provided context (query saved)' : 'Fetching data (no context provided)',
+      })
+
+      const planData = hasProvidedContext
+        ? args.additionalContext!.planGenerationData
+        : await ctx.runQuery(api.intelligence.getPlanGenerationData as any, {
+            farmExternalId: args.farmExternalId,
+            date: today,
+          }) as any
+
+      console.log('[agentGateway] Plan data available:', {
+        source: hasProvidedContext ? 'provided context' : 'fetched',
+        hasExistingPlan: !!planData.existingPlanId,
+        existingPlanId: planData.existingPlanId?.toString(),
+        paddocksCount: planData.paddocks?.length || 0,
+        hasFarm: !!planData.farm,
+        hasSettings: !!planData.settings,
+        hasObservations: !!planData.observations,
+        hasGrazingEvents: !!planData.grazingEvents,
+      })
 
       if (planData.existingPlanId) {
+        console.log('[agentGateway] Plan already exists, returning early:', {
+          existingPlanId: planData.existingPlanId.toString(),
+        })
         return {
           success: true,
           trigger: args.trigger,
@@ -158,6 +206,7 @@ export const agentGateway = action({
       }
 
       if (!planData.paddocks || planData.paddocks.length === 0) {
+        console.log('[agentGateway] No paddocks found, returning error')
         return {
           success: false,
           trigger: args.trigger,
@@ -174,31 +223,48 @@ export const agentGateway = action({
         minRestPeriod: 21,
       }
 
-      console.log('[agentGateway] Calling runGrazingAgent with:', {
+      // Use farmName from context or fetch minimal data
+      const farmNameFromContext = args.additionalContext?.farmName
+      const farmName = farmNameFromContext || (planData.farm?.name || args.farmExternalId)
+
+      console.log('[agentGateway] Prepared agent inputs:', {
         farmExternalId: args.farmExternalId,
-        farmName: context.farm?.name || args.farmExternalId,
+        farmName,
+        farmNameSource: farmNameFromContext ? 'provided context' : (planData.farm?.name ? 'planData.farm' : 'fallback to externalId'),
         activePaddockId,
+        activePaddockSource: planData.mostRecentGrazingEvent?.paddockExternalId ? 'mostRecentGrazingEvent' : 'first paddock',
         settings,
         today,
+        usingProvidedContext: !!args.additionalContext?.planGenerationData,
+        optimizationSummary: {
+          planGenerationDataQuery: hasProvidedContext ? 'SKIPPED (using context)' : 'EXECUTED',
+          getFarmContextQuery: 'SKIPPED (using farmName from context)',
+        },
       })
+
+      console.log('[agentGateway] Delegating to runGrazingAgent...')
 
       // Call the grazing agent through the gateway
       const result = await runGrazingAgent(
         ctx,
         args.farmExternalId,
-        context.farm?.name || args.farmExternalId,
+        farmName,
         activePaddockId,
         settings
       )
 
-      console.log('[agentGateway] runGrazingAgent result:', {
+      console.log('[agentGateway] runGrazingAgent result received:', {
         success: result.success,
         planCreated: result.planCreated,
-        planId: result.planId,
+        planId: result.planId?.toString(),
+        hasPlanId: !!result.planId,
         error: result.error,
       })
 
       if (!result.success) {
+        console.error('[agentGateway] Agent execution failed:', {
+          error: result.error || 'Agent execution failed',
+        })
         return {
           success: false,
           trigger: args.trigger,
@@ -208,6 +274,11 @@ export const agentGateway = action({
       }
 
       if (!result.planCreated) {
+        console.warn('[agentGateway] Agent did not create a plan:', {
+          success: result.success,
+          planCreated: result.planCreated,
+          planId: result.planId?.toString(),
+        })
         return {
           success: false,
           trigger: args.trigger,
@@ -216,20 +287,31 @@ export const agentGateway = action({
         }
       }
 
-      // Fetch the created plan
-      const todayPlan = await ctx.runQuery(api.intelligence.getTodayPlan as any, { 
-        farmExternalId: args.farmExternalId 
-      }) as any
+      // Use planId from result instead of re-fetching (optimization: no getTodayPlan query)
+      const finalPlanId = result.planId?.toString()
+      console.log('[agentGateway] END - Success:', {
+        planId: finalPlanId,
+        optimization: 'Using planId from runGrazingAgent result (getTodayPlan query SKIPPED)',
+        queryOptimizations: {
+          getPlanGenerationData: hasProvidedContext ? 'SKIPPED (using context)' : 'EXECUTED',
+          getFarmContext: 'SKIPPED (using farmName from context)',
+          getTodayPlan: 'SKIPPED (using planId from result)',
+        },
+      })
 
       return {
         success: true,
         trigger: args.trigger,
-        planId: todayPlan?._id?.toString(),
+        planId: finalPlanId,
         message: 'Plan generated successfully',
       }
     }
 
     // For other triggers, return context (to be implemented)
+    console.log('[agentGateway] Other trigger (not morning_brief):', {
+      trigger: args.trigger,
+      note: 'Not yet fully implemented',
+    })
     return {
       success: true,
       trigger: args.trigger,

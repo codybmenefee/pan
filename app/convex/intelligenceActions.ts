@@ -22,7 +22,11 @@ export const generateDailyPlan = action({
     const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
     const today = new Date().toISOString().split('T')[0]
 
-    console.log('[generateDailyPlan] START:', { farmExternalId, today })
+    console.log('[generateDailyPlan] START:', { 
+      farmExternalId, 
+      today,
+      note: 'This function will fetch planGenerationData and pass it to gateway to avoid duplicate queries',
+    })
 
     const data = await ctx.runQuery(api.intelligence.getPlanGenerationData as any, {
       farmExternalId,
@@ -40,8 +44,16 @@ export const generateDailyPlan = action({
       return null
     }
 
-    console.log('[generateDailyPlan] Plan generation data:', {
+    console.log('[generateDailyPlan] Plan generation data fetched:', {
       paddocksCount: data.paddocks.length,
+      hasFarm: !!data.farm,
+      farmId: data.farm?._id?.toString(),
+      farmName: data.farm?.name,
+      hasSettings: !!data.settings,
+      hasObservations: !!data.observations,
+      observationsCount: data.observations?.length || 0,
+      hasGrazingEvents: !!data.grazingEvents,
+      grazingEventsCount: data.grazingEvents?.length || 0,
       mostRecentGrazingEvent: data.mostRecentGrazingEvent ? {
         paddockId: data.mostRecentGrazingEvent.paddockExternalId,
         date: data.mostRecentGrazingEvent.date,
@@ -49,32 +61,46 @@ export const generateDailyPlan = action({
       settings: data.settings,
     })
 
-    // Use agent gateway for plan generation (per architecture plan)
-    // Gateway handles context assembly and delegates to runGrazingAgent
-    const farm = await ctx.runQuery(api.intelligence.getFarmByExternalId as any, {
-      externalId: farmExternalId,
-    })
-
-    if (!farm) {
-      console.error('[generateDailyPlan] Farm not found:', farmExternalId)
+    // Check if farm exists in the data
+    if (!data.farm) {
+      console.error('[generateDailyPlan] Farm not found in planGenerationData:', farmExternalId)
       return null
     }
 
-    console.log('[generateDailyPlan] Calling agent gateway...')
-    // Call agent gateway instead of direct agent
+    console.log('[generateDailyPlan] Preparing context for gateway:', {
+      farmId: data.farm._id.toString(),
+      farmExternalId,
+      farmName: data.farm.name || farmExternalId,
+      contextDataKeys: {
+        hasPlanGenerationData: true,
+        hasFarm: !!data.farm,
+        hasPaddocks: !!data.paddocks,
+        hasSettings: !!data.settings,
+        hasObservations: !!data.observations,
+        hasGrazingEvents: !!data.grazingEvents,
+      },
+    })
+
+    console.log('[generateDailyPlan] Calling agent gateway with context (optimization: passing data to avoid duplicate queries)...')
+    // Call agent gateway with event-specific context to avoid duplicate queries
     // TODO: Get userId from auth context when available
     const gatewayResult = await ctx.runAction(api.grazingAgentGateway.agentGateway, {
       trigger: 'morning_brief',
-      farmId: farm._id,
+      farmId: data.farm._id,
       farmExternalId: farmExternalId,
       userId: 'system', // TODO: Get from auth context
+      additionalContext: {
+        planGenerationData: data,
+        farmName: data.farm.name || farmExternalId,
+      },
     })
 
-    console.log('[generateDailyPlan] Gateway result:', {
+    console.log('[generateDailyPlan] Gateway result received:', {
       success: gatewayResult.success,
       planId: gatewayResult.planId,
       error: gatewayResult.error,
       message: gatewayResult.message,
+      trigger: gatewayResult.trigger,
     })
 
     if (!gatewayResult.success) {
@@ -121,11 +147,22 @@ export const runDailyBriefGeneration = action({
 
         // Use agent gateway for plan generation (per architecture plan)
         // Gateway handles context assembly and delegates to runGrazingAgent internally
+        // Pass event-specific context to avoid duplicate queries
+        console.log(`[runDailyBriefGeneration] Calling gateway for farm ${farm.externalId} with context (optimization: passing data to avoid duplicate queries)`)
         const gatewayResult = await ctx.runAction(api.grazingAgentGateway.agentGateway, {
           trigger: 'morning_brief',
           farmId: farm._id,
           farmExternalId: farm.externalId,
           userId: 'system', // TODO: Get from auth context
+          additionalContext: {
+            planGenerationData: data,
+            farmName: data.farm?.name || farm.externalId,
+          },
+        })
+        console.log(`[runDailyBriefGeneration] Gateway result for farm ${farm.externalId}:`, {
+          success: gatewayResult.success,
+          planId: gatewayResult.planId,
+          error: gatewayResult.error,
         })
 
         if (!gatewayResult.success) {

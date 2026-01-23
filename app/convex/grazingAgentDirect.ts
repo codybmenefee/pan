@@ -404,10 +404,12 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan. Use farmExterna
           
           const planId = await ctx.runMutation(api.grazingAgentTools.createPlanWithSection, args as any)
           createdPlanId = planId
-          console.log('[runGrazingAgent] createPlanWithSection SUCCESS:', {
+          console.log('[runGrazingAgent] createPlanWithSection SUCCESS - PlanId created:', {
             planId: planId.toString(),
+            planIdType: typeof planId,
             hasSectionGeometry: !!args.sectionGeometry,
             targetPaddockId: args.targetPaddockId,
+            note: 'This planId will be returned in result object',
           })
           planCreated = true
         } else if (toolCall.toolName === "finalizePlan") {
@@ -433,11 +435,20 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan. Use farmExterna
     planCreated,
     planFinalized,
     planId: createdPlanId?.toString(),
+    hasPlanId: !!createdPlanId,
+    planIdIncludedInResult: true,
     finalTextPreview: finalText?.substring(0, 100),
+    returnValue: {
+      success: true,
+      planCreated: planCreated && planFinalized,
+      planId: createdPlanId?.toString(),
+      note: 'planId is included in result for gateway to use (optimization: avoids getTodayPlan query)',
+    },
   })
 
   return { 
     success: true, 
-    planCreated: planCreated && planFinalized 
+    planCreated: planCreated && planFinalized,
+    planId: createdPlanId,
   }
 }
