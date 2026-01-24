@@ -8,6 +8,7 @@ import { MorningBrief } from '@/components/brief/MorningBrief'
 import { PaddockEditDrawer } from '@/components/map/PaddockEditDrawer'
 import { SectionEditDrawer } from '@/components/map/SectionEditDrawer'
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
+import { FloatingPanel } from '@/components/ui/floating-panel'
 import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
 import { ErrorState } from '@/components/ui/error/ErrorState'
@@ -182,16 +183,24 @@ function GISRoute() {
         <SaveIndicator />
       </div>
 
-      {/* Daily Plan Drawer - left side */}
-      <Drawer open={briefOpen} onOpenChange={setBriefOpen} side="left" width={400} modal={false}>
-        <DrawerContent side="left" width={400} showCloseButton={false} showOverlay={false}>
-          <MorningBrief farmExternalId={farmId} compact onClose={() => setBriefOpen(false)} />
-        </DrawerContent>
-      </Drawer>
+      {/* Daily Plan Floating Panel */}
+      <FloatingPanel
+        open={briefOpen}
+        onOpenChange={setBriefOpen}
+        title="Daily Plan"
+        defaultWidth={400}
+        defaultHeight={600}
+        minWidth={320}
+        maxWidth={600}
+        minHeight={300}
+        initialPosition={{ x: 64, y: 64 }}
+      >
+        <MorningBrief farmExternalId={farmId} compact onClose={() => setBriefOpen(false)} />
+      </FloatingPanel>
 
-      {/* Toggle button when drawer is closed */}
+      {/* Toggle button when panel is closed */}
       {!briefOpen && (
-        <div className="absolute top-3 left-3 z-10">
+        <div className="absolute top-16 left-3 z-10">
           <Button
             variant="default"
             size="sm"

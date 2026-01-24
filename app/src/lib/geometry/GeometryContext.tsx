@@ -96,7 +96,11 @@ export function GeometryProvider({
 
     setIsSaving(true)
     try {
-      await onGeometryChange(unsyncedChanges)
+      // Strip the 'synced' field before sending to backend
+      const changesToSync: GeometryChange[] = unsyncedChanges.map(
+        ({ synced: _, ...change }) => change
+      )
+      await onGeometryChange(changesToSync)
       setPendingChanges((prev) =>
         prev.map((pc) =>
           unsyncedChanges.some((uc) => uc.id === pc.id && uc.timestamp === pc.timestamp)
