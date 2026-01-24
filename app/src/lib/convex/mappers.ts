@@ -4,6 +4,8 @@ import type { Farm, FarmSettings, Paddock, Section } from '@/lib/types'
 export interface FarmDoc {
   _id: string
   externalId: string
+  legacyExternalId?: string  // For migration: maps old farm-1 style IDs
+  clerkOrgSlug?: string  // Clerk org slug
   name: string
   location: string
   totalArea: number
@@ -29,6 +31,7 @@ export interface UserDoc {
   _id: string
   externalId: string
   farmExternalId: string
+  activeFarmExternalId?: string  // Currently selected farm (Clerk org ID)
   name?: string
   email?: string
 }

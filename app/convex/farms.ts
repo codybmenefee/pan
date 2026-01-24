@@ -43,11 +43,20 @@ export const seedSampleFarm = mutation({
       .withIndex('by_externalId', (q) => q.eq('externalId', externalId))
       .first()
 
+    // Also check legacyExternalId for migration support
+    if (!farm) {
+      farm = await ctx.db
+        .query('farms')
+        .withIndex('by_legacyExternalId', (q: any) => q.eq('legacyExternalId', externalId))
+        .first()
+    }
+
     let farmSeeded = false
     if (!farm) {
       const farmId = await ctx.db.insert('farms', {
         ...sampleFarm,
         externalId,
+        legacyExternalId: externalId, // Store as legacy ID for migration support
         createdAt: now,
         updatedAt: now,
       })
@@ -174,7 +183,13 @@ export const seedSampleFarm = mutation({
           ndviMin: obs.ndviMin,
           ndviMax: obs.ndviMax,
           ndviStd: obs.ndviStd,
+          eviMean: obs.eviMean,
+          ndwiMean: obs.ndwiMean,
           cloudFreePct: obs.cloudFreePct,
+          pixelCount: obs.pixelCount,
+          isValid: obs.isValid,
+          sourceProvider: obs.sourceProvider,
+          resolutionMeters: obs.resolutionMeters,
           createdAt: now,
         })
       }

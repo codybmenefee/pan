@@ -2,6 +2,7 @@ import { Search, HelpCircle, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useFarm } from '@/lib/convex/useFarm'
 import { useTodayPlan } from '@/lib/convex/usePlan'
+import { FarmSelector } from './FarmSelector'
 import { useState } from 'react'
 
 export function Header() {
@@ -29,9 +30,7 @@ export function Header() {
 
       {/* Right section */}
       <div className="flex items-center gap-3">
-        <span className="text-xs text-muted-foreground">
-          {farm?.name ?? 'Loading farm...'}
-        </span>
+        <FarmSelector />
 
         <span className="px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 rounded">
           demo

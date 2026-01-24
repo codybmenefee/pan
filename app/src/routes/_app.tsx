@@ -3,6 +3,7 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { Header } from '@/components/layout/Header'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
 import { GeometryProviderWithConvex } from '@/lib/geometry/GeometryProviderWithConvex'
+import { FarmProvider } from '@/lib/farm'
 import { useAppAuth } from '@/lib/auth'
 import { useEffect } from 'react'
 
@@ -48,16 +49,18 @@ function AppLayout() {
   }
 
   return (
-    <GeometryProviderWithConvex>
-      <div className="flex h-screen bg-background text-foreground">
-        <Sidebar />
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <Header />
-          <main className="flex-1 overflow-auto">
-            <Outlet />
-          </main>
+    <FarmProvider>
+      <GeometryProviderWithConvex>
+        <div className="flex h-screen bg-background text-foreground">
+          <Sidebar />
+          <div className="flex flex-1 flex-col overflow-hidden">
+            <Header />
+            <main className="flex-1 overflow-auto">
+              <Outlet />
+            </main>
+          </div>
         </div>
-      </div>
-    </GeometryProviderWithConvex>
+      </GeometryProviderWithConvex>
+    </FarmProvider>
   )
 }

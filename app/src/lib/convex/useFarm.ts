@@ -12,8 +12,10 @@ interface UseFarmResult {
 
 export function useFarm(): UseFarmResult {
   const { farmId, isLoading: isUserLoading } = useCurrentUser()
+
+  // Use the new organization-aware query that handles both Clerk org IDs and legacy IDs
   const farmDoc = useQuery(
-    api.farms.getFarm,
+    api.organizations.getFarmByIdOrLegacy,
     farmId ? { farmId } : 'skip'
   ) as FarmDoc | null | undefined
 

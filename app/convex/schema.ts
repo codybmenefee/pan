@@ -24,7 +24,9 @@ const paddockStatus = v.union(
 
 export default defineSchema({
   farms: defineTable({
-    externalId: v.string(),
+    externalId: v.string(),  // Will store Clerk org ID (org_xxx) for new farms
+    legacyExternalId: v.optional(v.string()),  // For migration: maps old farm-1 style IDs
+    clerkOrgSlug: v.optional(v.string()),  // Clerk org slug
     name: v.string(),
     location: v.string(),
     totalArea: v.number(),
@@ -33,7 +35,8 @@ export default defineSchema({
     geometry: polygonFeature,
     createdAt: v.string(),
     updatedAt: v.string(),
-  }).index('by_externalId', ['externalId']),
+  }).index('by_externalId', ['externalId'])
+    .index('by_legacyExternalId', ['legacyExternalId']),
   paddocks: defineTable({
     farmId: v.id('farms'),
     externalId: v.string(),
@@ -53,8 +56,9 @@ export default defineSchema({
     .index('by_farm', ['farmId'])
     .index('by_farm_externalId', ['farmId', 'externalId']),
   users: defineTable({
-    externalId: v.string(),
-    farmExternalId: v.string(),
+    externalId: v.string(),                    // Clerk user ID
+    activeFarmExternalId: v.optional(v.string()), // Currently selected farm (Clerk org ID)
+    farmExternalId: v.string(),                // DEPRECATED: keep for migration, remove later
     name: v.optional(v.string()),
     email: v.optional(v.string()),
     createdAt: v.string(),
