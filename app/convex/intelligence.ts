@@ -430,3 +430,74 @@ export const getAllSections = query({
     return sorted
   },
 })
+
+
+/**
+ * Get recent plans for a farm.
+ */
+export const getRecentPlans = query({
+  args: {
+    farmExternalId: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 5
+    const plans = await ctx.db
+      .query('plans')
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', args.farmExternalId))
+      .order('desc')
+      .take(limit)
+    return plans
+  },
+})
+
+
+/**
+ * Get complete farm context for agent prompts.
+ */
+export const getFarmContext = query({
+  args: {
+    farmId: v.id('farms'),
+  },
+  handler: async (ctx, args) => {
+    const farm = await ctx.db.get(args.farmId)
+    if (!farm) {
+      throw new Error(`Farm not found: ${args.farmId}`)
+    }
+
+    const [settings, paddocks, observations, farmerObservations, plans] =
+      await Promise.all([
+        ctx.db
+          .query('farmSettings')
+          .withIndex('by_farm', (q) => q.eq('farmExternalId', farm.externalId))
+          .first(),
+        ctx.db
+          .query('paddocks')
+          .withIndex('by_farm', (q) => q.eq('farmId', args.farmId))
+          .collect(),
+        ctx.db
+          .query('observations')
+          .withIndex('by_farm', (q) => q.eq('farmExternalId', farm.externalId))
+          .collect(),
+        ctx.db
+          .query('farmerObservations')
+          .withIndex('by_farm', (q) => q.eq('farmId', args.farmId))
+          .order('desc')
+          .take(5),
+        ctx.db
+          .query('plans')
+          .withIndex('by_farm', (q) => q.eq('farmExternalId', farm.externalId))
+          .order('desc')
+          .take(5),
+      ])
+
+    return {
+      farm,
+      settings,
+      paddocks,
+      observations,
+      farmerObservations,
+      plans,
+    }
+  },
+})

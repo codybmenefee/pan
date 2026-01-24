@@ -2,9 +2,12 @@ import { query, mutation } from './_generated/server'
 import { v } from 'convex/values'
 import { DEFAULT_FARM_EXTERNAL_ID } from './seedData'
 import area from '@turf/area'
+import difference from '@turf/difference'
 import intersect from '@turf/intersect'
 import { featureCollection, polygon as turfPolygon } from '@turf/helpers'
-import type { Feature, Polygon } from 'geojson'
+import type { Feature, MultiPolygon, Polygon } from 'geojson'
+// NOTE: Braintrust logging is done at the action level (grazingAgentDirect.ts)
+// Mutations cannot use Node.js APIs, so we don't import Braintrust here
 
 const HECTARES_PER_SQUARE_METER = 1 / 10000
 
@@ -369,15 +372,18 @@ export const createPlanWithSection = mutation({
     const today = new Date().toISOString().split('T')[0]
     const now = new Date().toISOString()
     
-    console.log('[createPlanWithSection] START:', {
-      farmExternalId: args.farmExternalId,
-      targetPaddockId: args.targetPaddockId,
-      hasSectionGeometry: !!args.sectionGeometry,
-      sectionAreaHectares: args.sectionAreaHectares,
-      confidence: args.confidence,
-      today,
-    })
+    // NOTE: Braintrust logging is done at the action level (grazingAgentDirect.ts)
+    // This mutation is called from actions, so tool execution is logged there
     
+    console.log('[createPlanWithSection] START:', {
+        farmExternalId: args.farmExternalId,
+        targetPaddockId: args.targetPaddockId,
+        hasSectionGeometry: !!args.sectionGeometry,
+        sectionAreaHectares: args.sectionAreaHectares,
+        confidence: args.confidence,
+        today,
+      })
+      
     // CRITICAL: Animals must eat somewhere - sectionGeometry is required
     if (!args.sectionGeometry) {
       throw new Error('sectionGeometry is REQUIRED. Animals must graze somewhere every day. The agent must always create a section, even if conditions are not ideal. Please ensure the agent creates a section geometry in the target paddock.')
@@ -525,37 +531,84 @@ export const createPlanWithSection = mutation({
           geometry: plan.sectionGeometry,
         }))
 
-      // Use finalSectionGeometry (clipped version) for overlap checking
-      const finalSectionFeature: Feature<Polygon> = {
-        type: 'Feature',
-        properties: {},
-        geometry: finalSectionGeometry,
+      const pickLargestPolygon = (geometry: Polygon | MultiPolygon): Polygon | null => {
+        if (geometry.type === 'Polygon') {
+          return geometry
+        }
+        if (!geometry.coordinates || geometry.coordinates.length === 0) {
+          return null
+        }
+        let best: Polygon | null = null
+        let bestArea = 0
+        for (const coords of geometry.coordinates) {
+          const candidate: Polygon = { type: 'Polygon', coordinates: coords }
+          const candidateArea = area({
+            type: 'Feature',
+            properties: {},
+            geometry: candidate,
+          })
+          if (candidateArea > bestArea) {
+            bestArea = candidateArea
+            best = candidate
+          }
+        }
+        return best
       }
 
+      let adjustedSectionGeometry = finalSectionGeometry as Polygon
+      let overlapAdjusted = false
+
       for (const prevSection of previousSections) {
+        const currentFeature: Feature<Polygon> = {
+          type: 'Feature',
+          properties: {},
+          geometry: adjustedSectionGeometry,
+        }
         const prevFeature: Feature<Polygon> = {
           type: 'Feature',
           properties: {},
           geometry: prevSection.geometry,
         }
 
-        const overlap = intersect(featureCollection([finalSectionFeature, prevFeature]))
+        const overlap = intersect(featureCollection([currentFeature, prevFeature]))
         if (overlap) {
           const overlapArea = area(overlap as Feature<Polygon>)
-          const finalSectionArea = area(finalSectionFeature)
-          const overlapPercent = (overlapArea / finalSectionArea) * 100
-          
+          const currentArea = area(currentFeature)
+          const overlapPercent = (overlapArea / currentArea) * 100
+
           // Allow very small overlaps due to floating point precision (< 1%)
           if (overlapPercent >= 1) {
-            throw new Error(`Section geometry overlaps with previous section from ${prevSection.date} (${Math.round(overlapPercent)}% overlap)`)
+            const differenceResult = difference(featureCollection([currentFeature, prevFeature]))
+            const differenceGeometry = differenceResult?.geometry as Polygon | MultiPolygon | undefined
+            const largestPolygon = differenceGeometry ? pickLargestPolygon(differenceGeometry) : null
+
+            if (!largestPolygon) {
+              throw new Error(`Section geometry overlaps with previous section from ${prevSection.date} (${Math.round(overlapPercent)}% overlap) and could not be adjusted`)
+            }
+
+            const adjustedArea = area({
+              type: 'Feature',
+              properties: {},
+              geometry: largestPolygon,
+            })
+
+            if (!Number.isFinite(adjustedArea) || adjustedArea === 0) {
+              throw new Error(`Section geometry overlaps with previous section from ${prevSection.date} (${Math.round(overlapPercent)}% overlap) and produced an invalid adjusted section`)
+            }
+
+            adjustedSectionGeometry = largestPolygon
+            overlapAdjusted = true
           }
         }
       }
+
+      finalSectionGeometry = adjustedSectionGeometry
 
       console.log('[createPlanWithSection] Section validation passed:', {
         withinPaddock: true,
         noOverlaps: true,
         previousSectionsCount: previousSections.length,
+        overlapAdjusted,
       })
     }
 
@@ -663,6 +716,9 @@ export const finalizePlan = mutation({
   handler: async (ctx, args): Promise<string | null> => {
     const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
     const today = new Date().toISOString().split('T')[0]
+
+    // NOTE: Braintrust logging is done at the action level (grazingAgentDirect.ts)
+    // This mutation is called from actions, so tool execution is logged there
 
     const plans = await ctx.db
       .query('plans')

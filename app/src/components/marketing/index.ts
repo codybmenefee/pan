@@ -1,6 +1,7 @@
 export { MarketingHeader } from './MarketingHeader'
 export { HeroSection } from './HeroSection'
 export { ProblemSolution } from './ProblemSolution'
+export { EconomicProof } from './EconomicProof'
 export { HowItWorks } from './HowItWorks'
 export { FeaturesGrid } from './FeaturesGrid'
 export { TechnologyTrust } from './TechnologyTrust'

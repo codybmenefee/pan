@@ -1,5 +1,4 @@
 import { Map, TrendingUp, Calendar, Eye, Plug, MessageSquare } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 const features = [
   {
@@ -36,11 +35,13 @@ const features = [
 
 export function FeaturesGrid() {
   return (
-    <section id="features" className="py-20 bg-muted/30">
+    <section id="features" className="py-24 bg-slate-900/50">
       <div className="container mx-auto px-4">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl font-bold text-center mb-4">Everything You Need</h2>
-          <p className="text-xl text-muted-foreground text-center mb-12">
+          <h2 className="text-4xl md:text-5xl font-bold text-center mb-6 text-slate-100">
+            Everything You Need
+          </h2>
+          <p className="text-xl text-slate-400 text-center mb-16">
             Decision support tools built for adaptive grazing
           </p>
 
@@ -48,21 +49,20 @@ export function FeaturesGrid() {
             {features.map((feature, index) => {
               const Icon = feature.icon
               return (
-                <Card key={index} className="h-full">
-                  <CardHeader>
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="rounded-lg bg-primary/10 p-2">
-                        <Icon className="h-5 w-5 text-primary" />
-                      </div>
-                      <CardTitle className="text-lg">{feature.title}</CardTitle>
+                <div
+                  key={index}
+                  className="bg-slate-900 border border-slate-800 rounded-xl p-6 h-full hover:border-slate-700 transition-colors"
+                >
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="rounded-lg bg-emerald-500/10 p-3">
+                      <Icon className="h-6 w-6 text-emerald-400" />
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="text-base">
-                      {feature.description}
-                    </CardDescription>
-                  </CardContent>
-                </Card>
+                    <h3 className="text-lg font-semibold text-slate-100">{feature.title}</h3>
+                  </div>
+                  <p className="text-slate-400">
+                    {feature.description}
+                  </p>
+                </div>
               )
             })}
           </div>

@@ -75,6 +75,7 @@ Required for full functionality:
 - `VITE_CONVEX_URL` - Convex deployment URL
 - `VITE_CLERK_PUBLISHABLE_KEY` - Clerk auth (or use `VITE_DEV_AUTH=true` for dev mode)
 - `BRAINTRUST_API_KEY` - Agent observability (optional, set in Convex dashboard)
+- `BRAINTRUST_PROJECT_NAME` - Braintrust project name (optional, defaults to 'grazing-agent')
 
 ## Generated Files (Do Not Edit)
 
