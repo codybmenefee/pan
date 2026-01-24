@@ -5,6 +5,7 @@ import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
 import { ErrorState } from '@/components/ui/error/ErrorState'
 
 function DashboardRoute() {
+  console.log('[_app/index] Rendering DashboardRoute')
   const { farmId, isLoading } = useCurrentUser()
 
   if (isLoading) {
@@ -29,6 +30,6 @@ function DashboardRoute() {
   return <MorningBrief farmExternalId={farmId} />
 }
 
-export const Route = createFileRoute('/')({
+export const Route = createFileRoute('/_app/')({
   component: DashboardRoute,
 })

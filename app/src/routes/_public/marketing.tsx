@@ -3,6 +3,7 @@ import {
   MarketingHeader,
   HeroSection,
   ProblemSolution,
+  EconomicProof,
   HowItWorks,
   FeaturesGrid,
   TechnologyTrust,
@@ -13,10 +14,11 @@ import {
 
 function MarketingPage() {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-50">
       <MarketingHeader />
       <HeroSection />
       <ProblemSolution />
+      <EconomicProof />
       <HowItWorks />
       <FeaturesGrid />
       <TechnologyTrust />
@@ -27,6 +29,6 @@ function MarketingPage() {
   )
 }
 
-export const Route = createFileRoute('/marketing')({
+export const Route = createFileRoute('/_public/marketing')({
   component: MarketingPage,
 })

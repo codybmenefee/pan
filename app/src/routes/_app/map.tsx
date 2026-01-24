@@ -9,7 +9,7 @@ const mapSearchSchema = z.object({
   entityType: z.enum(['paddock', 'section']).optional(),
 })
 
-export const Route = createFileRoute('/map')({
+export const Route = createFileRoute('/_app/map')({
   component: MapView,
   validateSearch: mapSearchSchema,
 })

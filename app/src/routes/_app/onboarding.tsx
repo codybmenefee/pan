@@ -9,7 +9,7 @@ import {
 } from '@/components/onboarding'
 import { useGeometry } from '@/lib/geometry'
 
-export const Route = createFileRoute('/onboarding')({
+export const Route = createFileRoute('/_app/onboarding')({
   component: OnboardingPage,
 })
 

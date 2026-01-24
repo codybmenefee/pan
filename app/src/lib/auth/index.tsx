@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
-import { ClerkProvider, SignIn, useUser } from '@clerk/clerk-react'
+import { ClerkProvider, SignIn, useAuth } from '@clerk/clerk-react'
 import { ErrorState } from '@/components/ui/error/ErrorState'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
 
@@ -18,16 +18,21 @@ const devAuthEnabled = import.meta.env.VITE_DEV_AUTH === 'true'
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
 function ClerkAuthBridge({ children }: { children: ReactNode }) {
-  const { user, isLoaded, isSignedIn } = useUser()
+  // Use useAuth() instead of useUser() - useAuth() tells us when Clerk is loaded
+  // regardless of sign-in state, while useUser() only loads with a signed-in user
+  const { userId, isLoaded, isSignedIn } = useAuth()
+
+  // Debug logging
+  console.log('[ClerkAuthBridge] Auth state from Clerk:', { userId, isLoaded, isSignedIn })
 
   const value = useMemo<AppAuthContextValue>(() => {
     return {
-      userId: user?.id ?? null,
+      userId: userId ?? null,
       isLoaded,
       isSignedIn: !!isSignedIn,
       isDevAuth: false,
     }
-  }, [user?.id, isLoaded, isSignedIn])
+  }, [userId, isLoaded, isSignedIn])
 
   return <AppAuthContext.Provider value={value}>{children}</AppAuthContext.Provider>
 }

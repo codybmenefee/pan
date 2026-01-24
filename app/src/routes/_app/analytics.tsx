@@ -25,7 +25,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 
-export const Route = createFileRoute('/analytics')({
+export const Route = createFileRoute('/_app/analytics')({
   component: AnalyticsPage,
 })
 

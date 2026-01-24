@@ -6,7 +6,7 @@ import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
 import { useFarmSettings } from '@/lib/convex/useFarmSettings'
 import type { FarmSettings } from '@/lib/types'
 
-export const Route = createFileRoute('/settings')({
+export const Route = createFileRoute('/_app/settings')({
   component: SettingsPage,
 })
 

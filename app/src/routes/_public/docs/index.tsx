@@ -3,7 +3,7 @@ import { DocsContent } from '@/components/docs'
 import { docsConfig } from '@/lib/docs/navigation'
 import { ArrowRight } from 'lucide-react'
 
-export const Route = createFileRoute('/docs/')({
+export const Route = createFileRoute('/_public/docs/')({
   component: DocsIndexPage,
 })
 

@@ -18,8 +18,8 @@ interface MapSearchParams {
 }
 
 export function MapView() {
-  const search = useSearch({ from: '/map' }) as MapSearchParams
-  const navigate = useNavigate({ from: '/map' })
+  const search = useSearch({ strict: false }) as MapSearchParams
+  const navigate = useNavigate()
   
   const { farmId } = useCurrentUser()
   const { plan } = useTodayPlan(farmId || '')
@@ -74,6 +74,7 @@ export function MapView() {
     // If no search params but we have a plan with a section, redirect to edit mode
     if (!search.edit && !search.entityType && plan?.sectionGeometry) {
       navigate({
+        to: '/map',
         search: {
           edit: true,
           entityType: 'section',

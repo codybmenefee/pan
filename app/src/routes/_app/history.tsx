@@ -11,7 +11,7 @@ import { historyEntries, paddockPerformance, getHistoryStats } from '@/data/mock
 import { Card, CardContent } from '@/components/ui/card'
 import { ArrowRight, Grid3X3 } from 'lucide-react'
 
-export const Route = createFileRoute('/history')({
+export const Route = createFileRoute('/_app/history')({
   component: HistoryPage,
 })
 
