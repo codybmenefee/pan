@@ -8,6 +8,10 @@
  * If you need to call the agent, use: api.grazingAgentGateway.agentGateway
  * 
  * @deprecated Direct usage - use agentGateway instead
+ * 
+ * NOTE: This file uses Braintrust which requires Node.js APIs.
+ * It's imported by an action with "use node", so it runs in Node.js context.
+ * We don't add "use node" here because this file doesn't define actions.
  */
 
 import { anthropic } from "@ai-sdk/anthropic"
@@ -16,8 +20,17 @@ import { api } from "./_generated/api"
 import type { ActionCtx } from "./_generated/server"
 import type { Id } from "./_generated/dataModel"
 import { z } from "zod"
+import { sanitizeForBraintrust } from "../lib/braintrustSanitize"
+
+// OTel Tracer type - using any to avoid importing @opentelemetry/api in non-node context
+type OTelTracer = any
 
 const GRAZING_AGENT_MODEL = "claude-haiku-4-5"
+const PROMPT_VERSION = "v1.0.0" // Track prompt changes for comparison
+
+// NOTE: Braintrust imports are done in the action file (grazingAgentGateway.ts)
+// to avoid bundler issues. The logger and wrapped Anthropic client are passed
+// as parameters to this function.
 
 const GRAZING_SYSTEM_PROMPT = `You are a grazing intelligence specialist. Your role is to recommend daily grazing sections based on satellite-derived vegetation data.
 
@@ -48,27 +61,36 @@ interface PlanGenerationResult {
  * 
  * @internal
  */
-export async function runGrazingAgent(
+/**
+ * Internal helper: Run agent without Braintrust logging
+ */
+async function runGrazingAgentCore(
   ctx: ActionCtx,
   farmExternalId: string,
   farmName: string,
   activePaddockId: string | null,
-  settings: { minNDVIThreshold: number; minRestPeriod: number }
+  settings: { minNDVIThreshold: number; minRestPeriod: number },
+  anthropicClient: any,
+  tracer?: OTelTracer
 ): Promise<PlanGenerationResult> {
-  console.log('[runGrazingAgent] START - Input:', {
-    farmExternalId,
-    farmName,
-    activePaddockId,
-    settings,
-  })
+    console.log('[runGrazingAgent] START - Input:', {
+      farmExternalId,
+      farmName,
+      activePaddockId,
+      settings,
+    })
 
-  // Fetch all data upfront in parallel
-  const [allPaddocks, currentPaddock, currentPaddockSections, currentGrazedPercentage] = await Promise.all([
-    ctx.runQuery(api.grazingAgentTools.getAllPaddocksWithObservations, { farmExternalId }),
-    ctx.runQuery(api.grazingAgentTools.getPaddockData, { farmExternalId }),
-    ctx.runQuery(api.grazingAgentTools.getPreviousSections, { farmExternalId, paddockId: activePaddockId ?? undefined }),
-    ctx.runQuery(api.grazingAgentTools.calculatePaddockGrazedPercentage, { farmExternalId, paddockId: activePaddockId || 'p1' }),
-  ])
+    // Fetch all data upfront in parallel
+    const dataFetchStart = Date.now()
+    const [allPaddocks, currentPaddock, currentPaddockSections, currentGrazedPercentage] = await Promise.all([
+      ctx.runQuery(api.grazingAgentTools.getAllPaddocksWithObservations, { farmExternalId }),
+      ctx.runQuery(api.grazingAgentTools.getPaddockData, { farmExternalId }),
+      ctx.runQuery(api.grazingAgentTools.getPreviousSections, { farmExternalId, paddockId: activePaddockId ?? undefined }),
+      ctx.runQuery(api.grazingAgentTools.calculatePaddockGrazedPercentage, { farmExternalId, paddockId: activePaddockId || 'p1' }),
+    ])
+
+    // Data fetching complete
+    const dataFetchDuration = Date.now() - dataFetchStart
 
   console.log('[runGrazingAgent] Data fetched:', {
     allPaddocksCount: allPaddocks?.length,
@@ -324,8 +346,8 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan. Use farmExterna
   fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:314',message:'LLM prompt check',data:{promptLength:prompt.length,targetPaddockId:targetPaddock?.externalId,targetGeometryInPrompt:targetGeometryInPrompt.substring(0,300),hasTargetGeometry:!!targetPaddock?.geometry},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
   // #endregion
 
-  const result = await generateText({
-    model: anthropic(GRAZING_AGENT_MODEL) as any,
+    const result = await generateText({
+      model: anthropicClient(GRAZING_AGENT_MODEL) as any,
     system: GRAZING_SYSTEM_PROMPT,
     prompt,
     tools: {
@@ -352,40 +374,56 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan. Use farmExterna
         }),
       }),
     },
+    ...(tracer && {
+      experimental_telemetry: {
+        isEnabled: true,
+        tracer,
+        functionId: "runGrazingAgent",
+        recordInputs: true,
+        recordOutputs: true,
+        metadata: {
+          farmExternalId,
+          farmName,
+          activePaddockId: activePaddockId || "none",
+          promptVersion: PROMPT_VERSION,
+          model: GRAZING_AGENT_MODEL,
+        },
+      },
+    }),
   })
 
-  const finalText = result.text
-  const toolCalls = (result as any).toolCalls || []
+    const finalText = result.text
+    const toolCalls = (result as any).toolCalls || []
 
-  console.log('[runGrazingAgent] LLM response received:', {
-    textLength: finalText?.length,
-    toolCallsCount: toolCalls.length,
-    toolNames: toolCalls.map((tc: any) => tc.toolName),
-  })
+    console.log('[runGrazingAgent] LLM response received:', {
+      textLength: finalText?.length,
+      toolCallsCount: toolCalls.length,
+      toolNames: toolCalls.map((tc: any) => tc.toolName),
+    })
 
-  let planCreated = false
-  let planFinalized = false
-  let createdPlanId: Id<'plans'> | undefined = undefined
-  
-  if (toolCalls.length > 0) {
-    for (const toolCall of toolCalls) {
-      const args = (toolCall as any).args ?? (toolCall as any).input ?? {}
-      
-      console.log('[runGrazingAgent] Executing tool:', toolCall.toolName, {
-        hasSectionGeometry: !!args.sectionGeometry,
-        targetPaddockId: args.targetPaddockId,
-        sectionAreaHectares: args.sectionAreaHectares,
-        sectionGeometryPreview: args.sectionGeometry ? JSON.stringify(args.sectionGeometry).substring(0, 200) : 'null',
-        sectionGeometryType: args.sectionGeometry?.type,
-        sectionCoordinatesCount: args.sectionGeometry?.coordinates?.[0]?.length || 0,
-      })
-      
-      // #region debug log
-      fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:322',message:'LLM generated section geometry',data:{targetPaddockId:args.targetPaddockId,hasSectionGeometry:!!args.sectionGeometry,sectionGeometryType:args.sectionGeometry?.type,sectionCoordinatesPreview:args.sectionGeometry?.coordinates?JSON.stringify(args.sectionGeometry.coordinates[0]).substring(0,200):'null',coordinateCount:args.sectionGeometry?.coordinates?.[0]?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
-      
-      try {
-        if (toolCall.toolName === "createPlanWithSection") {
+    let planCreated = false
+    let planFinalized = false
+    let createdPlanId: Id<'plans'> | undefined = undefined
+    
+    if (toolCalls.length > 0) {
+      for (const toolCall of toolCalls) {
+        const args = (toolCall as any).args ?? (toolCall as any).input ?? {}
+        
+        console.log('[runGrazingAgent] Executing tool:', toolCall.toolName, {
+          hasSectionGeometry: !!args.sectionGeometry,
+          targetPaddockId: args.targetPaddockId,
+          sectionAreaHectares: args.sectionAreaHectares,
+          sectionGeometryPreview: args.sectionGeometry ? JSON.stringify(args.sectionGeometry).substring(0, 200) : 'null',
+          sectionGeometryType: args.sectionGeometry?.type,
+          sectionCoordinatesCount: args.sectionGeometry?.coordinates?.[0]?.length || 0,
+        })
+        
+        // #region debug log
+        fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:322',message:'LLM generated section geometry',data:{targetPaddockId:args.targetPaddockId,hasSectionGeometry:!!args.sectionGeometry,sectionGeometryType:args.sectionGeometry?.type,sectionCoordinatesPreview:args.sectionGeometry?.coordinates?JSON.stringify(args.sectionGeometry.coordinates[0]).substring(0,200):'null',coordinateCount:args.sectionGeometry?.coordinates?.[0]?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
+        
+        try {
+            if (toolCall.toolName === "createPlanWithSection") {
           // #region debug log
           fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:288',message:'Tool call validation',data:{hasSectionGeometry:!!args.sectionGeometry,sectionGeometryType:args.sectionGeometry?typeof args.sectionGeometry:'null',targetPaddockId:args.targetPaddockId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
           // #endregion
@@ -402,53 +440,108 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan. Use farmExterna
           fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:299',message:'Calling createPlanWithSection mutation',data:{hasSectionGeometry:true,targetPaddockId:args.targetPaddockId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
           // #endregion
           
-          const planId = await ctx.runMutation(api.grazingAgentTools.createPlanWithSection, args as any)
-          createdPlanId = planId
-          console.log('[runGrazingAgent] createPlanWithSection SUCCESS - PlanId created:', {
-            planId: planId.toString(),
-            planIdType: typeof planId,
-            hasSectionGeometry: !!args.sectionGeometry,
-            targetPaddockId: args.targetPaddockId,
-            note: 'This planId will be returned in result object',
-          })
-          planCreated = true
-        } else if (toolCall.toolName === "finalizePlan") {
-          const result = await ctx.runMutation(api.grazingAgentTools.finalizePlan, { 
-            farmExternalId: (args.farmExternalId as string) ?? farmExternalId 
-          })
-          console.log('[runGrazingAgent] finalizePlan SUCCESS:', result)
-          planFinalized = true
-        }
-      } catch (toolError) {
-        console.error('[runGrazingAgent] Tool execution ERROR:', {
-          toolName: toolCall.toolName,
-          error: toolError,
-          args: JSON.stringify(args).substring(0, 200),
-        })
+              const planId = await ctx.runMutation(api.grazingAgentTools.createPlanWithSection, args as any)
+              createdPlanId = planId
+              console.log('[runGrazingAgent] createPlanWithSection SUCCESS - PlanId created:', {
+                planId: planId.toString(),
+                planIdType: typeof planId,
+                hasSectionGeometry: !!args.sectionGeometry,
+                targetPaddockId: args.targetPaddockId,
+                note: 'This planId will be returned in result object',
+              })
+              planCreated = true
+            } else if (toolCall.toolName === "finalizePlan") {
+              const result = await ctx.runMutation(api.grazingAgentTools.finalizePlan, { 
+                farmExternalId: (args.farmExternalId as string) ?? farmExternalId 
+              })
+              console.log('[runGrazingAgent] finalizePlan SUCCESS:', result)
+              planFinalized = true
+            }
+          } catch (toolError: any) {
+            console.error('[runGrazingAgent] Tool execution ERROR:', {
+              toolName: toolCall.toolName,
+              error: toolError,
+              args: JSON.stringify(args).substring(0, 200),
+            })
+            
+            throw toolError
+          }
       }
+    } else {
+      console.warn('[runGrazingAgent] WARNING: No tool calls returned from LLM')
     }
-  } else {
-    console.warn('[runGrazingAgent] WARNING: No tool calls returned from LLM')
-  }
 
-  console.log('[runGrazingAgent] END - Summary:', {
-    planCreated,
-    planFinalized,
-    planId: createdPlanId?.toString(),
-    hasPlanId: !!createdPlanId,
-    planIdIncludedInResult: true,
-    finalTextPreview: finalText?.substring(0, 100),
-    returnValue: {
-      success: true,
+    const finalResult = { 
+      success: true, 
       planCreated: planCreated && planFinalized,
-      planId: createdPlanId?.toString(),
-      note: 'planId is included in result for gateway to use (optimization: avoids getTodayPlan query)',
-    },
-  })
+      planId: createdPlanId,
+    }
 
-  return { 
-    success: true, 
-    planCreated: planCreated && planFinalized,
-    planId: createdPlanId,
+    console.log('[runGrazingAgent] END - Summary:', {
+      planCreated,
+      planFinalized,
+      planId: createdPlanId?.toString(),
+      hasPlanId: !!createdPlanId,
+      planIdIncludedInResult: true,
+      finalTextPreview: finalText?.substring(0, 100),
+      returnValue: finalResult,
+    })
+
+    return finalResult
+}
+
+/**
+ * Main entry point: Run agent with optional Braintrust logging
+ */
+export async function runGrazingAgent(
+  ctx: ActionCtx,
+  farmExternalId: string,
+  farmName: string,
+  activePaddockId: string | null,
+  settings: { minNDVIThreshold: number; minRestPeriod: number },
+  logger?: any, // Braintrust logger passed from action
+  wrappedAnthropic?: any, // Wrapped Anthropic client passed from action
+  tracer?: OTelTracer // OTel tracer for experimental_telemetry
+): Promise<PlanGenerationResult> {
+  // Use wrapped Anthropic if provided, otherwise use regular Anthropic
+  const anthropicClient = wrappedAnthropic || anthropic
+
+  // If no logger provided, run without Braintrust logging
+  if (!logger) {
+    return await runGrazingAgentCore(ctx, farmExternalId, farmName, activePaddockId, settings, anthropicClient, tracer)
   }
+  
+  // Run with Braintrust logging
+  return await logger.traced(async (rootSpan: any) => {
+    // Log agent invocation (sanitize to remove Convex internal fields)
+    rootSpan.log({
+      input: sanitizeForBraintrust({
+        farmExternalId,
+        farmName,
+        activePaddockId,
+        settings: {
+          minNDVIThreshold: settings.minNDVIThreshold,
+          minRestPeriod: settings.minRestPeriod,
+        },
+      }),
+      metadata: sanitizeForBraintrust({
+        trigger: 'agent_execution',
+        promptVersion: PROMPT_VERSION,
+      }),
+    })
+
+    // Call core function and wrap result logging
+    const result = await runGrazingAgentCore(ctx, farmExternalId, farmName, activePaddockId, settings, anthropicClient, tracer)
+    
+    // Log final result (sanitize to remove Convex internal fields)
+    rootSpan.log({
+      output: sanitizeForBraintrust({
+        success: result.success,
+        planCreated: result.planCreated,
+        planId: result.planId ? String(result.planId) : undefined,
+      }),
+    })
+
+    return result
+  })
 }

@@ -9,7 +9,7 @@
  * - Routes to appropriate agent implementation (currently uses runGrazingAgent internally)
  * - Handles trigger-specific logic (morning_brief, observation_refresh, plan_execution)
  * - Provides unified error handling and response format
- * - TODO: Add Braintrust logging for observability
+ * - Braintrust logging for observability
  *
  * Usage:
  *   await ctx.runAction(api.grazingAgentGateway.agentGateway, {
@@ -23,12 +23,19 @@
  * It should only be called by this gateway, not directly.
  */
 
-import { query, mutation, action } from './_generated/server'
+"use node"
+
+import { action } from './_generated/server'
 import { v } from 'convex/values'
 import { api } from './_generated/api'
 import type { ActionCtx } from './_generated/server'
 // Internal: Legacy agent implementation - only used by this gateway
 import { runGrazingAgent } from './grazingAgentDirect'
+import { getLogger } from '../lib/braintrust'
+import { sanitizeForBraintrust } from '../lib/braintrustSanitize'
+import { initOTelOnce, getTracer } from '../lib/otel'
+
+// Note: initOTelOnce is called in handler since it's async
 
 /**
  * Type definition for morning_brief trigger additional context
@@ -48,75 +55,6 @@ type MorningBriefContext = {
 }
 
 /**
- * Get complete farm context for agent prompts.
- */
-export const getFarmContext = query({
-  args: {
-    farmId: v.id('farms'),
-  },
-  handler: async (ctx, args) => {
-    const farm = await ctx.db.get(args.farmId)
-    if (!farm) {
-      throw new Error(`Farm not found: ${args.farmId}`)
-    }
-
-    const [settings, paddocks, observations, farmerObservations, plans] =
-      await Promise.all([
-        ctx.db
-          .query('farmSettings')
-          .withIndex('by_farm', (q) => q.eq('farmExternalId', farm.externalId))
-          .first(),
-        ctx.db
-          .query('paddocks')
-          .withIndex('by_farm', (q) => q.eq('farmId', args.farmId))
-          .collect(),
-        ctx.db
-          .query('observations')
-          .withIndex('by_farm', (q) => q.eq('farmExternalId', farm.externalId))
-          .collect(),
-        ctx.db
-          .query('farmerObservations')
-          .withIndex('by_farm', (q) => q.eq('farmId', args.farmId))
-          .order('desc')
-          .take(5),
-        ctx.db
-          .query('plans')
-          .withIndex('by_farm', (q) => q.eq('farmExternalId', farm.externalId))
-          .order('desc')
-          .take(5),
-      ])
-
-    return {
-      farm,
-      settings,
-      paddocks,
-      observations,
-      farmerObservations,
-      plans,
-    }
-  },
-})
-
-/**
- * Get recent plans for a farm.
- */
-export const getRecentPlans = query({
-  args: {
-    farmExternalId: v.string(),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const limit = args.limit ?? 5
-    const plans = await ctx.db
-      .query('plans')
-      .withIndex('by_farm', (q) => q.eq('farmExternalId', args.farmExternalId))
-      .order('desc')
-      .take(limit)
-    return plans
-  },
-})
-
-/**
  * PRIMARY ENTRY POINT: Agent Gateway Action
  * 
  * This is the public API for all agent operations.
@@ -128,7 +66,6 @@ export const getRecentPlans = query({
  * 3. Delegates to runGrazingAgent (internal/legacy implementation)
  * 4. Returns standardized result format
  * 
- * TODO: Add Braintrust logging for observability
  * TODO: Use trigger-specific prompts from lib/agent/triggers.ts
  * TODO: Migrate runGrazingAgent logic fully into gateway for better control
  */
@@ -154,14 +91,33 @@ export const agentGateway = action({
     error?: string
     message: string
   }> => {
-    console.log('[agentGateway] START:', {
-      trigger: args.trigger,
-      farmId: args.farmId.toString(),
-      farmExternalId: args.farmExternalId,
-      userId: args.userId,
-      hasAdditionalContext: !!args.additionalContext,
-      contextKeys: args.additionalContext ? Object.keys(args.additionalContext) : [],
-    })
+    // Initialize OTel (async, runs once per cold start)
+    await initOTelOnce()
+
+    const logger = getLogger()
+    
+    return await logger.traced(async (rootSpan: any) => {
+      // Log gateway invocation (sanitize to remove Convex internal fields)
+      rootSpan.log({
+        input: sanitizeForBraintrust({
+          trigger: args.trigger,
+          farmId: String(args.farmId), // Convert Convex ID to string
+          farmExternalId: args.farmExternalId,
+          userId: args.userId,
+        }),
+        metadata: sanitizeForBraintrust({
+          hasAdditionalContext: !!args.additionalContext,
+        }),
+      })
+
+      console.log('[agentGateway] START:', {
+        trigger: args.trigger,
+        farmId: args.farmId.toString(),
+        farmExternalId: args.farmExternalId,
+        userId: args.userId,
+        hasAdditionalContext: !!args.additionalContext,
+        contextKeys: args.additionalContext ? Object.keys(args.additionalContext) : [],
+      })
 
     // For morning_brief trigger, generate a daily plan
     if (args.trigger === 'morning_brief') {
@@ -218,9 +174,14 @@ export const agentGateway = action({
       const activePaddockId = planData.mostRecentGrazingEvent?.paddockExternalId || 
         (planData.paddocks && planData.paddocks.length > 0 ? planData.paddocks[0].externalId : null)
 
-      const settings = planData.settings || {
+      // Sanitize settings to remove Convex internal fields before passing to agent
+      const rawSettings = planData.settings || {
         minNDVIThreshold: 0.40,
         minRestPeriod: 21,
+      }
+      const settings = {
+        minNDVIThreshold: rawSettings.minNDVIThreshold ?? 0.40,
+        minRestPeriod: rawSettings.minRestPeriod ?? 21,
       }
 
       // Use farmName from context or fetch minimal data
@@ -244,13 +205,20 @@ export const agentGateway = action({
 
       console.log('[agentGateway] Delegating to runGrazingAgent...')
 
-      // Call the grazing agent through the gateway
+      // Initialize Braintrust logger
+      // Note: wrapAnthropic doesn't support @ai-sdk/anthropic, so we'll log LLM calls manually
+      const logger = getLogger()
+
+      // Call the grazing agent through the gateway with Braintrust logging
       const result = await runGrazingAgent(
         ctx,
         args.farmExternalId,
         farmName,
         activePaddockId,
-        settings
+        settings,
+        logger,
+        null, // wrappedAnthropic not supported with @ai-sdk/anthropic
+        getTracer() // OTel tracer for experimental_telemetry
       )
 
       console.log('[agentGateway] runGrazingAgent result received:', {
@@ -265,12 +233,19 @@ export const agentGateway = action({
         console.error('[agentGateway] Agent execution failed:', {
           error: result.error || 'Agent execution failed',
         })
-        return {
+        
+        const errorResult = {
           success: false,
           trigger: args.trigger,
           error: result.error || 'Agent execution failed',
           message: 'Failed to generate plan',
         }
+        
+        rootSpan.log({
+          output: sanitizeForBraintrust(errorResult),
+        })
+        
+        return errorResult
       }
 
       if (!result.planCreated) {
@@ -279,12 +254,19 @@ export const agentGateway = action({
           planCreated: result.planCreated,
           planId: result.planId?.toString(),
         })
-        return {
+        
+        const noPlanResult = {
           success: false,
           trigger: args.trigger,
           error: 'Agent did not create a plan',
           message: 'Plan generation completed but no plan was created',
         }
+        
+        rootSpan.log({
+          output: sanitizeForBraintrust(noPlanResult),
+        })
+        
+        return noPlanResult
       }
 
       // Use planId from result instead of re-fetching (optimization: no getTodayPlan query)
@@ -299,12 +281,18 @@ export const agentGateway = action({
         },
       })
 
-      return {
+      const successResult = {
         success: true,
         trigger: args.trigger,
-        planId: finalPlanId,
+        planId: finalPlanId ? String(finalPlanId) : undefined, // Convert Convex ID to string
         message: 'Plan generated successfully',
       }
+
+      rootSpan.log({
+        output: sanitizeForBraintrust(successResult),
+      })
+
+      return successResult
     }
 
     // For other triggers, return context (to be implemented)
@@ -312,10 +300,18 @@ export const agentGateway = action({
       trigger: args.trigger,
       note: 'Not yet fully implemented',
     })
-    return {
+    
+    const otherTriggerResult = {
       success: true,
       trigger: args.trigger,
       message: `Trigger ${args.trigger} not yet fully implemented - returning context only`,
     }
+
+    rootSpan.log({
+      output: sanitizeForBraintrust(otherTriggerResult),
+    })
+
+    return otherTriggerResult
+    })
   },
 })
