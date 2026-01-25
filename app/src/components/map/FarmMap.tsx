@@ -388,6 +388,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   const sectionStateRef = useRef<SectionRenderState>({ current: [], grazed: [], alternatives: [] })
   const paddockGeometryRef = useRef<Record<string, Feature<Polygon>>>({})
   const lastLoadedPaddockKeyRef = useRef<string | null>(null)
+  const sectionEditInitializedRef = useRef<boolean>(false)
 
   const { paddocks, getPaddockById, noGrazeZones, waterSources, addPaddock, addNoGrazeZone, addWaterSource } = useGeometry()
   const { farm, isLoading: isFarmLoading } = useFarm()
@@ -670,8 +671,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     [],
   )
 
-  // Render initial section (skip only when actively editing a section, as it's in draw control)
-  const isEditingSection = isEditActive && entityType === 'section'
+  // Render initial section - keep visible even during section editing so it shows when draw control deselects
   useEffect(() => {
     if (!mapInstance || !isMapReady()) return
 
@@ -679,8 +679,10 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     const fillLayerId = `${sourceId}-fill`
     const outlineLayerId = `${sourceId}-outline`
 
-    // Hide section layers when editing a section (it's in draw control) or when no section/hidden
-    if (isEditingSection || !initialSectionFeature || !showSections) {
+    // Hide section layers only when no section or sections toggled off
+    // Note: We keep the layer visible during section editing as a "backing" layer
+    // so the section remains visible even when the draw control deselects it
+    if (!initialSectionFeature || !showSections) {
       if (mapInstance.getLayer(fillLayerId)) {
         mapInstance.setLayoutProperty(fillLayerId, 'visibility', 'none')
       }
@@ -697,11 +699,13 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         properties: {
           ...(initialSectionFeature.properties || {}),
           id: initialSectionId || 'initial-section',
+          paddockId: parentPaddockId,
         },
       }],
     }
     console.log('[Section] Rendering initial section:', {
       id: initialSectionId,
+      paddockId: parentPaddockId,
       coordCount: initialSectionFeature.geometry.coordinates[0]?.length,
       firstCoord: initialSectionFeature.geometry.coordinates[0]?.[0],
     })
@@ -739,7 +743,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         mapInstance.setLayoutProperty(outlineLayerId, 'visibility', 'visible')
       }
     }
-  }, [isMapReady, mapInstance, isEditingSection, initialSectionFeature, initialSectionId, showSections])
+  }, [isMapReady, mapInstance, initialSectionFeature, initialSectionId, showSections, parentPaddockId])
 
   // Initialize map
   useEffect(() => {
@@ -1001,6 +1005,61 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       layerIds.filter((layerId) => map.getLayer(layerId))
 
     const handlePaddockLayerClick = (e: MapEvent) => {
+      console.log('[PaddockLayerClick] Handler called', { point: e.point, features: e.features?.length })
+
+      // Check if a section was clicked first (sections are top layer)
+      // Include both the initial section layer and the section state layers
+      const sectionLayers = ['section-initial-fill', 'sections-current-fill', 'sections-grazed-fill', 'sections-alternatives-fill']
+      const existingLayers = sectionLayers.filter((l) => map.getLayer(l))
+      console.log('[PaddockLayerClick] Section layers check', { sectionLayers, existingLayers })
+
+      if (existingLayers.length > 0) {
+        const sectionHits = map.queryRenderedFeatures(e.point, { layers: existingLayers })
+        console.log('[PaddockLayerClick] Section hits', {
+          hitCount: sectionHits.length,
+          hits: sectionHits.map(f => ({
+            id: f.properties?.id,
+            paddockId: f.properties?.paddockId,
+            layer: f.layer?.id,
+            geometryType: f.geometry?.type,
+            properties: f.properties
+          }))
+        })
+        if (sectionHits.length > 0) {
+          const feature = sectionHits[0]
+          const sectionId = feature.properties?.id as string | undefined
+          // Use parentPaddockId as fallback if paddockId not in feature properties
+          const featurePaddockId = feature.properties?.paddockId as string | undefined
+          const effectivePaddockId = featurePaddockId || parentPaddockId
+          console.log('[PaddockLayerClick] Section found', { sectionId, featurePaddockId, parentPaddockId, effectivePaddockId, geometryType: feature.geometry?.type })
+          if (sectionId && feature.geometry?.type === 'Polygon') {
+            console.log('[PaddockLayerClick] Triggering section edit request')
+            onEditRequest?.({
+              entityType: 'section',
+              sectionId,
+              paddockId: effectivePaddockId,
+              geometry: {
+                type: 'Feature',
+                properties: feature.properties ?? {},
+                geometry: feature.geometry as GeoJSON.Polygon,
+              },
+            })
+            return // Don't process as paddock click
+          } else {
+            console.log('[PaddockLayerClick] Section check failed', { sectionId, geometryType: feature.geometry?.type })
+          }
+        }
+      }
+
+      // If already in section edit mode, don't fall through to paddock click
+      // The section layer is hidden during edit, so clicks should not switch entities
+      if (entityType === 'section' && isEditActive) {
+        console.log('[PaddockLayerClick] Already in section edit mode, ignoring paddock click')
+        return
+      }
+
+      // No section found, handle as paddock click
+      console.log('[PaddockLayerClick] No section found, handling as paddock click')
       if (e.features && e.features[0]) {
         const paddockId = e.features[0].properties?.id as string | undefined
         if (paddockId) {
@@ -1502,6 +1561,11 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       if (isDrawing || dragStateRef.current || isVertexHit(e.point)) return
       const featureId = getFeatureIdAtPoint(e.point)
       if (!featureId) {
+        // When editing sections, don't deselect when clicking outside
+        // This keeps the section visible (inactive polygons are transparent)
+        if (entityType === 'section') {
+          return
+        }
         draw.changeMode('simple_select')
         return
       }
@@ -1533,7 +1597,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       map.off('mouseup', handleMouseUp)
       map.off('click', handleMapClick)
     }
-  }, [mapInstance, isMapLoaded, draw, isEditActive, isDrawing])
+  }, [mapInstance, isMapLoaded, draw, isEditActive, isDrawing, entityType])
 
   // Load paddock geometries into draw when edit mode is activated
   useEffect(() => {
@@ -1584,20 +1648,39 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     draw.changeMode('direct_select', { featureId: initialPaddockId })
   }, [draw, isEditActive, entityType, initialPaddockId, paddocks])
 
+  // Reset section edit initialization when exiting edit mode or changing section
+  useEffect(() => {
+    if (!isEditActive || entityType !== 'section') {
+      sectionEditInitializedRef.current = false
+    }
+  }, [isEditActive, entityType, initialSectionId])
+
   // Load section geometry into draw and select it when editing sections
+  // IMPORTANT: Only run once when first entering section edit mode to avoid
+  // resetting the draw control when the user edits vertices
   useEffect(() => {
     if (!draw || !isEditActive || entityType !== 'section' || !initialSectionFeature) return
+
+    // Skip if we've already initialized this section edit session
+    if (sectionEditInitializedRef.current) {
+      console.log('[FarmMap] Section edit already initialized, skipping reset')
+      return
+    }
 
     const featureId = initialSectionId ?? initialSectionFeature.id?.toString()
     const feature = featureId
       ? { ...initialSectionFeature, id: featureId }
       : initialSectionFeature
 
+    console.log('[FarmMap] Initializing section edit mode', { featureId })
     loadGeometriesToDraw(draw, [feature])
 
     if (featureId) {
       draw.changeMode('direct_select', { featureId })
     }
+
+    // Mark as initialized so we don't reset on subsequent renders
+    sectionEditInitializedRef.current = true
   }, [draw, entityType, isEditActive, initialSectionFeature, initialSectionId])
 
   // Focus map on the section bounds when editing sections

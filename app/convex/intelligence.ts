@@ -520,3 +520,66 @@ export const getFarmContext = query({
     }
   },
 })
+
+
+/**
+ * Update the section geometry of a plan.
+ * This is called when the user edits section vertices on the map.
+ */
+export const updatePlanSectionGeometry = mutation({
+  args: {
+    planId: v.id('plans'),
+    sectionGeometry: v.object({
+      type: v.literal('Polygon'),
+      coordinates: v.array(v.array(v.array(v.number()))),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const plan = await ctx.db.get(args.planId)
+    if (!plan) {
+      throw new Error('Plan not found')
+    }
+
+    // Calculate area in hectares using the same formula as other parts of the codebase
+    const HECTARES_PER_SQUARE_METER = 1 / 10000
+    let sectionAreaHectares = 0
+    try {
+      // Simple polygon area calculation using the shoelace formula
+      const coords = args.sectionGeometry.coordinates[0]
+      if (coords && coords.length > 2) {
+        // Convert to approximate meters (rough estimate at mid-latitudes)
+        // For more accuracy, we'd need turf.js, but this is sufficient for display purposes
+        const centerLat = coords.reduce((sum, c) => sum + c[1], 0) / coords.length
+        const latScale = 111320 // meters per degree latitude
+        const lngScale = 111320 * Math.cos(centerLat * Math.PI / 180) // meters per degree longitude
+
+        let area = 0
+        for (let i = 0; i < coords.length - 1; i++) {
+          const x1 = coords[i][0] * lngScale
+          const y1 = coords[i][1] * latScale
+          const x2 = coords[i + 1][0] * lngScale
+          const y2 = coords[i + 1][1] * latScale
+          area += x1 * y2 - x2 * y1
+        }
+        area = Math.abs(area) / 2
+        sectionAreaHectares = Math.round(area * HECTARES_PER_SQUARE_METER * 10) / 10
+      }
+    } catch (e) {
+      console.error('[updatePlanSectionGeometry] Error calculating area:', e)
+    }
+
+    await ctx.db.patch(args.planId, {
+      sectionGeometry: args.sectionGeometry,
+      sectionAreaHectares,
+      status: 'modified',
+      updatedAt: new Date().toISOString(),
+    })
+
+    console.log('[updatePlanSectionGeometry] Updated plan', args.planId, {
+      sectionAreaHectares,
+      status: 'modified',
+    })
+
+    return args.planId
+  },
+})

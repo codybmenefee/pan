@@ -43,6 +43,7 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
 
   const applyPaddockChanges = useMutation(api.paddocks.applyPaddockChanges)
   const updatePaddockMetadata = useMutation(api.paddocks.updatePaddockMetadata)
+  const updatePlanSectionGeometry = useMutation(api.intelligence.updatePlanSectionGeometry)
   const createNoGrazeZone = useMutation(api.noGrazeZones.create)
   const updateNoGrazeZone = useMutation(api.noGrazeZones.update)
   const removeNoGrazeZone = useMutation(api.noGrazeZones.remove)
@@ -75,10 +76,10 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
         throw new Error('Farm ID is unavailable.')
       }
 
-      // Handle paddock and section changes
-      const paddockSectionChanges = changes
-        .filter((c): c is GeometryChange & { entityType: 'paddock' | 'section' } =>
-          c.entityType === 'paddock' || c.entityType === 'section'
+      // Handle paddock changes (not sections - those go to updatePlanSectionGeometry)
+      const paddockChanges = changes
+        .filter((c): c is GeometryChange & { entityType: 'paddock' } =>
+          c.entityType === 'paddock'
         )
         .map(({ id, entityType, changeType, geometry, parentId, timestamp, metadata }) => ({
           id,
@@ -89,8 +90,29 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
           timestamp,
           metadata,
         }))
-      if (paddockSectionChanges.length > 0) {
-        await applyPaddockChanges({ farmId, changes: paddockSectionChanges })
+      if (paddockChanges.length > 0) {
+        await applyPaddockChanges({ farmId, changes: paddockChanges })
+      }
+
+      // Handle section changes - update the plan's sectionGeometry directly
+      const sectionChanges = changes.filter((c) => c.entityType === 'section')
+      for (const change of sectionChanges) {
+        if (change.changeType === 'update' && change.geometry) {
+          // The section ID is actually the plan ID (from how sections are derived from plans)
+          const planId = change.id as any // Convex ID type
+          const geometry = change.geometry.geometry
+          if (geometry.type === 'Polygon') {
+            console.log('[GeometryProviderWithConvex] Updating plan section geometry', {
+              planId,
+              geometryType: geometry.type,
+              coordinateCount: geometry.coordinates[0]?.length,
+            })
+            await updatePlanSectionGeometry({
+              planId,
+              sectionGeometry: geometry,
+            })
+          }
+        }
       }
 
       // Handle no-graze zone changes
@@ -134,7 +156,7 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
         }
       }
     },
-    [applyPaddockChanges, createNoGrazeZone, updateNoGrazeZone, removeNoGrazeZone, createWaterSource, updateWaterSource, removeWaterSource, farmId]
+    [applyPaddockChanges, updatePlanSectionGeometry, createNoGrazeZone, updateNoGrazeZone, removeNoGrazeZone, createWaterSource, updateWaterSource, removeWaterSource, farmId]
   )
 
   const handlePaddockMetadataChange = useCallback(
