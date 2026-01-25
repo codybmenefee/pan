@@ -5,7 +5,7 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
 import type { Paddock, PaddockStatus } from '@/lib/types'
 import { useGeometry, clipPolygonToPolygon, getTranslationDelta, translatePolygon } from '@/lib/geometry'
-import { createNoGrazeStripePattern } from '@/lib/map/patterns'
+import { createNoGrazeStripePatternByType, getNoGrazeZoneTypes } from '@/lib/map/patterns'
 import { useMapDraw, loadGeometriesToDraw, type DrawMode } from '@/lib/hooks'
 import { DrawingToolbar } from './DrawingToolbar'
 import type { Feature, Polygon } from 'geojson'
@@ -28,9 +28,11 @@ interface FarmMapProps {
   onPaddockClick?: (paddock: Paddock) => void
   onEditPaddockSelect?: (paddock: Paddock | null) => void
   onEditRequest?: (request: {
-    entityType: 'paddock' | 'section'
+    entityType: 'paddock' | 'section' | 'noGrazeZone' | 'waterPolygon'
     paddockId?: string
     sectionId?: string
+    noGrazeZoneId?: string
+    waterSourceId?: string
     geometry?: Feature<Polygon>
   }) => void
   onNoGrazeZoneClick?: (zoneId: string) => void
@@ -247,16 +249,28 @@ function ensureSectionLayers(mapInstance: maplibregl.Map) {
   }
 }
 
+// Type-specific outline colors for no-graze zones
+const noGrazeZoneOutlineColors: Record<string, string> = {
+  environmental: '#16a34a', // Green
+  hazard: '#ea580c', // Orange
+  infrastructure: '#6b7280', // Gray
+  protected: '#9333ea', // Purple
+  other: '#dc2626', // Red
+}
+
 function ensureNoGrazeZoneLayers(mapInstance: maplibregl.Map) {
   const emptyCollection: GeoJSON.FeatureCollection = {
     type: 'FeatureCollection',
     features: [],
   }
 
-  // Add stripe pattern image if not already added
-  if (!mapInstance.hasImage('no-graze-stripes')) {
-    const patternData = createNoGrazeStripePattern()
-    mapInstance.addImage('no-graze-stripes', patternData, { sdf: false })
+  // Add stripe pattern images for each no-graze zone type
+  for (const zoneType of getNoGrazeZoneTypes()) {
+    const imageName = `no-graze-stripes-${zoneType}`
+    if (!mapInstance.hasImage(imageName)) {
+      const patternData = createNoGrazeStripePatternByType(zoneType)
+      mapInstance.addImage(imageName, patternData, { sdf: false })
+    }
   }
 
   if (!mapInstance.getSource('no-graze-zones')) {
@@ -272,7 +286,16 @@ function ensureNoGrazeZoneLayers(mapInstance: maplibregl.Map) {
       type: 'fill',
       source: 'no-graze-zones',
       paint: {
-        'fill-pattern': 'no-graze-stripes',
+        // Use match expression to select pattern based on zone type
+        'fill-pattern': [
+          'match',
+          ['get', 'type'],
+          'environmental', 'no-graze-stripes-environmental',
+          'hazard', 'no-graze-stripes-hazard',
+          'infrastructure', 'no-graze-stripes-infrastructure',
+          'protected', 'no-graze-stripes-protected',
+          'no-graze-stripes-other', // default fallback
+        ],
         'fill-opacity': 1,
       },
     })
@@ -284,7 +307,16 @@ function ensureNoGrazeZoneLayers(mapInstance: maplibregl.Map) {
       type: 'line',
       source: 'no-graze-zones',
       paint: {
-        'line-color': '#dc2626',
+        // Use match expression to select outline color based on zone type
+        'line-color': [
+          'match',
+          ['get', 'type'],
+          'environmental', noGrazeZoneOutlineColors.environmental,
+          'hazard', noGrazeZoneOutlineColors.hazard,
+          'infrastructure', noGrazeZoneOutlineColors.infrastructure,
+          'protected', noGrazeZoneOutlineColors.protected,
+          noGrazeZoneOutlineColors.other, // default fallback
+        ],
         'line-width': 2,
         'line-dasharray': [4, 2],
       },
@@ -395,8 +427,12 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   const sectionStateRef = useRef<SectionRenderState>({ current: [], grazed: [], alternatives: [] })
   const paddockGeometryRef = useRef<Record<string, Feature<Polygon>>>({})
   const lastLoadedPaddockKeyRef = useRef<string | null>(null)
+  const lastLoadedNoGrazeKeyRef = useRef<string | null>(null)
+  const lastLoadedWaterKeyRef = useRef<string | null>(null)
   const lastResetCounterRef = useRef<number>(0)
   const sectionEditInitializedRef = useRef<boolean>(false)
+  const pendingNoGrazeSelectionRef = useRef<string | null>(null)
+  const pendingWaterSelectionRef = useRef<string | null>(null)
 
   const { paddocks, getPaddockById, noGrazeZones, waterSources, addPaddock, addNoGrazeZone, addWaterSource, resetCounter } = useGeometry()
   const { farm, isLoading: isFarmLoading } = useFarm()
@@ -1083,8 +1119,26 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         return
       }
 
-      // No section found, handle as paddock click
-      console.log('[PaddockLayerClick] No section found, handling as paddock click')
+      // Check for no-graze zones (higher priority than paddocks - they render on top)
+      if (map.getLayer('no-graze-fill')) {
+        const noGrazeHits = map.queryRenderedFeatures(e.point, { layers: ['no-graze-fill'] })
+        if (noGrazeHits.length > 0) {
+          console.log('[PaddockLayerClick] No-graze zone at point, deferring to its handler')
+          return // Let the no-graze zone handler deal with it
+        }
+      }
+
+      // Check for water source polygons (higher priority than paddocks - they render on top)
+      if (map.getLayer('water-source-fill')) {
+        const waterHits = map.queryRenderedFeatures(e.point, { layers: ['water-source-fill'] })
+        if (waterHits.length > 0) {
+          console.log('[PaddockLayerClick] Water source at point, deferring to its handler')
+          return // Let the water source handler deal with it
+        }
+      }
+
+      // No section/no-graze/water found, handle as paddock click
+      console.log('[PaddockLayerClick] No overlay found, handling as paddock click')
       if (e.features && e.features[0]) {
         const paddockId = e.features[0].properties?.id as string | undefined
         if (paddockId) {
@@ -1288,32 +1342,114 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       map.on('mouseleave', 'paddocks-fill', handlePaddocksMouseLeave)
     }
 
-    // No-graze zone click handler
+    // No-graze zone click handler - in edit mode, single click switches to editing that zone
     const handleNoGrazeZoneClick = (e: MapEvent) => {
       if (e.features && e.features[0]) {
         const zoneId = e.features[0].properties?.id as string | undefined
+        const geometry = e.features[0].geometry
         if (zoneId) {
-          onNoGrazeZoneClick?.(zoneId)
+          // In edit mode, single click switches to editing this entity
+          if (isEditActive && geometry?.type === 'Polygon') {
+            console.log('[FarmMap] No-graze zone single-click (edit mode):', { zoneId })
+            onEditRequest?.({
+              entityType: 'noGrazeZone',
+              noGrazeZoneId: zoneId,
+              geometry: {
+                type: 'Feature',
+                properties: e.features[0].properties ?? {},
+                geometry: geometry as Polygon,
+              },
+            })
+          } else {
+            onNoGrazeZoneClick?.(zoneId)
+          }
         }
       }
     }
 
-    // Water source click handler
+    // No-graze zone double-click handler - enter edit mode when not already editing
+    const handleNoGrazeZoneDblClick = (e: MapEvent) => {
+      // In edit mode, single-click already handles switching - double-click does nothing extra
+      if (isEditActive) return
+      if (e.features && e.features[0]) {
+        e.preventDefault()
+        const zoneId = e.features[0].properties?.id as string | undefined
+        const geometry = e.features[0].geometry
+        console.log('[FarmMap] No-graze zone double-click:', { zoneId, geometryType: geometry?.type })
+        if (zoneId && geometry?.type === 'Polygon') {
+          onEditRequest?.({
+            entityType: 'noGrazeZone',
+            noGrazeZoneId: zoneId,
+            geometry: {
+              type: 'Feature',
+              properties: e.features[0].properties ?? {},
+              geometry: geometry as Polygon,
+            },
+          })
+        }
+      }
+    }
+
+    // Water source click handler - in edit mode, single click switches to editing that source
     const handleWaterSourceClick = (e: MapEvent) => {
       if (e.features && e.features[0]) {
         const sourceId = e.features[0].properties?.id as string | undefined
+        const geometry = e.features[0].geometry
         if (sourceId) {
-          onWaterSourceClick?.(sourceId)
+          // In edit mode, single click switches to editing this entity (for polygons)
+          if (isEditActive && geometry?.type === 'Polygon') {
+            console.log('[FarmMap] Water source single-click (edit mode):', { sourceId })
+            onEditRequest?.({
+              entityType: 'waterPolygon',
+              waterSourceId: sourceId,
+              geometry: {
+                type: 'Feature',
+                properties: e.features[0].properties ?? {},
+                geometry: geometry as Polygon,
+              },
+            })
+          } else {
+            onWaterSourceClick?.(sourceId)
+          }
+        }
+      }
+    }
+
+    // Water source polygon double-click handler - enter edit mode when not already editing
+    const handleWaterSourceDblClick = (e: MapEvent) => {
+      // In edit mode, single-click already handles switching - double-click does nothing extra
+      if (isEditActive) return
+      if (e.features && e.features[0]) {
+        e.preventDefault()
+        const sourceId = e.features[0].properties?.id as string | undefined
+        const geometry = e.features[0].geometry
+        console.log('[FarmMap] Water source double-click:', { sourceId, geometryType: geometry?.type })
+        if (sourceId && geometry?.type === 'Polygon') {
+          onEditRequest?.({
+            entityType: 'waterPolygon',
+            waterSourceId: sourceId,
+            geometry: {
+              type: 'Feature',
+              properties: e.features[0].properties ?? {},
+              geometry: geometry as Polygon,
+            },
+          })
         }
       }
     }
 
     if (map.getLayer('no-graze-fill')) {
+      console.log('[FarmMap] Binding click/dblclick to no-graze-fill layer')
       map.on('click', 'no-graze-fill', handleNoGrazeZoneClick)
+      map.on('dblclick', 'no-graze-fill', handleNoGrazeZoneDblClick)
+    } else {
+      console.log('[FarmMap] no-graze-fill layer does not exist yet')
     }
 
     if (map.getLayer('water-source-fill')) {
+      console.log('[FarmMap] Binding click/dblclick to water-source-fill layer')
       map.on('click', 'water-source-fill', handleWaterSourceClick)
+      map.on('dblclick', 'water-source-fill', handleWaterSourceDblClick)
     }
 
     if (map.getLayer('water-source-markers')) {
@@ -1331,10 +1467,12 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       map.off('mouseenter', 'paddocks-fill', handlePaddocksMouseEnter)
       map.off('mouseleave', 'paddocks-fill', handlePaddocksMouseLeave)
       map.off('click', 'no-graze-fill', handleNoGrazeZoneClick)
+      map.off('dblclick', 'no-graze-fill', handleNoGrazeZoneDblClick)
       map.off('click', 'water-source-fill', handleWaterSourceClick)
+      map.off('dblclick', 'water-source-fill', handleWaterSourceDblClick)
       map.off('click', 'water-source-markers', handleWaterSourceClick)
     }
-  }, [mapInstance, isMapLoaded, paddocks, getPaddockById, handlePaddockClick, isEditActive, isDrawing, onEditRequest, createDraftSquare, entityType, currentMode, selectedFeatureIds, onNoGrazeZoneClick, onWaterSourceClick])
+  }, [mapInstance, isMapLoaded, paddocks, getPaddockById, handlePaddockClick, isEditActive, isDrawing, onEditRequest, createDraftSquare, entityType, currentMode, selectedFeatureIds, onNoGrazeZoneClick, onWaterSourceClick, noGrazeZones, waterSources])
 
   // Keep section sources synced and clipped to paddock bounds
   useEffect(() => {
@@ -1396,6 +1534,8 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
           ...(zone.geometry.properties ?? {}),
           id: zone.id,
           name: zone.name,
+          type: zone.type,
+          area: zone.area,
         },
       })),
     }
@@ -1602,6 +1742,16 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         if (entityType === 'section') {
           return
         }
+        // Don't deselect if clicking on a no-graze zone or water source
+        // Their click handlers will switch to editing that entity instead
+        if (map.getLayer('no-graze-fill')) {
+          const noGrazeHits = map.queryRenderedFeatures(e.point, { layers: ['no-graze-fill'] })
+          if (noGrazeHits.length > 0) return
+        }
+        if (map.getLayer('water-source-fill')) {
+          const waterHits = map.queryRenderedFeatures(e.point, { layers: ['water-source-fill'] })
+          if (waterHits.length > 0) return
+        }
         draw.changeMode('simple_select')
         return
       }
@@ -1613,6 +1763,94 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       if (isDrawing) return
       const rect = map.getCanvas().getBoundingClientRect()
       const point = new maplibregl.Point(event.clientX - rect.left, event.clientY - rect.top)
+
+      // Check if clicking on no-graze zone or water source - these should switch entity types
+      // Handle the switch directly and stop propagation to prevent MapboxDraw from interfering
+      const hasNoGrazeLayer = map.getLayer('no-graze-fill')
+      const hasWaterLayer = map.getLayer('water-source-fill')
+
+      console.log('[FarmMap] MouseDownCapture:', {
+        entityType,
+        hasNoGrazeLayer: !!hasNoGrazeLayer,
+        hasWaterLayer: !!hasWaterLayer,
+        point: { x: point.x, y: point.y }
+      })
+
+      if (hasNoGrazeLayer) {
+        const noGrazeHits = map.queryRenderedFeatures(point, { layers: ['no-graze-fill'] })
+        console.log('[FarmMap] No-graze query result:', noGrazeHits.length, 'hits')
+        if (noGrazeHits.length > 0 && noGrazeHits[0]) {
+          const feature = noGrazeHits[0]
+          const zoneId = feature.properties?.id as string | undefined
+          const geometry = feature.geometry
+          if (zoneId && geometry?.type === 'Polygon') {
+            console.log('[FarmMap] MouseDown on no-graze zone:', zoneId, 'current entityType:', entityType)
+            event.stopImmediatePropagation()
+            event.preventDefault()
+
+            // If already in noGrazeZone mode, directly select the feature
+            if (entityType === 'noGrazeZone') {
+              const existing = draw.get(zoneId)
+              if (existing) {
+                console.log('[FarmMap] Already in noGrazeZone mode, selecting directly:', zoneId)
+                draw.changeMode('direct_select', { featureId: zoneId })
+              }
+              return
+            }
+
+            // Otherwise, set pending selection and switch entity type
+            pendingNoGrazeSelectionRef.current = zoneId
+            onEditRequest?.({
+              entityType: 'noGrazeZone',
+              noGrazeZoneId: zoneId,
+              geometry: {
+                type: 'Feature',
+                properties: feature.properties ?? {},
+                geometry: geometry as Polygon,
+              },
+            })
+            return
+          }
+        }
+      }
+      if (hasWaterLayer) {
+        const waterHits = map.queryRenderedFeatures(point, { layers: ['water-source-fill'] })
+        console.log('[FarmMap] Water query result:', waterHits.length, 'hits')
+        if (waterHits.length > 0 && waterHits[0]) {
+          const feature = waterHits[0]
+          const sourceId = feature.properties?.id as string | undefined
+          const geometry = feature.geometry
+          if (sourceId && geometry?.type === 'Polygon') {
+            console.log('[FarmMap] MouseDown on water source:', sourceId, 'current entityType:', entityType)
+            event.stopImmediatePropagation()
+            event.preventDefault()
+
+            // If already in waterPolygon mode, directly select the feature
+            if (entityType === 'waterPolygon') {
+              const existing = draw.get(sourceId)
+              if (existing) {
+                console.log('[FarmMap] Already in waterPolygon mode, selecting directly:', sourceId)
+                draw.changeMode('direct_select', { featureId: sourceId })
+              }
+              return
+            }
+
+            // Otherwise, set pending selection and switch entity type
+            pendingWaterSelectionRef.current = sourceId
+            onEditRequest?.({
+              entityType: 'waterPolygon',
+              waterSourceId: sourceId,
+              geometry: {
+                type: 'Feature',
+                properties: feature.properties ?? {},
+                geometry: geometry as Polygon,
+              },
+            })
+            return
+          }
+        }
+      }
+
       if (isVertexHit(point)) return
       const featureId = getFeatureIdAtPoint(point)
       if (!featureId) return
@@ -1749,6 +1987,114 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     if (!isMapLoaded || !isEditActive || entityType !== 'section' || !initialSectionFeature) return
     fitPolygonBounds(initialSectionFeature, 80)
   }, [entityType, fitPolygonBounds, initialSectionFeature, isEditActive, isMapLoaded])
+
+  // Load no-graze zone geometries into draw when edit mode is activated
+  useEffect(() => {
+    if (!draw || !isEditActive || entityType !== 'noGrazeZone') {
+      if (!isEditActive || entityType !== 'noGrazeZone') {
+        lastLoadedNoGrazeKeyRef.current = null
+      }
+      return
+    }
+
+    // Force reload if resetCounter changed (user clicked Reset)
+    const forceReload = resetCounter !== lastResetCounterRef.current
+
+    // Load existing no-graze zone geometries into the draw plugin
+    const features = noGrazeZones.map((z) => ({
+      ...z.geometry,
+      id: z.id,
+    }))
+    // Include geometry hashes in the key to detect geometry changes
+    const nextKey = noGrazeZones.map((z) => {
+      const coords = z.geometry.geometry.coordinates[0]
+      const coordHash = coords.length + ':' + (coords[0]?.[0]?.toFixed(6) || '') + ',' + (coords[0]?.[1]?.toFixed(6) || '')
+      return `${z.id}:${coordHash}`
+    }).sort().join('|')
+
+    let drawFeatureCount = 0
+    try {
+      drawFeatureCount = draw.getAll()?.features?.length ?? 0
+    } catch {
+      return
+    }
+    if (lastLoadedNoGrazeKeyRef.current === nextKey && drawFeatureCount > 0 && !forceReload) {
+      return
+    }
+    console.log('[NoGrazeZones] Loading geometries into draw')
+    lastLoadedNoGrazeKeyRef.current = nextKey
+    try {
+      loadGeometriesToDraw(draw, features)
+      // Select the pending no-graze zone if there is one
+      const pendingId = pendingNoGrazeSelectionRef.current
+      if (pendingId) {
+        console.log('[NoGrazeZones] Selecting pending zone:', pendingId)
+        pendingNoGrazeSelectionRef.current = null
+        const existing = draw.get(pendingId)
+        if (existing) {
+          draw.changeMode('direct_select', { featureId: pendingId })
+        }
+      }
+    } catch (err) {
+      console.log('[NoGrazeZones] Draw reload failed:', err)
+    }
+  }, [draw, isEditActive, entityType, noGrazeZones, resetCounter])
+
+  // Load water source polygon geometries into draw when edit mode is activated
+  useEffect(() => {
+    if (!draw || !isEditActive || entityType !== 'waterPolygon') {
+      if (!isEditActive || entityType !== 'waterPolygon') {
+        lastLoadedWaterKeyRef.current = null
+      }
+      return
+    }
+
+    // Force reload if resetCounter changed (user clicked Reset)
+    const forceReload = resetCounter !== lastResetCounterRef.current
+
+    // Load existing water source polygon geometries into the draw plugin (exclude points)
+    const polygonSources = waterSources.filter((s) => s.geometryType === 'polygon')
+    const features = polygonSources.map((s) => ({
+      ...s.geometry,
+      id: s.id,
+    })) as Feature<Polygon>[]
+
+    // Include geometry hashes in the key to detect geometry changes
+    const nextKey = polygonSources.map((s) => {
+      const geom = s.geometry.geometry
+      if (geom.type !== 'Polygon') return s.id
+      const coords = geom.coordinates[0]
+      const coordHash = coords.length + ':' + (coords[0]?.[0]?.toFixed(6) || '') + ',' + (coords[0]?.[1]?.toFixed(6) || '')
+      return `${s.id}:${coordHash}`
+    }).sort().join('|')
+
+    let drawFeatureCount = 0
+    try {
+      drawFeatureCount = draw.getAll()?.features?.length ?? 0
+    } catch {
+      return
+    }
+    if (lastLoadedWaterKeyRef.current === nextKey && drawFeatureCount > 0 && !forceReload) {
+      return
+    }
+    console.log('[WaterSources] Loading polygon geometries into draw')
+    lastLoadedWaterKeyRef.current = nextKey
+    try {
+      loadGeometriesToDraw(draw, features)
+      // Select the pending water source if there is one
+      const pendingId = pendingWaterSelectionRef.current
+      if (pendingId) {
+        console.log('[WaterSources] Selecting pending source:', pendingId)
+        pendingWaterSelectionRef.current = null
+        const existing = draw.get(pendingId)
+        if (existing) {
+          draw.changeMode('direct_select', { featureId: pendingId })
+        }
+      }
+    } catch (err) {
+      console.log('[WaterSources] Draw reload failed:', err)
+    }
+  }, [draw, isEditActive, entityType, waterSources, resetCounter])
 
   // Hide native paddock layers when editing paddocks (Draw will render them)
   useEffect(() => {
