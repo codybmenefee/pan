@@ -2,10 +2,21 @@ import { useCallback, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
-import { mapFarmDoc, mapPaddockDoc, mapSectionDoc, type FarmDoc, type PaddockDoc, type SectionDoc } from '@/lib/convex/mappers'
+import {
+  mapFarmDoc,
+  mapPaddockDoc,
+  mapSectionDoc,
+  mapNoGrazeZoneDoc,
+  mapWaterSourceDoc,
+  type FarmDoc,
+  type PaddockDoc,
+  type SectionDoc,
+  type NoGrazeZoneDoc,
+  type WaterSourceDoc,
+} from '@/lib/convex/mappers'
 import { useFarmContext } from '@/lib/farm'
 import type { GeometryChange } from '@/lib/geometry/types'
-import type { Paddock } from '@/lib/types'
+import type { Paddock, WaterSourceType } from '@/lib/types'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
 import { ErrorState } from '@/components/ui/error/ErrorState'
 import { GeometryProvider } from './GeometryContext'
@@ -23,18 +34,30 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
   const sectionDocs = useQuery(api.intelligence.getAllSections, farmId ? { farmExternalId: farmId } : 'skip') as
     | SectionDoc[]
     | undefined
+  const noGrazeZoneDocs = useQuery(api.noGrazeZones.listByFarm, farmId ? { farmId } : 'skip') as
+    | NoGrazeZoneDoc[]
+    | undefined
+  const waterSourceDocs = useQuery(api.waterSources.listByFarm, farmId ? { farmId } : 'skip') as
+    | WaterSourceDoc[]
+    | undefined
 
   const applyPaddockChanges = useMutation(api.paddocks.applyPaddockChanges)
   const updatePaddockMetadata = useMutation(api.paddocks.updatePaddockMetadata)
+  const createNoGrazeZone = useMutation(api.noGrazeZones.create)
+  const updateNoGrazeZone = useMutation(api.noGrazeZones.update)
+  const removeNoGrazeZone = useMutation(api.noGrazeZones.remove)
+  const createWaterSource = useMutation(api.waterSources.create)
+  const updateWaterSource = useMutation(api.waterSources.update)
+  const removeWaterSource = useMutation(api.waterSources.remove)
 
   const paddocks = useMemo(() => (paddockDocs ?? []).map(mapPaddockDoc), [paddockDocs])
   const farm = farmDoc ? mapFarmDoc(farmDoc) : null
   const sections = useMemo(() => {
     console.log('[GeometryProvider] Processing sections:', {
       sectionDocsCount: sectionDocs?.length ?? 0,
-      sectionDocs: sectionDocs?.map(d => ({ 
-        id: d.id, 
-        paddockId: d.paddockId, 
+      sectionDocs: sectionDocs?.map(d => ({
+        id: d.id,
+        paddockId: d.paddockId,
         date: d.date,
         hasGeometry: !!d.geometry,
       })),
@@ -43,14 +66,16 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
     console.log('[GeometryProvider] Mapped sections:', mapped.length, 'sections ready')
     return mapped
   }, [sectionDocs])
+  const noGrazeZones = useMemo(() => (noGrazeZoneDocs ?? []).map(mapNoGrazeZoneDoc), [noGrazeZoneDocs])
+  const waterSources = useMemo(() => (waterSourceDocs ?? []).map(mapWaterSourceDoc), [waterSourceDocs])
 
   const handleGeometryChange = useCallback(
     async (changes: GeometryChange[]) => {
       if (!farmId) {
         throw new Error('Farm ID is unavailable.')
       }
-      // Filter to only paddock and section changes for now
-      // TODO: Add backend handlers for noGrazeZone and waterSource
+
+      // Handle paddock and section changes
       const paddockSectionChanges = changes
         .filter((c): c is GeometryChange & { entityType: 'paddock' | 'section' } =>
           c.entityType === 'paddock' || c.entityType === 'section'
@@ -67,8 +92,49 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
       if (paddockSectionChanges.length > 0) {
         await applyPaddockChanges({ farmId, changes: paddockSectionChanges })
       }
+
+      // Handle no-graze zone changes
+      for (const change of changes.filter((c) => c.entityType === 'noGrazeZone')) {
+        if (change.changeType === 'add' && change.geometry) {
+          const name = (change.metadata as { name?: string })?.name ?? 'New No-graze Zone'
+          await createNoGrazeZone({
+            farmId,
+            name,
+            geometry: change.geometry,
+          })
+        } else if (change.changeType === 'update') {
+          await updateNoGrazeZone({
+            id: change.id as any,
+            geometry: change.geometry,
+          })
+        } else if (change.changeType === 'delete') {
+          await removeNoGrazeZone({ id: change.id as any })
+        }
+      }
+
+      // Handle water source changes
+      for (const change of changes.filter((c) => c.entityType === 'waterPoint' || c.entityType === 'waterPolygon')) {
+        const geometryType = change.entityType === 'waterPoint' ? 'point' : 'polygon'
+        if (change.changeType === 'add' && change.geometry) {
+          const metadata = change.metadata as { name?: string; type?: WaterSourceType } | undefined
+          await createWaterSource({
+            farmId,
+            name: metadata?.name ?? 'New Water Source',
+            type: metadata?.type ?? 'other',
+            geometryType,
+            geometry: change.geometry as any,
+          })
+        } else if (change.changeType === 'update') {
+          await updateWaterSource({
+            id: change.id as any,
+            geometry: change.geometry as any,
+          })
+        } else if (change.changeType === 'delete') {
+          await removeWaterSource({ id: change.id as any })
+        }
+      }
     },
-    [applyPaddockChanges, farmId]
+    [applyPaddockChanges, createNoGrazeZone, updateNoGrazeZone, removeNoGrazeZone, createWaterSource, updateWaterSource, removeWaterSource, farmId]
   )
 
   const handlePaddockMetadataChange = useCallback(
@@ -83,7 +149,7 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
 
   const isLoading =
     isFarmLoading ||
-    (!!farmId && (farmDoc === undefined || paddockDocs === undefined || sectionDocs === undefined))
+    (!!farmId && (farmDoc === undefined || paddockDocs === undefined || sectionDocs === undefined || noGrazeZoneDocs === undefined || waterSourceDocs === undefined))
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -121,6 +187,8 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
     <GeometryProvider
       initialPaddocks={paddocks}
       initialSections={sections}
+      initialNoGrazeZones={noGrazeZones}
+      initialWaterSources={waterSources}
       onGeometryChange={handleGeometryChange}
       onPaddockMetadataChange={handlePaddockMetadataChange}
     >

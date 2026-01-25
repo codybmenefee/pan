@@ -3,12 +3,14 @@ import { useSearch, useNavigate } from '@tanstack/react-router'
 import { FarmMap, type FarmMapHandle } from './FarmMap'
 import { PaddockPanel } from './PaddockPanel'
 import { PaddockEditPanel } from './PaddockEditPanel'
+import { NoGrazeEditPanel } from './NoGrazeEditPanel'
+import { WaterSourceEditPanel } from './WaterSourceEditPanel'
 import { LayerToggles } from './LayerToggles'
 import { MapAddMenu } from './MapAddMenu'
 import { useGeometry, clipPolygonToPolygon } from '@/lib/geometry'
 import { useTodayPlan } from '@/lib/convex/usePlan'
 import { useCurrentUser } from '@/lib/convex/useCurrentUser'
-import type { Paddock, Section, SectionAlternative } from '@/lib/types'
+import type { Paddock, Section, SectionAlternative, NoGrazeZone, WaterSource, WaterSourceType } from '@/lib/types'
 import type { Feature, Polygon } from 'geojson'
 
 interface MapSearchParams {
@@ -26,6 +28,8 @@ export function MapView() {
   const { plan } = useTodayPlan(farmId || '')
   
   const [selectedPaddock, setSelectedPaddock] = useState<Paddock | null>(null)
+  const [selectedNoGrazeZone, setSelectedNoGrazeZone] = useState<NoGrazeZone | null>(null)
+  const [selectedWaterSource, setSelectedWaterSource] = useState<WaterSource | null>(null)
   const [editMode, setEditMode] = useState(false)
   const [entityType, setEntityType] = useState<'paddock' | 'section' | 'noGrazeZone' | 'waterPoint' | 'waterPolygon'>('paddock')
   const [focusPaddockId, setFocusPaddockId] = useState<string | undefined>(undefined)
@@ -33,7 +37,20 @@ export function MapView() {
   const [editSectionId, setEditSectionId] = useState<string | undefined>(undefined)
   const [initialPaddockId, setInitialPaddockId] = useState<string | undefined>(undefined)
   const mapRef = useRef<FarmMapHandle>(null)
-  const { getSectionById, getPaddockById, addPaddock, sections } = useGeometry()
+  const {
+    getSectionById,
+    getPaddockById,
+    addPaddock,
+    sections,
+    noGrazeZones,
+    waterSources,
+    updateNoGrazeZoneMetadata,
+    deleteNoGrazeZone,
+    updateWaterSourceMetadata,
+    deleteWaterSource,
+    getNoGrazeZoneById,
+    getWaterSourceById,
+  } = useGeometry()
   
   const [layers, setLayers] = useState({
     satellite: true,
@@ -72,21 +89,7 @@ export function MapView() {
 
   // Initialize from URL search params on mount
   useEffect(() => {
-    // If no search params but we have a plan with a section, redirect to edit mode
-    if (!search.edit && !search.entityType && plan?.sectionGeometry) {
-      navigate({
-        to: '/map',
-        search: {
-          edit: true,
-          entityType: 'section',
-          paddockId: plan.primaryPaddockExternalId || '',
-          sectionId: plan._id,
-        },
-        replace: true,
-      })
-      return
-    }
-
+    // Only enter edit mode if explicitly requested via URL params
     if (search.edit) {
       setEditMode(true)
       // When editing sections, show satellite imagery
@@ -291,6 +294,44 @@ export function MapView() {
     setSelectedPaddock(paddock)
   }, [])
 
+  const handleNoGrazeZoneClick = useCallback((zoneId: string) => {
+    const zone = getNoGrazeZoneById(zoneId)
+    if (zone) {
+      setSelectedNoGrazeZone(zone)
+      setSelectedPaddock(null)
+      setSelectedWaterSource(null)
+    }
+  }, [getNoGrazeZoneById])
+
+  const handleWaterSourceClick = useCallback((sourceId: string) => {
+    const source = getWaterSourceById(sourceId)
+    if (source) {
+      setSelectedWaterSource(source)
+      setSelectedPaddock(null)
+      setSelectedNoGrazeZone(null)
+    }
+  }, [getWaterSourceById])
+
+  const handleNoGrazeZoneSave = useCallback((id: string, name: string) => {
+    updateNoGrazeZoneMetadata(id, { name })
+    setSelectedNoGrazeZone(null)
+  }, [updateNoGrazeZoneMetadata])
+
+  const handleNoGrazeZoneDelete = useCallback((id: string) => {
+    deleteNoGrazeZone(id)
+    setSelectedNoGrazeZone(null)
+  }, [deleteNoGrazeZone])
+
+  const handleWaterSourceSave = useCallback((id: string, updates: { name?: string; type?: WaterSourceType }) => {
+    updateWaterSourceMetadata(id, updates)
+    setSelectedWaterSource(null)
+  }, [updateWaterSourceMetadata])
+
+  const handleWaterSourceDelete = useCallback((id: string) => {
+    deleteWaterSource(id)
+    setSelectedWaterSource(null)
+  }, [deleteWaterSource])
+
   return (
     <div className="flex h-full">
       {/* Map area */}
@@ -300,6 +341,8 @@ export function MapView() {
           onPaddockClick={setSelectedPaddock}
           onEditPaddockSelect={handleEditPaddockSelect}
           onEditRequest={handleEditRequest}
+          onNoGrazeZoneClick={handleNoGrazeZoneClick}
+          onWaterSourceClick={handleWaterSourceClick}
           selectedPaddockId={selectedPaddock?.id}
           showSatellite={layers.satellite}
           showNdviHeat={layers.ndviHeat}
@@ -366,6 +409,24 @@ export function MapView() {
             setSelectedPaddock(null)
             mapRef.current?.setDrawMode('simple_select')
           }}
+        />
+      )}
+
+      {selectedNoGrazeZone && (
+        <NoGrazeEditPanel
+          zone={selectedNoGrazeZone}
+          onSave={handleNoGrazeZoneSave}
+          onDelete={handleNoGrazeZoneDelete}
+          onClose={() => setSelectedNoGrazeZone(null)}
+        />
+      )}
+
+      {selectedWaterSource && (
+        <WaterSourceEditPanel
+          source={selectedWaterSource}
+          onSave={handleWaterSourceSave}
+          onDelete={handleWaterSourceDelete}
+          onClose={() => setSelectedWaterSource(null)}
         />
       )}
     </div>

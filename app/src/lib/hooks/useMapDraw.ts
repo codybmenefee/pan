@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import MapboxDraw from '@mapbox/mapbox-gl-draw'
-import type { Feature, Polygon, FeatureCollection } from 'geojson'
+import type { Feature, Point, Polygon, FeatureCollection } from 'geojson'
 import type { Map as MapLibreMap } from 'maplibre-gl'
 import { useGeometry, clipPolygonToPolygon, getTranslationDelta, translatePolygon } from '@/lib/geometry'
 import type { EntityType } from '@/lib/geometry'
@@ -8,7 +8,7 @@ import type { EntityType } from '@/lib/geometry'
 // Import MapboxDraw styles - these need to be imported in the component that uses this hook
 // or added globally: import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
 
-export type DrawMode = 'simple_select' | 'direct_select' | 'draw_polygon'
+export type DrawMode = 'simple_select' | 'direct_select' | 'draw_polygon' | 'draw_point'
 
 export interface UseMapDrawOptions {
   map: MapLibreMap | null
@@ -140,6 +140,12 @@ export function useMapDraw({
     addSection,
     updateSection,
     deleteSection,
+    addNoGrazeZone,
+    updateNoGrazeZone,
+    deleteNoGrazeZone,
+    addWaterSource,
+    updateWaterSource,
+    deleteWaterSource,
     getPaddockById,
     getSectionsByPaddockId,
   } = useGeometry()
@@ -152,6 +158,7 @@ export function useMapDraw({
       displayControlsDefault: false,
       controls: {
         polygon: false,
+        point: false,
         trash: false,
       },
       styles: drawStyles,
@@ -182,17 +189,24 @@ export function useMapDraw({
   useEffect(() => {
     if (!map || !drawRef.current) return
 
-    const handleCreate = (e: { features: Feature<Polygon>[] }) => {
+    const handleCreate = (e: { features: Feature[] }) => {
       const feature = e.features[0]
-      if (!feature || feature.geometry.type !== 'Polygon') return
+      if (!feature) return
 
       let newId: string
-      if (entityType === 'paddock') {
+
+      if (entityType === 'paddock' && feature.geometry.type === 'Polygon') {
         newId = addPaddock(feature as Feature<Polygon>)
-      } else if (entityType === 'section' && parentPaddockId) {
+      } else if (entityType === 'section' && parentPaddockId && feature.geometry.type === 'Polygon') {
         newId = addSection(parentPaddockId, feature as Feature<Polygon>)
+      } else if (entityType === 'noGrazeZone' && feature.geometry.type === 'Polygon') {
+        newId = addNoGrazeZone(feature as Feature<Polygon>)
+      } else if (entityType === 'waterPoint' && feature.geometry.type === 'Point') {
+        newId = addWaterSource(feature as Feature<Point>, 'point')
+      } else if (entityType === 'waterPolygon' && feature.geometry.type === 'Polygon') {
+        newId = addWaterSource(feature as Feature<Polygon>, 'polygon')
       } else {
-        console.warn('Section creation requires parentPaddockId')
+        console.warn('Invalid entity type or geometry combination:', entityType, feature.geometry.type)
         return
       }
 
@@ -208,12 +222,13 @@ export function useMapDraw({
       setIsDrawing(false)
     }
 
-    const handleUpdate = (e: { features: Feature<Polygon>[]; action?: string }) => {
+    const handleUpdate = (e: { features: Feature[]; action?: string }) => {
       e.features.forEach((feature) => {
-        if (!feature.id || feature.geometry.type !== 'Polygon') return
+        if (!feature.id) return
 
         const id = String(feature.id)
-        if (entityType === 'paddock') {
+
+        if (entityType === 'paddock' && feature.geometry.type === 'Polygon') {
           const previousPaddock = getPaddockById(id)
           const nextGeometry = feature as Feature<Polygon>
           updatePaddock(id, feature as Feature<Polygon>)
@@ -240,8 +255,12 @@ export function useMapDraw({
               })
             }
           }
-        } else {
+        } else if (entityType === 'section' && feature.geometry.type === 'Polygon') {
           updateSection(id, feature as Feature<Polygon>)
+        } else if (entityType === 'noGrazeZone' && feature.geometry.type === 'Polygon') {
+          updateNoGrazeZone(id, feature as Feature<Polygon>)
+        } else if ((entityType === 'waterPoint' || entityType === 'waterPolygon')) {
+          updateWaterSource(id, feature as Feature<Point | Polygon>)
         }
 
         onFeatureUpdated?.(id, feature as Feature<Polygon>)
@@ -251,15 +270,19 @@ export function useMapDraw({
       })
     }
 
-    const handleDelete = (e: { features: Feature<Polygon>[] }) => {
+    const handleDelete = (e: { features: Feature[] }) => {
       e.features.forEach((feature) => {
         if (!feature.id) return
 
         const id = String(feature.id)
         if (entityType === 'paddock') {
           deletePaddock(id)
-        } else {
+        } else if (entityType === 'section') {
           deleteSection(id)
+        } else if (entityType === 'noGrazeZone') {
+          deleteNoGrazeZone(id)
+        } else if (entityType === 'waterPoint' || entityType === 'waterPolygon') {
+          deleteWaterSource(id)
         }
 
         onFeatureDeleted?.(id)
@@ -268,7 +291,7 @@ export function useMapDraw({
 
     const handleModeChange = (e: { mode: DrawMode }) => {
       setCurrentMode(e.mode)
-      setIsDrawing(e.mode === 'draw_polygon')
+      setIsDrawing(e.mode === 'draw_polygon' || e.mode === 'draw_point')
     }
 
     const handleSelectionChange = (e: { features: Feature[] }) => {
@@ -298,6 +321,12 @@ export function useMapDraw({
     addSection,
     updateSection,
     deleteSection,
+    addNoGrazeZone,
+    updateNoGrazeZone,
+    deleteNoGrazeZone,
+    addWaterSource,
+    updateWaterSource,
+    deleteWaterSource,
     getPaddockById,
     getSectionsByPaddockId,
     onFeatureCreated,
@@ -310,7 +339,7 @@ export function useMapDraw({
       // Type assertion needed due to MapboxDraw's strict overload types
       drawRef.current.changeMode(mode as 'simple_select')
       setCurrentMode(mode)
-      setIsDrawing(mode === 'draw_polygon')
+      setIsDrawing(mode === 'draw_polygon' || mode === 'draw_point')
     }
   }, [])
 

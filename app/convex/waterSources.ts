@@ -29,16 +29,25 @@ const waterSourceType = v.union(
 )
 
 /**
- * List all water sources for a farm.
+ * List all water sources for a farm by external ID.
  */
-export const list = query({
+export const listByFarm = query({
   args: {
-    farmId: v.id('farms'),
+    farmId: v.string(),
   },
   handler: async (ctx, args) => {
+    const farm = await ctx.db
+      .query('farms')
+      .withIndex('by_externalId', (q) => q.eq('externalId', args.farmId))
+      .first()
+
+    if (!farm) {
+      return []
+    }
+
     const sources = await ctx.db
       .query('waterSources')
-      .withIndex('by_farm', (q) => q.eq('farmId', args.farmId))
+      .withIndex('by_farm', (q) => q.eq('farmId', farm._id))
       .collect()
     return sources
   },
@@ -49,16 +58,25 @@ export const list = query({
  */
 export const create = mutation({
   args: {
-    farmId: v.id('farms'),
+    farmId: v.string(),
     name: v.string(),
     type: waterSourceType,
     geometryType: v.union(v.literal('point'), v.literal('polygon')),
     geometry: v.union(pointFeature, polygonFeature),
   },
   handler: async (ctx, args) => {
+    const farm = await ctx.db
+      .query('farms')
+      .withIndex('by_externalId', (q) => q.eq('externalId', args.farmId))
+      .first()
+
+    if (!farm) {
+      throw new Error('Farm not found')
+    }
+
     const now = new Date().toISOString()
     const sourceId = await ctx.db.insert('waterSources', {
-      farmId: args.farmId,
+      farmId: farm._id,
       name: args.name,
       type: args.type,
       geometryType: args.geometryType,

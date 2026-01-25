@@ -11,16 +11,25 @@ const polygonFeature = v.object({
 })
 
 /**
- * List all no-graze zones for a farm.
+ * List all no-graze zones for a farm by external ID.
  */
-export const list = query({
+export const listByFarm = query({
   args: {
-    farmId: v.id('farms'),
+    farmId: v.string(),
   },
   handler: async (ctx, args) => {
+    const farm = await ctx.db
+      .query('farms')
+      .withIndex('by_externalId', (q) => q.eq('externalId', args.farmId))
+      .first()
+
+    if (!farm) {
+      return []
+    }
+
     const zones = await ctx.db
       .query('noGrazeZones')
-      .withIndex('by_farm', (q) => q.eq('farmId', args.farmId))
+      .withIndex('by_farm', (q) => q.eq('farmId', farm._id))
       .collect()
     return zones
   },
@@ -31,14 +40,23 @@ export const list = query({
  */
 export const create = mutation({
   args: {
-    farmId: v.id('farms'),
+    farmId: v.string(),
     name: v.string(),
     geometry: polygonFeature,
   },
   handler: async (ctx, args) => {
+    const farm = await ctx.db
+      .query('farms')
+      .withIndex('by_externalId', (q) => q.eq('externalId', args.farmId))
+      .first()
+
+    if (!farm) {
+      throw new Error('Farm not found')
+    }
+
     const now = new Date().toISOString()
     const zoneId = await ctx.db.insert('noGrazeZones', {
-      farmId: args.farmId,
+      farmId: farm._id,
       name: args.name,
       geometry: args.geometry,
       createdAt: now,

@@ -32,6 +32,8 @@ interface FarmMapProps {
     sectionId?: string
     geometry?: Feature<Polygon>
   }) => void
+  onNoGrazeZoneClick?: (zoneId: string) => void
+  onWaterSourceClick?: (sourceId: string) => void
   selectedPaddockId?: string
   showSatellite?: boolean
   showNdviHeat?: boolean
@@ -40,7 +42,7 @@ interface FarmMapProps {
   showSections?: boolean
   editable?: boolean
   editMode?: boolean
-  entityType?: 'paddock' | 'section'
+  entityType?: 'paddock' | 'section' | 'noGrazeZone' | 'waterPoint' | 'waterPolygon'
   parentPaddockId?: string
   initialSectionFeature?: Feature<Polygon>
   initialSectionId?: string
@@ -339,10 +341,12 @@ function ensureWaterSourceLayers(mapInstance: maplibregl.Map) {
   }
 }
 
-export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap({ 
-  onPaddockClick, 
+export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap({
+  onPaddockClick,
   onEditPaddockSelect,
   onEditRequest,
+  onNoGrazeZoneClick,
+  onWaterSourceClick,
   selectedPaddockId,
   showSatellite = false,
   showNdviHeat = false,
@@ -1120,6 +1124,38 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       map.on('mouseleave', 'paddocks-fill', handlePaddocksMouseLeave)
     }
 
+    // No-graze zone click handler
+    const handleNoGrazeZoneClick = (e: MapEvent) => {
+      if (e.features && e.features[0]) {
+        const zoneId = e.features[0].properties?.id as string | undefined
+        if (zoneId) {
+          onNoGrazeZoneClick?.(zoneId)
+        }
+      }
+    }
+
+    // Water source click handler
+    const handleWaterSourceClick = (e: MapEvent) => {
+      if (e.features && e.features[0]) {
+        const sourceId = e.features[0].properties?.id as string | undefined
+        if (sourceId) {
+          onWaterSourceClick?.(sourceId)
+        }
+      }
+    }
+
+    if (map.getLayer('no-graze-fill')) {
+      map.on('click', 'no-graze-fill', handleNoGrazeZoneClick)
+    }
+
+    if (map.getLayer('water-source-fill')) {
+      map.on('click', 'water-source-fill', handleWaterSourceClick)
+    }
+
+    if (map.getLayer('water-source-markers')) {
+      map.on('click', 'water-source-markers', handleWaterSourceClick)
+    }
+
     // Double click behavior: select section or create new paddock
     map.on('dblclick', handleMapDoubleClick)
     map.on('click', handleMapClickLog)
@@ -1130,8 +1166,11 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       map.off('click', 'paddocks-fill', handlePaddockLayerClick)
       map.off('mouseenter', 'paddocks-fill', handlePaddocksMouseEnter)
       map.off('mouseleave', 'paddocks-fill', handlePaddocksMouseLeave)
+      map.off('click', 'no-graze-fill', handleNoGrazeZoneClick)
+      map.off('click', 'water-source-fill', handleWaterSourceClick)
+      map.off('click', 'water-source-markers', handleWaterSourceClick)
     }
-  }, [mapInstance, isMapLoaded, paddocks, getPaddockById, handlePaddockClick, isEditActive, isDrawing, onEditRequest, createDraftSquare, entityType, currentMode, selectedFeatureIds])
+  }, [mapInstance, isMapLoaded, paddocks, getPaddockById, handlePaddockClick, isEditActive, isDrawing, onEditRequest, createDraftSquare, entityType, currentMode, selectedFeatureIds, onNoGrazeZoneClick, onWaterSourceClick])
 
   // Keep section sources synced and clipped to paddock bounds
   useEffect(() => {

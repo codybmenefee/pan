@@ -7,12 +7,14 @@ interface MapAddMenuProps {
   onAddPaddock: () => void
   onAddNoGrazeZone: () => void
   onAddWaterSource: (geometryType: 'point' | 'polygon') => void
+  className?: string
 }
 
 export function MapAddMenu({
   onAddPaddock,
   onAddNoGrazeZone,
   onAddWaterSource,
+  className,
 }: MapAddMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [waterSubmenuOpen, setWaterSubmenuOpen] = useState(false)
@@ -50,7 +52,7 @@ export function MapAddMenu({
   }
 
   return (
-    <div ref={menuRef} className="absolute top-3 right-3 z-10">
+    <div ref={menuRef} className={cn("absolute top-3 right-3 z-20", className)}>
       {/* Plus button trigger */}
       <Button
         size="icon"
