@@ -9,10 +9,11 @@ from abc import ABC, abstractmethod
 from typing import Protocol, TypedDict
 
 
-class BandNames(TypedDict):
+class BandNames(TypedDict, total=False):
     """Map semantic band names to provider-specific identifiers."""
-    nir: str  # Near-infrared
-    red: str  # Red
+    nir: str   # Near-infrared
+    red: str   # Red
+    green: str # Green (for RGB composite)
     swir: str  # Short-wave infrared (optional)
     blue: str  # Blue (optional for some computations)
 
@@ -210,17 +211,18 @@ class ProviderFactory:
     """
     Factory for creating satellite providers based on farm tier.
 
-    Free farms get Sentinel-2 only. Premium farms get Sentinel-2 + PlanetScope
-    (merged output at higher resolution).
+    Default provider is Copernicus Data Space for Sentinel-2 data.
+    Premium tiers can add PlanetScope for higher resolution.
     """
 
     @staticmethod
-    def get_provider(provider_name: str) -> SatelliteProvider:
+    def get_provider(provider_name: str, **kwargs) -> SatelliteProvider:
         """
         Create a specific provider by name.
 
         Args:
-            provider_name: Name of the provider ("sentinel2", "planet_scope")
+            provider_name: Name of the provider ("copernicus", "sentinel2", "planet_scope")
+            **kwargs: Provider-specific arguments (e.g., api_key)
 
         Returns:
             Provider instance
@@ -228,46 +230,76 @@ class ProviderFactory:
         Raises:
             ValueError: If provider name is not recognized
         """
-        if provider_name == "sentinel2":
+        if provider_name == "copernicus":
+            from .copernicus import CopernicusProvider
+            return CopernicusProvider(
+                client_id=kwargs.get("client_id"),
+                client_secret=kwargs.get("client_secret"),
+            )
+        elif provider_name == "sentinel2":
+            # Legacy Planetary Computer provider (fallback)
             from .sentinel2 import Sentinel2Provider
             return Sentinel2Provider()
         elif provider_name == "planet_scope":
             from .planet_scope import PlanetScopeProvider
-            return PlanetScopeProvider()
+            return PlanetScopeProvider(api_key=kwargs.get("api_key"))
         else:
             raise ValueError(f"Unknown provider: {provider_name}")
 
     @staticmethod
     def get_providers_for_tier(
         tier: str,
-        planet_api_key: str | None = None
+        planet_api_key: str | None = None,
+        use_copernicus: bool = True,
     ) -> list[SatelliteProvider]:
         """
         Get appropriate providers for a farm's subscription tier.
 
         Args:
-            tier: "free" or "premium"
-            planet_api_key: Optional Planet API key for premium tier
+            tier: Subscription tier ("free", "starter", "professional", "enterprise")
+            planet_api_key: Optional Planet API key for premium tiers
+            use_copernicus: Whether to use Copernicus (default) or Planetary Computer
 
         Returns:
             List of providers to use for this farm
         """
+        import logging
+        import os
+
+        logger = logging.getLogger(__name__)
         providers: list[SatelliteProvider] = []
 
-        # Free tier: Sentinel-2 only
-        from .sentinel2 import Sentinel2Provider
-        providers.append(Sentinel2Provider())
+        # Determine which Sentinel-2 provider to use
+        if use_copernicus:
+            # Check if Copernicus credentials are available
+            has_copernicus_creds = (
+                os.getenv("COPERNICUS_CLIENT_ID") and
+                os.getenv("COPERNICUS_CLIENT_SECRET")
+            )
 
-        # Premium tier: Add PlanetScope if API key available
-        if tier == "premium" and planet_api_key:
+            if has_copernicus_creds:
+                from .copernicus import CopernicusProvider
+                providers.append(CopernicusProvider())
+                logger.info("Using Copernicus Data Space for Sentinel-2")
+            else:
+                # Fall back to Planetary Computer
+                from .sentinel2 import Sentinel2Provider
+                providers.append(Sentinel2Provider())
+                logger.info("Copernicus credentials not found, using Planetary Computer fallback")
+        else:
+            # Explicitly use Planetary Computer
+            from .sentinel2 import Sentinel2Provider
+            providers.append(Sentinel2Provider())
+
+        # Premium tiers (professional, enterprise) can add PlanetScope
+        premium_tiers = ["professional", "enterprise"]
+        if tier in premium_tiers and planet_api_key:
             from .planet_scope import PlanetScopeProvider
             providers.append(PlanetScopeProvider(api_key=planet_api_key))
-        elif tier == "premium" and not planet_api_key:
-            # Premium tier but no API key - log warning but continue with Sentinel-2 only
-            import logging
-            logger = logging.getLogger(__name__)
+            logger.info("Added PlanetScope provider for premium tier")
+        elif tier in premium_tiers and not planet_api_key:
             logger.warning(
-                "Farm is premium tier but no Planet API key configured. "
+                f"Farm is {tier} tier but no Planet API key configured. "
                 "Using Sentinel-2 only."
             )
 

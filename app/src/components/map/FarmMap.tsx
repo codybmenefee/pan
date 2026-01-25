@@ -392,7 +392,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   onNoGrazeZoneClick,
   onWaterSourceClick,
   selectedPaddockId,
-  showSatellite = false,
+  showSatellite = true,
   showNdviHeat = false,
   showPaddocks = true,
   showLabels = true,

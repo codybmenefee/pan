@@ -1,0 +1,280 @@
+import { httpRouter } from 'convex/server'
+import { httpAction } from './_generated/server'
+import type { ActionCtx } from './_generated/server'
+import { api, internal } from './_generated/api'
+
+const http = httpRouter()
+
+// Webhook payload types
+interface SubscriptionData {
+  id: string
+  organization_id: string
+  customer_id: string
+  plan_id: string
+  status: 'active' | 'past_due' | 'canceled' | 'trialing'
+  current_period_end: string
+  metadata?: Record<string, string>
+}
+
+interface InvoiceData {
+  id: string
+  subscription_id: string
+  organization_id: string
+  customer_id: string
+  status: 'paid' | 'failed' | 'pending'
+  amount: number
+}
+
+type WebhookPayload =
+  | { type: 'subscription.created' | 'subscription.updated' | 'subscription.deleted'; data: SubscriptionData }
+  | { type: 'invoice.paid' | 'invoice.payment_failed'; data: InvoiceData }
+  | { type: string; data: unknown }
+
+// Map Clerk plan IDs to our tier names
+const PLAN_TO_TIER: Record<string, 'free' | 'starter' | 'professional' | 'enterprise'> = {
+  'plan_free': 'free',
+  'plan_starter': 'starter',
+  'plan_professional': 'professional',
+  'plan_enterprise': 'enterprise',
+}
+
+/**
+ * Clerk Billing Webhook Handler
+ *
+ * Handles subscription lifecycle events from Clerk Billing:
+ * - subscription.created
+ * - subscription.updated
+ * - subscription.deleted
+ * - invoice.paid
+ * - invoice.payment_failed
+ */
+http.route({
+  path: '/webhooks/clerk-billing',
+  method: 'POST',
+  handler: httpAction(async (ctx, request) => {
+    // Verify webhook signature
+    const svixId = request.headers.get('svix-id')
+    const svixTimestamp = request.headers.get('svix-timestamp')
+    const svixSignature = request.headers.get('svix-signature')
+
+    if (!svixId || !svixTimestamp || !svixSignature) {
+      return new Response('Missing webhook headers', { status: 400 })
+    }
+
+    // In production, verify the signature using Clerk's webhook secret
+
+    let payload: WebhookPayload
+    try {
+      payload = await request.json()
+    } catch {
+      return new Response('Invalid JSON', { status: 400 })
+    }
+
+    console.log(`Received Clerk billing webhook: ${payload.type}`)
+
+    try {
+      switch (payload.type) {
+        case 'subscription.created':
+        case 'subscription.updated': {
+          const data = payload.data as SubscriptionData
+          await handleSubscriptionUpdate(ctx, data)
+          break
+        }
+
+        case 'subscription.deleted': {
+          const data = payload.data as SubscriptionData
+          await handleSubscriptionDeleted(ctx, data)
+          break
+        }
+
+        case 'invoice.paid': {
+          const data = payload.data as InvoiceData
+          handleInvoicePaid(data)
+          break
+        }
+
+        case 'invoice.payment_failed': {
+          const data = payload.data as InvoiceData
+          await handlePaymentFailed(ctx, data)
+          break
+        }
+
+        default:
+          console.log(`Unhandled webhook type: ${payload.type}`)
+      }
+
+      return new Response('OK', { status: 200 })
+    } catch (error) {
+      console.error('Webhook handler error:', error)
+      return new Response('Internal error', { status: 500 })
+    }
+  }),
+})
+
+type WebhookContext = Pick<ActionCtx, 'runMutation'>
+
+async function handleSubscriptionUpdate(
+  ctx: WebhookContext,
+  data: SubscriptionData
+) {
+  // Find the farm by Clerk org ID
+  const farm = await ctx.runMutation(internal.internal.getFarmByClerkOrgId, {
+    clerkOrgId: data.organization_id,
+  })
+
+  if (!farm) {
+    console.error(`Farm not found for org: ${data.organization_id}`)
+    return
+  }
+
+  // Map plan ID to tier
+  const tier = PLAN_TO_TIER[data.plan_id] ?? 'free'
+
+  // Map status
+  const status = data.status === 'trialing' ? 'active' : data.status
+
+  // Sync to Convex
+  await ctx.runMutation(api.subscriptions.syncFromClerk, {
+    farmId: farm._id,
+    clerkSubscriptionId: data.id,
+    stripeCustomerId: data.customer_id,
+    tier,
+    status: status as 'active' | 'past_due' | 'canceled',
+    currentPeriodEnd: data.current_period_end,
+  })
+
+  console.log(`Subscription synced for farm ${farm._id}: ${tier} (${status})`)
+}
+
+async function handleSubscriptionDeleted(
+  ctx: WebhookContext,
+  data: SubscriptionData
+) {
+  const farm = await ctx.runMutation(internal.internal.getFarmByClerkOrgId, {
+    clerkOrgId: data.organization_id,
+  })
+
+  if (!farm) {
+    console.error(`Farm not found for org: ${data.organization_id}`)
+    return
+  }
+
+  await ctx.runMutation(api.subscriptions.cancelSubscription, {
+    farmId: farm._id,
+  })
+
+  console.log(`Subscription canceled for farm ${farm._id}`)
+}
+
+function handleInvoicePaid(data: InvoiceData) {
+  // Invoice paid - subscription should already be updated
+  console.log(`Invoice paid: ${data.id} for org ${data.organization_id}`)
+}
+
+async function handlePaymentFailed(
+  ctx: WebhookContext,
+  data: InvoiceData
+) {
+  // Payment failed - mark subscription as past_due
+  const farm = await ctx.runMutation(internal.internal.getFarmByClerkOrgId, {
+    clerkOrgId: data.organization_id,
+  })
+
+  if (farm) {
+    // The subscription.updated webhook should handle this,
+    // but we log it for monitoring
+    console.log(`Payment failed for farm ${farm._id}`)
+  }
+}
+
+/**
+ * Health check endpoint
+ */
+http.route({
+  path: '/health',
+  method: 'GET',
+  handler: httpAction(async () => {
+    return new Response(JSON.stringify({ status: 'ok' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }),
+})
+
+/**
+ * Satellite Tile Proxy
+ *
+ * Proxies satellite tile images from R2 with proper CORS headers.
+ * This is needed because R2 presigned URLs don't include CORS headers.
+ *
+ * Usage: GET /tiles/proxy?url=<r2_presigned_url>
+ */
+http.route({
+  path: '/tiles/proxy',
+  method: 'GET',
+  handler: httpAction(async (_ctx, request) => {
+    const url = new URL(request.url)
+    const tileUrl = url.searchParams.get('url')
+
+    if (!tileUrl) {
+      return new Response('Missing url parameter', {
+        status: 400,
+        headers: corsHeaders(),
+      })
+    }
+
+    try {
+      // Fetch the image from R2
+      const response = await fetch(tileUrl)
+
+      if (!response.ok) {
+        return new Response(`Failed to fetch tile: ${response.status}`, {
+          status: response.status,
+          headers: corsHeaders(),
+        })
+      }
+
+      // Get the image data
+      const imageData = await response.arrayBuffer()
+      const contentType = response.headers.get('content-type') || 'image/png'
+
+      // Return with CORS headers
+      return new Response(imageData, {
+        status: 200,
+        headers: {
+          ...corsHeaders(),
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=86400', // Cache for 1 day
+        },
+      })
+    } catch (error) {
+      console.error('Tile proxy error:', error)
+      return new Response('Failed to fetch tile', {
+        status: 500,
+        headers: corsHeaders(),
+      })
+    }
+  }),
+})
+
+// Handle CORS preflight for tile proxy
+http.route({
+  path: '/tiles/proxy',
+  method: 'OPTIONS',
+  handler: httpAction(async () => {
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders(),
+    })
+  }),
+})
+
+function corsHeaders(): Record<string, string> {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  }
+}
+
+export default http

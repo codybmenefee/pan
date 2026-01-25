@@ -15,7 +15,18 @@ import logging
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TypedDict, Optional, Callable, Any, Union
+from typing import TypedDict, Optional, Callable, Any, Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import numpy as np
+    import xarray as xr
+
+# Load environment variables from .env.local if available
+try:
+    from dotenv import load_dotenv
+    load_dotenv('.env.local')
+except ImportError:
+    pass  # dotenv not installed, use system env vars
 
 from config import (
     PipelineConfig,
@@ -45,6 +56,176 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+# Tile generation helpers
+
+def create_rgb_composite(bands: 'xr.DataArray') -> 'np.ndarray':
+    """
+    Create an RGB composite from band data.
+
+    Args:
+        bands: xarray DataArray with 'red', 'green', 'blue' bands
+
+    Returns:
+        numpy array with shape (3, H, W) containing uint8 RGB values
+    """
+    import numpy as np
+
+    # Extract RGB bands
+    red = bands.sel(band='red').values
+    green = bands.sel(band='green').values
+    blue = bands.sel(band='blue').values
+
+    # Stack into RGB array
+    rgb = np.stack([red, green, blue], axis=0)
+
+    # Scale reflectance (0-1) to 0-255 with contrast enhancement
+    # Apply percentile stretch for better visualization
+    p2, p98 = np.nanpercentile(rgb, [2, 98])
+    rgb_scaled = np.clip((rgb - p2) / (p98 - p2) * 255, 0, 255)
+
+    return rgb_scaled.astype(np.uint8)
+
+
+def save_geotiff(
+    data: 'np.ndarray',
+    bounds: tuple[float, float, float, float],
+    crs: str,
+    output_path: str,
+    nodata: float | None = None,
+) -> str:
+    """
+    Save array data as a GeoTIFF file.
+
+    Args:
+        data: numpy array with shape (bands, H, W) or (H, W)
+        bounds: Bounding box (west, south, east, north)
+        crs: Coordinate reference system string
+        output_path: Path to write the GeoTIFF
+        nodata: Optional nodata value
+
+    Returns:
+        Path to the saved file
+    """
+    import rasterio
+    from rasterio.transform import from_bounds
+
+    # Ensure 3D array
+    if data.ndim == 2:
+        data = data[np.newaxis, ...]
+
+    bands, height, width = data.shape
+    west, south, east, north = bounds
+
+    # Create transform from bounds
+    transform = from_bounds(west, south, east, north, width, height)
+
+    # Determine dtype
+    dtype = data.dtype
+
+    # Write GeoTIFF
+    with rasterio.open(
+        output_path,
+        'w',
+        driver='GTiff',
+        height=height,
+        width=width,
+        count=bands,
+        dtype=dtype,
+        crs=crs,
+        transform=transform,
+        compress='deflate',
+        nodata=nodata,
+    ) as dst:
+        for i in range(bands):
+            dst.write(data[i], i + 1)
+
+    return output_path
+
+
+def save_png(
+    data: 'np.ndarray',
+    output_path: str,
+) -> str:
+    """
+    Save RGB array data as a PNG file.
+
+    Args:
+        data: numpy array with shape (3, H, W) containing uint8 RGB values
+        output_path: Path to write the PNG
+
+    Returns:
+        Path to the saved file
+    """
+    from PIL import Image
+    import numpy as np
+
+    # Transpose from (3, H, W) to (H, W, 3) for PIL
+    if data.shape[0] == 3:
+        data = np.transpose(data, (1, 2, 0))
+
+    img = Image.fromarray(data, mode='RGB')
+    img.save(output_path, 'PNG')
+
+    return output_path
+
+
+def generate_tiles(
+    bands: 'xr.DataArray',
+    ndvi: 'xr.DataArray',
+    bounds: tuple[float, float, float, float],
+    crs: str,
+    output_dir: str,
+    capture_date: str,
+) -> dict[str, str]:
+    """
+    Generate image tiles for RGB and index layers.
+
+    RGB tiles are saved as PNG for direct MapLibre rendering.
+    NDVI tiles are saved as GeoTIFF for data preservation.
+
+    Args:
+        bands: xarray DataArray with band data
+        ndvi: xarray DataArray with NDVI values
+        bounds: Bounding box (west, south, east, north)
+        crs: Coordinate reference system string
+        output_dir: Directory to write tiles
+        capture_date: Capture date YYYY-MM-DD
+
+    Returns:
+        Dictionary mapping tile type to file path
+    """
+    import os
+    import numpy as np
+
+    os.makedirs(output_dir, exist_ok=True)
+    tiles = {}
+
+    # Generate RGB composite as PNG if all bands available
+    band_names = list(bands.coords.get('band', []))
+    if 'red' in band_names and 'green' in band_names and 'blue' in band_names:
+        logger.info("Generating RGB composite tile (PNG)...")
+        rgb_data = create_rgb_composite(bands)
+        rgb_path = os.path.join(output_dir, f"rgb_{capture_date}.png")
+        save_png(rgb_data, rgb_path)
+        tiles['rgb'] = rgb_path
+        logger.info(f"  Saved RGB tile: {rgb_path}")
+
+    # Generate NDVI tile as GeoTIFF (for data preservation)
+    logger.info("Generating NDVI tile (GeoTIFF)...")
+    # Handle both xarray DataArray and numpy array
+    ndvi_data = ndvi.values if hasattr(ndvi, 'values') else ndvi
+    if ndvi_data.ndim == 2:
+        ndvi_data = ndvi_data[np.newaxis, ...]
+    ndvi_path = os.path.join(output_dir, f"ndvi_{capture_date}.tif")
+    # Scale NDVI from -1..1 to 0..255 for storage
+    ndvi_scaled = np.clip((ndvi_data + 1) / 2 * 255, 0, 255).astype(np.uint8)
+    save_geotiff(ndvi_scaled, bounds, crs, ndvi_path, nodata=0)
+    tiles['ndvi'] = ndvi_path
+    logger.info(f"  Saved NDVI tile: {ndvi_path}")
+
+    return tiles
+
+
 class PipelineResult(TypedDict):
     """Result of running the pipeline for a farm."""
     farm_id: str
@@ -54,25 +235,63 @@ class PipelineResult(TypedDict):
     resolution: int
     total_paddocks: int
     valid_observations: int
+    tiles_generated: dict[str, str]  # tile_type -> file_path
 
 
-def get_date_range(window_days: int) -> tuple[str, str]:
+def get_date_range(window_days: int, end_date: Optional[datetime] = None) -> tuple[str, str]:
     """
     Get start and end dates for the composite window.
 
     Args:
         window_days: Number of days to look back
+        end_date: Optional end date (defaults to now)
 
     Returns:
         Tuple of (start_date, end_date) in YYYY-MM-DD format
     """
-    end_date = datetime.now()
+    if end_date is None:
+        end_date = datetime.now()
     start_date = end_date - timedelta(days=window_days)
 
     return (
         start_date.strftime("%Y-%m-%d"),
         end_date.strftime("%Y-%m-%d"),
     )
+
+
+def get_historical_windows(
+    years: int,
+    window_days: int = 21,
+    step_days: int = 14,
+) -> list[tuple[str, str]]:
+    """
+    Generate date windows for historical backfill.
+
+    Creates overlapping windows going back N years, useful for
+    building a historical archive of satellite observations.
+
+    Args:
+        years: Number of years to go back
+        window_days: Size of each composite window (default 21 days)
+        step_days: Step size between windows (default 14 days)
+
+    Returns:
+        List of (start_date, end_date) tuples in YYYY-MM-DD format
+    """
+    windows = []
+    end_date = datetime.now()
+    earliest_date = end_date - timedelta(days=years * 365)
+
+    current_end = end_date
+    while current_end > earliest_date:
+        current_start = current_end - timedelta(days=window_days)
+        windows.append((
+            current_start.strftime("%Y-%m-%d"),
+            current_end.strftime("%Y-%m-%d"),
+        ))
+        current_end = current_end - timedelta(days=step_days)
+
+    return windows
 
 
 def run_pipeline_for_farm(
@@ -211,6 +430,99 @@ def run_pipeline_for_farm(
     elif "swir" in band_names:
         ndwi = compute_ndwi(composite_data)
 
+    # Step 5.5: Generate GeoTIFF tiles for visualization
+    tiles_generated = {}
+    if pipeline_config.output_dir:
+        logger.info("Generating GeoTIFF tiles...")
+        try:
+            # Extract bounds from composite data
+            x_coords = composite_data.coords.get('x')
+            y_coords = composite_data.coords.get('y')
+            if x_coords is not None and y_coords is not None:
+                tile_bounds = (
+                    float(x_coords.min()),
+                    float(y_coords.min()),
+                    float(x_coords.max()),
+                    float(y_coords.max()),
+                )
+                tile_crs = composite_data.attrs.get('crs', 'EPSG:32616')
+
+                tiles_generated = generate_tiles(
+                    bands=composite_data,
+                    ndvi=ndvi,
+                    bounds=tile_bounds,
+                    crs=tile_crs,
+                    output_dir=pipeline_config.output_dir,
+                    capture_date=end_date,
+                )
+                logger.info(f"  Generated {len(tiles_generated)} tiles")
+
+                # Step 5.6: Upload tiles to R2 and write metadata to Convex
+                if tiles_generated and pipeline_config.write_to_convex:
+                    logger.info("Uploading tiles to R2...")
+                    try:
+                        from storage.r2 import R2Storage, get_retention_days
+                        from writer import SatelliteTileRecord, write_satellite_tile_to_convex
+                        from rasterio.warp import transform_bounds
+
+                        r2 = R2Storage()
+                        retention_days = get_retention_days(
+                            farm_config.subscription_tier,
+                            'raw_imagery'
+                        )
+
+                        # Convert bounds from projected CRS to WGS84 for storage
+                        wgs84_bounds = transform_bounds(
+                            tile_crs,  # Source CRS (e.g., EPSG:32616)
+                            'EPSG:4326',  # Target CRS (WGS84)
+                            *tile_bounds
+                        )
+                        bounds_dict = {
+                            'west': wgs84_bounds[0],
+                            'south': wgs84_bounds[1],
+                            'east': wgs84_bounds[2],
+                            'north': wgs84_bounds[3],
+                        }
+                        logger.info(f"  Tile bounds (WGS84): {bounds_dict}")
+
+                        for tile_type, tile_path in tiles_generated.items():
+                            logger.info(f"  Uploading {tile_type} tile to R2...")
+                            result = r2.upload_tile(
+                                file_path=tile_path,
+                                farm_external_id=farm_config.external_id,
+                                capture_date=end_date,
+                                tile_type=tile_type,
+                                resolution_meters=target_resolution,
+                                retention_days=retention_days,
+                            )
+
+                            # Write tile metadata to Convex
+                            tile_record = SatelliteTileRecord(
+                                farm_external_id=farm_config.external_id,
+                                capture_date=end_date,
+                                provider=source_provider,
+                                tile_type=tile_type,
+                                r2_key=result['r2_key'],
+                                r2_url=result['r2_url'],
+                                bounds=bounds_dict,
+                                cloud_cover_pct=(1.0 - avg_cloud_free_pct) * 100,
+                                resolution_meters=target_resolution,
+                                file_size_bytes=result['file_size_bytes'],
+                                expires_at=result['expires_at'],
+                            )
+                            write_satellite_tile_to_convex(tile_record)
+                            logger.info(f"    Uploaded {tile_type}: {result['r2_key']}")
+
+                    except ImportError as e:
+                        logger.warning(f"  R2 storage not available: {e}")
+                    except Exception as e:
+                        logger.error(f"  Error uploading tiles to R2: {e}")
+
+            else:
+                logger.warning("  Could not extract bounds from composite data, skipping tile generation")
+        except Exception as e:
+            logger.error(f"  Error generating tiles: {e}")
+
     # Step 6: Compute zonal statistics per paddock
     logger.info("Computing zonal statistics per paddock...")
 
@@ -296,6 +608,7 @@ def run_pipeline_for_farm(
         resolution=target_resolution,
         total_paddocks=len(observations),
         valid_observations=valid_count,
+        tiles_generated=tiles_generated,
     )
 
 
@@ -333,6 +646,79 @@ def run_pipeline_for_dev_farm(
     )
 
 
+def run_historical_backfill(
+    farm_config: FarmConfig,
+    years: int,
+    pipeline_config: Optional[PipelineConfig] = None,
+    convex_writer: Optional[Callable[[list[ObservationRecord]], int]] = None
+) -> list[PipelineResult]:
+    """
+    Run historical backfill for a farm, processing multiple date windows.
+
+    Args:
+        farm_config: Farm configuration
+        years: Number of years to backfill
+        pipeline_config: Pipeline configuration (uses defaults if None)
+        convex_writer: Optional function to write observations to Convex
+
+    Returns:
+        List of PipelineResult objects for each successful window
+    """
+    if pipeline_config is None:
+        pipeline_config = load_env_config()
+
+    logger.info(f"Starting historical backfill for {farm_config.name}")
+    logger.info(f"  Backfill period: {years} years")
+
+    # Generate historical windows
+    windows = get_historical_windows(
+        years=years,
+        window_days=pipeline_config.composite_window_days,
+        step_days=14,  # 2-week steps for good coverage
+    )
+
+    logger.info(f"  Generated {len(windows)} date windows to process")
+
+    results = []
+    for i, (start_date, end_date) in enumerate(windows):
+        logger.info(f"\n{'='*40}")
+        logger.info(f"Window {i+1}/{len(windows)}: {start_date} to {end_date}")
+        logger.info(f"{'='*40}")
+
+        try:
+            # Create a modified config for this specific window
+            window_config = PipelineConfig(
+                composite_window_days=pipeline_config.composite_window_days,
+                max_cloud_cover=pipeline_config.max_cloud_cover,
+                min_cloud_free_pct=pipeline_config.min_cloud_free_pct,
+                write_to_convex=pipeline_config.write_to_convex,
+                output_dir=pipeline_config.output_dir,
+            )
+
+            # Run pipeline for this window
+            result = run_pipeline_for_farm(
+                farm_config=farm_config,
+                pipeline_config=window_config,
+                convex_writer=convex_writer,
+            )
+
+            results.append(result)
+            logger.info(f"  Window complete: {result['valid_observations']}/{result['total_paddocks']} valid")
+
+        except Exception as e:
+            logger.error(f"  Window failed: {e}")
+            continue
+
+    logger.info(f"\n{'='*40}")
+    logger.info(f"Historical backfill complete")
+    logger.info(f"  Processed {len(results)}/{len(windows)} windows successfully")
+    total_observations = sum(r['valid_observations'] for r in results)
+    logger.info(f"  Total valid observations: {total_observations}")
+    logger.info(f"{'='*40}")
+
+    return results
+
+
 def main():
     """
     Main entry point for running the pipeline from command line.
@@ -340,6 +726,7 @@ def main():
     Usage:
         python pipeline.py --farm-id <farm-id>
         python pipeline.py --dev  # Use sample data
+        python pipeline.py --dev --historical-years 2  # Backfill 2 years
     """
     import argparse
 
@@ -362,6 +749,11 @@ def main():
         "--write-convex",
         action="store_true",
         help="Write results to Convex"
+    )
+    parser.add_argument(
+        "--historical-years",
+        type=int,
+        help="Run historical backfill for N years"
     )
 
     args = parser.parse_args()
@@ -390,11 +782,36 @@ def main():
         # Use default sample farm
         from sample_data import sampleFarm, samplePaddocks
 
-        result = run_pipeline_for_dev_farm(
-            sample_farm_geometry=sampleFarm["geometry"],
-            sample_paddocks=samplePaddocks,
-            convex_writer=convex_writer,
-        )
+        # Check if historical backfill requested
+        if args.historical_years:
+            logger.info(f"Running historical backfill for {args.historical_years} years")
+
+            farm_config = FarmConfig(
+                farm_id="dev-farm-1",
+                external_id="farm-1",
+                name="Hillcrest Station (Dev)",
+                geometry=sampleFarm["geometry"],
+                paddocks=samplePaddocks,
+                subscription_tier="free",
+                planet_api_key=None,
+            )
+
+            results = run_historical_backfill(
+                farm_config=farm_config,
+                years=args.historical_years,
+                pipeline_config=pipeline_config,
+                convex_writer=convex_writer,
+            )
+
+            # Use the most recent result for output
+            result = results[-1] if results else None
+
+        else:
+            result = run_pipeline_for_dev_farm(
+                sample_farm_geometry=sampleFarm["geometry"],
+                sample_paddocks=samplePaddocks,
+                convex_writer=convex_writer,
+            )
 
     elif args.farm_id:
         # Fetch from Convex

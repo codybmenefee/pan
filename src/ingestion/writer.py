@@ -18,6 +18,54 @@ from observation_types import ObservationRecord
 logger = logging.getLogger(__name__)
 
 
+class SatelliteTileRecord:
+    """Record for satellite tile metadata."""
+    def __init__(
+        self,
+        farm_external_id: str,
+        capture_date: str,
+        provider: str,
+        tile_type: str,  # 'rgb', 'ndvi', 'evi', 'ndwi'
+        r2_key: str,
+        r2_url: str,
+        bounds: dict,  # {west, south, east, north}
+        cloud_cover_pct: float,
+        resolution_meters: int,
+        file_size_bytes: int,
+        expires_at: Optional[str] = None,
+    ):
+        self.farm_external_id = farm_external_id
+        self.capture_date = capture_date
+        self.provider = provider
+        self.tile_type = tile_type
+        self.r2_key = r2_key
+        self.r2_url = r2_url
+        self.bounds = bounds
+        self.cloud_cover_pct = cloud_cover_pct
+        self.resolution_meters = resolution_meters
+        self.file_size_bytes = file_size_bytes
+        self.expires_at = expires_at
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for API call."""
+        result = {
+            "farmExternalId": self.farm_external_id,
+            "captureDate": self.capture_date,
+            "provider": self.provider,
+            "tileType": self.tile_type,
+            "r2Key": self.r2_key,
+            "r2Url": self.r2_url,
+            "bounds": self.bounds,
+            "cloudCoverPct": self.cloud_cover_pct,
+            "resolutionMeters": self.resolution_meters,
+            "fileSizeBytes": self.file_size_bytes,
+        }
+        # Only include expiresAt if it has a value
+        if self.expires_at is not None:
+            result["expiresAt"] = self.expires_at
+        return result
+
+
 class ConvexWriter:
     """HTTP client for writing observations to Convex."""
 
@@ -208,7 +256,7 @@ class ConvexWriter:
                 logger.info(
                     f"Batch {batch_num} result: {inserted} inserted, {updated} updated, {skipped} skipped"
                 )
-                
+
                 # Warn if counts don't match
                 if written_count != len(batch):
                     logger.warning(
@@ -221,6 +269,22 @@ class ConvexWriter:
 
         logger.info(f"Completed writing observations: {total_written}/{len(observations)} written")
         return total_written
+
+    def write_satellite_tile(self, tile: 'SatelliteTileRecord') -> str:
+        """
+        Write a satellite tile record to Convex.
+
+        Args:
+            tile: Satellite tile metadata
+
+        Returns:
+            Convex document ID
+        """
+        result = self._make_request(
+            "satelliteTiles:createTileByExternalId",
+            tile.to_dict(),
+        )
+        return result.get("_id", "") if isinstance(result, dict) else str(result)
 
 
 def create_convex_writer() -> Optional[ConvexWriter]:
@@ -235,6 +299,35 @@ def create_convex_writer() -> Optional[ConvexWriter]:
     except ValueError as e:
         logger.warning(f"Convex writer not available: {e}")
         return None
+
+
+def _sanitize_observation(obs: ObservationRecord) -> ObservationRecord | None:
+    """
+    Sanitize observation record, replacing NaN values with defaults.
+
+    Args:
+        obs: Observation record
+
+    Returns:
+        Sanitized observation or None if invalid
+    """
+    import math
+
+    # Check if the observation has valid NDVI (the most critical field)
+    ndvi_mean = obs.get("ndviMean", 0.0)
+    if ndvi_mean is None or (isinstance(ndvi_mean, float) and math.isnan(ndvi_mean)):
+        return None  # Skip observations without valid NDVI
+
+    # Create a copy and sanitize all float fields
+    sanitized = dict(obs)
+    float_fields = ["ndviMean", "ndviMin", "ndviMax", "ndviStd", "eviMean", "ndwiMean", "cloudFreePct"]
+
+    for field in float_fields:
+        val = sanitized.get(field)
+        if val is None or (isinstance(val, float) and math.isnan(val)):
+            sanitized[field] = 0.0
+
+    return sanitized  # type: ignore
 
 
 def write_observations_to_convex(
@@ -259,10 +352,47 @@ def write_observations_to_convex(
         logger.info("No observations to write")
         return 0
 
+    # Sanitize observations - filter out invalid ones and replace NaN values
+    valid_observations = []
+    for obs in observations:
+        sanitized = _sanitize_observation(obs)
+        if sanitized:
+            valid_observations.append(sanitized)
+
+    logger.info(f"After sanitization: {len(valid_observations)}/{len(observations)} valid observations")
+
+    if not valid_observations:
+        logger.warning("No valid observations after sanitization")
+        return 0
+
     try:
-        result = writer.write_observations_batch(observations)
+        result = writer.write_observations_batch(valid_observations)
         logger.info(f"Successfully wrote {result} observations to Convex")
         return result
     except Exception as e:
         logger.error(f"Error writing observations to Convex: {e}", exc_info=True)
+        raise
+
+
+def write_satellite_tile_to_convex(tile: 'SatelliteTileRecord') -> str:
+    """
+    Write a satellite tile record to Convex (convenience function).
+
+    Args:
+        tile: Satellite tile metadata
+
+    Returns:
+        Convex document ID
+    """
+    writer = create_convex_writer()
+    if not writer:
+        logger.warning("Convex writer not configured, skipping tile write")
+        return ""
+
+    try:
+        result = writer.write_satellite_tile(tile)
+        logger.info(f"Successfully wrote satellite tile to Convex: {result}")
+        return result
+    except Exception as e:
+        logger.error(f"Error writing satellite tile to Convex: {e}", exc_info=True)
         raise
