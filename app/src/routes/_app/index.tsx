@@ -1,8 +1,10 @@
-import { useState, useRef, useCallback, useMemo } from 'react'
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import type { Geometry } from 'geojson'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
+import { z } from 'zod'
 import { Calendar } from 'lucide-react'
 import { FarmMap, type FarmMapHandle } from '@/components/map/FarmMap'
+import { FarmBoundaryDrawer } from '@/components/map/FarmBoundaryDrawer'
 import { LayerToggles } from '@/components/map/LayerToggles'
 import { SaveIndicator } from '@/components/map/SaveIndicator'
 import { MorningBrief } from '@/components/brief/MorningBrief'
@@ -13,11 +15,16 @@ import { FloatingPanel } from '@/components/ui/floating-panel'
 import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
 import { ErrorState } from '@/components/ui/error/ErrorState'
-import { useCurrentUser } from '@/lib/convex/useCurrentUser'
+import { useFarmContext } from '@/lib/farm'
 import { useGeometry, clipPolygonToPolygon } from '@/lib/geometry'
 import { useTodayPlan } from '@/lib/convex/usePlan'
+import { useFarmBoundary } from '@/lib/hooks/useFarmBoundary'
 import type { Feature, Polygon } from 'geojson'
 import type { Paddock, Section } from '@/lib/types'
+
+const searchSchema = z.object({
+  editBoundary: z.string().optional(),
+})
 
 interface EditDrawerState {
   open: boolean
@@ -29,12 +36,47 @@ interface EditDrawerState {
 
 function GISRoute() {
   console.log('[_app/index] Rendering GISRoute')
-  const { farmId, isLoading } = useCurrentUser()
-  const { plan } = useTodayPlan(farmId || '')
+  const navigate = useNavigate()
+  const search = useSearch({ from: '/_app/' })
+  const { activeFarmId, isLoading } = useFarmContext()
+  const { plan } = useTodayPlan(activeFarmId || '')
   const { getPaddockById, addPaddock } = useGeometry()
+  const { startDraw, cancelDraw, isDrawingBoundary } = useFarmBoundary()
 
   const mapRef = useRef<FarmMapHandle>(null)
   const [briefOpen, setBriefOpen] = useState(true)
+  const [mapInstance, setMapInstance] = useState<ReturnType<FarmMapHandle['getMap']>>(null)
+
+  // Update map instance when ref changes
+  useEffect(() => {
+    const updateInstance = () => {
+      if (mapRef.current) {
+        setMapInstance(mapRef.current.getMap())
+      }
+    }
+    // Poll briefly to catch when instance becomes available
+    const interval = setInterval(updateInstance, 100)
+    updateInstance()
+    return () => clearInterval(interval)
+  }, [])
+
+  // Handle ?editBoundary=true query param
+  const editBoundaryParam = search.editBoundary === 'true'
+  useEffect(() => {
+    if (editBoundaryParam && !isDrawingBoundary) {
+      startDraw()
+    }
+  }, [editBoundaryParam, isDrawingBoundary, startDraw])
+
+  const handleBoundaryComplete = useCallback(() => {
+    // Remove the query param
+    navigate({ to: '/', search: {} })
+  }, [navigate])
+
+  const handleBoundaryCancel = useCallback(() => {
+    cancelDraw()
+    navigate({ to: '/', search: {} })
+  }, [cancelDraw, navigate])
   const [editDrawerState, setEditDrawerState] = useState<EditDrawerState>({
     open: false,
     entityType: 'paddock',
@@ -147,7 +189,7 @@ function GISRoute() {
     )
   }
 
-  if (!farmId) {
+  if (!activeFarmId) {
     return (
       <ErrorState
         title="Farm mapping unavailable"
@@ -181,6 +223,15 @@ function GISRoute() {
         compactToolbar={true}
       />
 
+      {/* Farm Boundary Drawer - shown when editing boundary */}
+      {isDrawingBoundary && (
+        <FarmBoundaryDrawer
+          map={mapInstance}
+          onComplete={handleBoundaryComplete}
+          onCancel={handleBoundaryCancel}
+        />
+      )}
+
       {/* Layer toggles - bottom left */}
       <div className="absolute bottom-4 left-4 z-10">
         <LayerToggles
@@ -207,7 +258,7 @@ function GISRoute() {
         minHeight={300}
         initialPosition={{ x: 64, y: 64 }}
       >
-        <MorningBrief farmExternalId={farmId} compact onClose={() => setBriefOpen(false)} onZoomToSection={handleZoomToSection} />
+        <MorningBrief farmExternalId={activeFarmId} compact onClose={() => setBriefOpen(false)} onZoomToSection={handleZoomToSection} />
       </FloatingPanel>
 
       {/* Toggle button when panel is closed */}
@@ -254,4 +305,5 @@ function GISRoute() {
 
 export const Route = createFileRoute('/_app/')({
   component: GISRoute,
+  validateSearch: searchSchema,
 })

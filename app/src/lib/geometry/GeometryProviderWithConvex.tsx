@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import { mapFarmDoc, mapPaddockDoc, mapSectionDoc, type FarmDoc, type PaddockDoc, type SectionDoc } from '@/lib/convex/mappers'
-import { useCurrentUser } from '@/lib/convex/useCurrentUser'
+import { useFarmContext } from '@/lib/farm'
 import type { GeometryChange } from '@/lib/geometry/types'
 import type { Paddock } from '@/lib/types'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
@@ -15,7 +15,7 @@ interface GeometryProviderWithConvexProps {
 }
 
 export function GeometryProviderWithConvex({ children }: GeometryProviderWithConvexProps) {
-  const { farmId, isLoading: isUserLoading } = useCurrentUser()
+  const { activeFarmId: farmId, isLoading: isFarmLoading } = useFarmContext()
   const farmDoc = useQuery(api.farms.getFarm, farmId ? { farmId } : 'skip') as FarmDoc | null | undefined
   const paddockDocs = useQuery(api.paddocks.listPaddocksByFarm, farmId ? { farmId } : 'skip') as
     | PaddockDoc[]
@@ -24,29 +24,8 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
     | SectionDoc[]
     | undefined
 
-  const seedFarm = useMutation(api.farms.seedSampleFarm)
   const applyPaddockChanges = useMutation(api.paddocks.applyPaddockChanges)
   const updatePaddockMetadata = useMutation(api.paddocks.updatePaddockMetadata)
-
-  const seedRequestedRef = useRef(false)
-
-  useEffect(() => {
-    if (seedRequestedRef.current) return
-    if (!farmId) return
-    if (farmDoc === null) {
-      seedRequestedRef.current = true
-      void seedFarm({ farmId, seedSettings: true })
-    }
-  }, [farmDoc, farmId, seedFarm])
-
-  useEffect(() => {
-    if (seedRequestedRef.current) return
-    if (!farmId) return
-    if (farmDoc && paddockDocs && paddockDocs.length === 0) {
-      seedRequestedRef.current = true
-      void seedFarm({ farmId, seedSettings: true })
-    }
-  }, [farmDoc, farmId, paddockDocs, seedFarm])
 
   const paddocks = useMemo(() => (paddockDocs ?? []).map(mapPaddockDoc), [paddockDocs])
   const farm = farmDoc ? mapFarmDoc(farmDoc) : null
@@ -85,16 +64,13 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
     [farmId, updatePaddockMetadata]
   )
 
-  const isSeeding = !!farmId && (farmDoc === null || (!!farmDoc && paddockDocs?.length === 0))
   const isLoading =
-    isUserLoading ||
-    isSeeding ||
+    isFarmLoading ||
     (!!farmId && (farmDoc === undefined || paddockDocs === undefined || sectionDocs === undefined))
   if (isLoading) {
-    const message = isSeeding ? 'Seeding farm geometry...' : 'Loading farm geometry...'
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner message={message} />
+        <LoadingSpinner message="Loading farm geometry..." />
       </div>
     )
   }
