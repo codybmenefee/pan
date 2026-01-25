@@ -460,12 +460,26 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     [],
   )
 
-  // Render initial section when not in edit mode
+  // Render initial section (skip only when actively editing a section, as it's in draw control)
+  const isEditingSection = isEditActive && entityType === 'section'
   useEffect(() => {
-    if (!isMapReady() || editMode || !initialSectionFeature || !showSections) return
-    if (!mapInstance) return
+    if (!mapInstance || !isMapReady()) return
 
     const sourceId = 'section-initial'
+    const fillLayerId = `${sourceId}-fill`
+    const outlineLayerId = `${sourceId}-outline`
+
+    // Hide section layers when editing a section (it's in draw control) or when no section/hidden
+    if (isEditingSection || !initialSectionFeature || !showSections) {
+      if (mapInstance.getLayer(fillLayerId)) {
+        mapInstance.setLayoutProperty(fillLayerId, 'visibility', 'none')
+      }
+      if (mapInstance.getLayer(outlineLayerId)) {
+        mapInstance.setLayoutProperty(outlineLayerId, 'visibility', 'none')
+      }
+      return
+    }
+
     const sectionGeoJson: GeoJSON.FeatureCollection = {
       type: 'FeatureCollection',
       features: [{
@@ -483,7 +497,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         data: sectionGeoJson,
       })
       mapInstance.addLayer({
-        id: `${sourceId}-fill`,
+        id: fillLayerId,
         type: 'fill',
         source: sourceId,
         paint: {
@@ -492,7 +506,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         },
       })
       mapInstance.addLayer({
-        id: `${sourceId}-outline`,
+        id: outlineLayerId,
         type: 'line',
         source: sourceId,
         paint: {
@@ -502,8 +516,15 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       })
     } else {
       (mapInstance.getSource(sourceId) as maplibregl.GeoJSONSource).setData(sectionGeoJson)
+      // Ensure layers are visible
+      if (mapInstance.getLayer(fillLayerId)) {
+        mapInstance.setLayoutProperty(fillLayerId, 'visibility', 'visible')
+      }
+      if (mapInstance.getLayer(outlineLayerId)) {
+        mapInstance.setLayoutProperty(outlineLayerId, 'visibility', 'visible')
+      }
     }
-  }, [isMapReady, mapInstance, editMode, initialSectionFeature, initialSectionId, showSections])
+  }, [isMapReady, mapInstance, isEditingSection, initialSectionFeature, initialSectionId, showSections])
 
   // Initialize map
   useEffect(() => {

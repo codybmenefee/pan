@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import type { Geometry } from 'geojson'
 import { X, ChevronDown, ChevronUp } from 'lucide-react'
 import { BriefCard } from './BriefCard'
 import { FarmOverview } from './FarmOverview'
@@ -21,6 +22,7 @@ interface MorningBriefProps {
   farmExternalId: string
   compact?: boolean
   onClose?: () => void
+  onZoomToSection?: (geometry: Geometry) => void
 }
 
 function planSectionToSection(plan: any): Section | undefined {
@@ -45,7 +47,7 @@ function planSectionToSection(plan: any): Section | undefined {
   }
 }
 
-export function MorningBrief({ farmExternalId, compact = false, onClose }: MorningBriefProps) {
+export function MorningBrief({ farmExternalId, compact = false, onClose, onZoomToSection }: MorningBriefProps) {
   const { getPaddockById } = useGeometry()
   const { plan, isLoading, isError, generatePlan, approvePlan, submitFeedback, deleteTodayPlan } = useTodayPlan(farmExternalId)
 
@@ -210,7 +212,7 @@ export function MorningBrief({ farmExternalId, compact = false, onClose }: Morni
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-3">
+        <div className="flex-1 overflow-y-auto p-3 space-y-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {showLowConfidenceWarning && (
             <LowConfidenceWarning
               cloudCover={65}
@@ -244,6 +246,7 @@ export function MorningBrief({ farmExternalId, compact = false, onClose }: Morni
               sectionAlternatives={[]}
               sectionJustification={plan.sectionJustification}
               paddockGrazedPercentage={plan.paddockGrazedPercentage}
+              onZoomToSection={onZoomToSection}
             />
           )}
 
@@ -363,6 +366,7 @@ export function MorningBrief({ farmExternalId, compact = false, onClose }: Morni
               sectionAlternatives={[]}
               sectionJustification={plan.sectionJustification}
               paddockGrazedPercentage={plan.paddockGrazedPercentage}
+              onZoomToSection={onZoomToSection}
             />
           )}
         </div>

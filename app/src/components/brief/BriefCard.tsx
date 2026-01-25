@@ -2,10 +2,8 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardTitle } from '@/components/ui/card'
 import { ConfidenceBar } from './ConfidenceBar'
-import { SatelliteMiniMap } from './SatelliteMiniMap'
-import { PaddockMiniMap } from './PaddockMiniMap'
 import type { Paddock, Section, SectionAlternative } from '@/lib/types'
-import { MapPin, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react'
+import { MapPin, ChevronDown, ChevronUp, ArrowRight, Focus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useGeometry } from '@/lib/geometry'
 
@@ -27,14 +25,16 @@ interface BriefCardProps {
   // New props from agent
   sectionJustification?: string
   paddockGrazedPercentage?: number
+  // Zoom to section on main map
+  onZoomToSection?: (geometry: GeoJSON.Geometry) => void
 }
 
-export function BriefCard({ 
-  currentPaddockId, 
-  paddock, 
-  confidence, 
-  reasoning, 
-  onApprove, 
+export function BriefCard({
+  currentPaddockId,
+  paddock,
+  confidence,
+  reasoning,
+  onApprove,
   onModify,
   section,
   daysInCurrentPaddock = 1,
@@ -44,6 +44,7 @@ export function BriefCard({
   sectionAlternatives = [],
   sectionJustification,
   paddockGrazedPercentage,
+  onZoomToSection,
 }: BriefCardProps) {
   const { getPaddockById } = useGeometry()
   const currentPaddock = getPaddockById(currentPaddockId)
@@ -62,55 +63,45 @@ export function BriefCard({
 
   return (
     <Card className="overflow-hidden !p-0 !gap-0">
-      {/* Hero map section with overlapping header */}
-      <div className="relative">
-        {/* Full-width satellite map - full bleed */}
-        {isPaddockTransition ? (
-          <PaddockMiniMap
-            currentPaddockId={currentPaddockId}
-            targetPaddockId={paddock.id}
-            section={activeSection}
-            previousSections={previousSections}
-            sectionAlternatives={showAlternatives ? sectionAlternatives : undefined}
-            selectedAlternativeId={selectedAlternative?.id}
-            size="full"
-            className="rounded-none border-0 border-b border-border"
-          />
-        ) : (
-          <div className="aspect-[2/1] border-b border-border">
-            <SatelliteMiniMap
-              paddockId={paddock.id}
-              section={activeSection}
-              previousSections={previousSections}
-            />
+      {/* Header section */}
+      <div className="p-4 xl:p-5 border-b border-border bg-muted/30">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="text-xs xl:text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              {isPaddockTransition ? 'Paddock Transition' : 'Today\'s Section'}
+            </p>
+            <CardTitle className="mt-0.5 text-lg xl:text-xl">
+              {isPaddockTransition ? (
+                <span className="flex items-center gap-1.5">
+                  <span>Transition to {paddock.name}</span>
+                  <ArrowRight className="h-4 w-4 xl:h-5 xl:w-5 text-muted-foreground" />
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4 xl:h-5 xl:w-5 text-primary" />
+                  <span>{paddock.name}</span>
+                </span>
+              )}
+            </CardTitle>
+            <p className="text-sm xl:text-base text-muted-foreground">
+              {isPaddockTransition ? (
+                currentPaddock ? `Rotation complete in ${currentPaddock.name}` : 'Starting new rotation'
+              ) : (
+                `Day ${daysInCurrentPaddock} of ${totalDaysPlanned} in this paddock`
+              )}
+            </p>
           </div>
-        )}
-        
-        {/* Overlapping header */}
-        <div className="absolute inset-x-0 top-0 p-4 xl:p-5">
-          <p className="text-xs xl:text-sm font-medium text-muted-foreground uppercase tracking-wide">
-            {isPaddockTransition ? 'Paddock Transition' : 'Today\'s Section'}
-          </p>
-          <CardTitle className="mt-0.5 text-lg xl:text-xl">
-            {isPaddockTransition ? (
-              <span className="flex items-center gap-1.5">
-                <span>Transition to {paddock.name}</span>
-                <ArrowRight className="h-4 w-4 xl:h-5 xl:w-5 text-muted-foreground" />
-              </span>
-            ) : (
-              <span className="flex items-center gap-1.5">
-                <MapPin className="h-4 w-4 xl:h-5 xl:w-5 text-primary" />
-                <span>{paddock.name}</span>
-              </span>
-            )}
-          </CardTitle>
-          <p className="text-sm xl:text-base text-muted-foreground">
-            {isPaddockTransition ? (
-              currentPaddock ? `Rotation complete in ${currentPaddock.name}` : 'Starting new rotation'
-            ) : (
-              `Day ${daysInCurrentPaddock} of ${totalDaysPlanned} in this paddock`
-            )}
-          </p>
+          {onZoomToSection && activeSection && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onZoomToSection(activeSection.geometry.geometry)}
+              className="shrink-0 gap-1.5"
+            >
+              <Focus className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">View on Map</span>
+            </Button>
+          )}
         </div>
       </div>
       <CardContent className="space-y-4 xl:space-y-5 py-4 xl:py-5">

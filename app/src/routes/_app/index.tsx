@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useMemo } from 'react'
+import type { Geometry } from 'geojson'
 import { createFileRoute } from '@tanstack/react-router'
 import { Calendar } from 'lucide-react'
 import { FarmMap, type FarmMapHandle } from '@/components/map/FarmMap'
@@ -119,6 +120,17 @@ function GISRoute() {
     })
   }, [])
 
+  const handleZoomToSection = useCallback((geometry: Geometry) => {
+    if (geometry.type === 'Polygon') {
+      const feature: Feature<Polygon> = {
+        type: 'Feature',
+        properties: {},
+        geometry: geometry as Polygon,
+      }
+      mapRef.current?.focusOnGeometry(feature, 50)
+    }
+  }, [])
+
   // Get the selected paddock for the edit drawer
   const selectedPaddock: Paddock | undefined = useMemo(() => {
     if (editDrawerState.entityType === 'paddock' && editDrawerState.paddockId) {
@@ -188,14 +200,14 @@ function GISRoute() {
         open={briefOpen}
         onOpenChange={setBriefOpen}
         title="Daily Plan"
-        defaultWidth={400}
+        defaultWidth={600}
         defaultHeight={600}
         minWidth={320}
         maxWidth={600}
         minHeight={300}
         initialPosition={{ x: 64, y: 64 }}
       >
-        <MorningBrief farmExternalId={farmId} compact onClose={() => setBriefOpen(false)} />
+        <MorningBrief farmExternalId={farmId} compact onClose={() => setBriefOpen(false)} onZoomToSection={handleZoomToSection} />
       </FloatingPanel>
 
       {/* Toggle button when panel is closed */}

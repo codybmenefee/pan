@@ -17,7 +17,7 @@ export function NoPlanState({ isGenerating, onGenerate, onAnimationComplete }: N
   }, [isGenerating, animationComplete])
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh]">
+    <div className="flex flex-col items-center justify-center flex-1 w-full">
       <WordCascade
         isGenerating={isGenerating}
         onGenerate={onGenerate}

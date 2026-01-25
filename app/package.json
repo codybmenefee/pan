@@ -29,6 +29,7 @@
     "@tanstack/react-router": "^1.150.0",
     "@tanstack/router-devtools": "^1.150.0",
     "@turf/area": "^7.3.2",
+    "@turf/bbox": "^7.3.2",
     "@turf/difference": "^7.3.2",
     "@turf/helpers": "^7.3.2",
     "@turf/intersect": "^7.3.2",
