@@ -3,7 +3,7 @@ import type { Geometry } from 'geojson'
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Calendar, Focus, Save } from 'lucide-react'
+import { Calendar, CheckCircle, Focus, Save } from 'lucide-react'
 import { FarmMap, type FarmMapHandle } from '@/components/map/FarmMap'
 import { FarmBoundaryDrawer } from '@/components/map/FarmBoundaryDrawer'
 import { LayerToggles } from '@/components/map/LayerToggles'
@@ -188,6 +188,7 @@ function GISRoute() {
         paddockId: newId,
         geometry: request.geometry,
       })
+      setDrawEntityType('paddock')
       return
     }
 
@@ -199,6 +200,8 @@ function GISRoute() {
       sectionId: request.sectionId,
       geometry: request.geometry,
     })
+    // Also update the draw entity type so FarmMap enters the correct edit mode
+    setDrawEntityType(request.entityType)
   }, [addPaddock])
 
   const closeEditDrawer = useCallback(() => {
@@ -504,15 +507,27 @@ function GISRoute() {
       {/* Toggle button when panel is closed */}
       {!briefOpen && (
         <div className="absolute top-16 left-3 z-10">
-          <Button
-            variant="default"
-            size="sm"
-            onClick={() => setBriefOpen(true)}
-            className="gap-2 shadow-lg"
-          >
-            <Calendar className="h-4 w-4" />
-            Daily Plan
-          </Button>
+          {plan?.status === 'approved' || plan?.status === 'modified' ? (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setBriefOpen(true)}
+              className="gap-2 shadow-lg bg-green-600 hover:bg-green-700"
+            >
+              <CheckCircle className="h-4 w-4" />
+              Approved
+            </Button>
+          ) : (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setBriefOpen(true)}
+              className="gap-2 shadow-lg"
+            >
+              <Calendar className="h-4 w-4" />
+              Daily Plan
+            </Button>
+          )}
         </div>
       )}
 
