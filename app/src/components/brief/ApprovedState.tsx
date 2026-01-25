@@ -77,6 +77,7 @@ export function ApprovedState({
                 paddockId={paddock.id}
                 section={section}
                 previousSections={previousSections}
+                showEditButton={false}
               />
             )}
           </div>
