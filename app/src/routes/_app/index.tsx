@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import type { Geometry } from 'geojson'
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { z } from 'zod'
+import { toast } from 'sonner'
 import { Calendar, Focus, Save } from 'lucide-react'
 import { FarmMap, type FarmMapHandle } from '@/components/map/FarmMap'
 import { FarmBoundaryDrawer } from '@/components/map/FarmBoundaryDrawer'
@@ -30,6 +31,7 @@ import type { Paddock, Section } from '@/lib/types'
 
 const searchSchema = z.object({
   editBoundary: z.string().optional(),
+  onboarded: z.string().optional(),
 })
 
 type DrawEntityType = 'paddock' | 'section' | 'noGrazeZone' | 'waterPoint' | 'waterPolygon'
@@ -84,6 +86,17 @@ function GISRoute() {
       startDraw()
     }
   }, [editBoundaryParam, isDrawingBoundary, startDraw])
+
+  // Handle ?onboarded=true query param - show welcome toast
+  useEffect(() => {
+    if (search.onboarded === 'true') {
+      toast.success('Welcome! Your farm is set up.', {
+        description: 'Edit your paddock or add more from the map.',
+      })
+      // Clear the param from URL
+      navigate({ to: '/', search: {} })
+    }
+  }, [search.onboarded, navigate])
 
   const handleBoundaryComplete = useCallback(() => {
     // Remove the query param

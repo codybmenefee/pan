@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { ConvexProvider, ConvexReactClient } from 'convex/react'
+import { Toaster } from 'sonner'
 import { ThemeProvider } from '@/lib/theme'
 import { AppAuthProvider, useAppAuth } from '@/lib/auth'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -33,6 +34,7 @@ function InnerApp() {
   return (
     <TooltipProvider delayDuration={300}>
       <RouterProvider router={router} context={{ auth }} />
+      <Toaster position="bottom-right" richColors />
     </TooltipProvider>
   )
 }
