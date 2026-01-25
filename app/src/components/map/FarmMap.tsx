@@ -754,6 +754,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
             type: 'raster',
             tiles: ['https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'],
             tileSize: 256,
+            maxzoom: 19,
             attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
           },
           satellite: {
@@ -762,6 +763,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
               'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
             ],
             tileSize: 256,
+            maxzoom: 19,
             attribution: '&copy; Esri, Maxar, Earthstar Geographics',
           },
         },
@@ -771,7 +773,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
             type: 'raster',
             source: 'osm',
             minzoom: 0,
-            maxzoom: 19,
+            maxzoom: 22,
             layout: {
               visibility: showSatellite ? 'none' : 'visible',
             },
@@ -781,7 +783,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
             type: 'raster',
             source: 'satellite',
             minzoom: 0,
-            maxzoom: 19,
+            maxzoom: 22,
             layout: {
               visibility: showSatellite ? 'visible' : 'none',
             },
