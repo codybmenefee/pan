@@ -5,7 +5,7 @@
     "nixpacksPlan": {
       "build": {
         "src": "app",
-        "packageManager": "npm"
+        "packageManager": "pnpm"
       }
     }
   },
