@@ -40,7 +40,6 @@ interface FarmMapProps {
   onNoGrazeZoneClick?: (zoneId: string) => void
   onWaterSourceClick?: (sourceId: string) => void
   selectedPaddockId?: string
-  showSatellite?: boolean
   showNdviHeat?: boolean
   showPaddocks?: boolean
   showLabels?: boolean
@@ -395,7 +394,6 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   onNoGrazeZoneClick,
   onWaterSourceClick,
   selectedPaddockId,
-  showSatellite = true,
   showNdviHeat = false,
   showPaddocks = true,
   showLabels = true,
@@ -817,13 +815,6 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       style: {
         version: 8,
         sources: {
-          osm: {
-            type: 'raster',
-            tiles: ['https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'],
-            tileSize: 256,
-            maxzoom: 19,
-            attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-          },
           satellite: {
             type: 'raster',
             tiles: [
@@ -836,24 +827,11 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         },
         layers: [
           {
-            id: 'osm-tiles',
-            type: 'raster',
-            source: 'osm',
-            minzoom: 0,
-            maxzoom: 22,
-            layout: {
-              visibility: showSatellite ? 'none' : 'visible',
-            },
-          },
-          {
             id: 'satellite-tiles',
             type: 'raster',
             source: 'satellite',
             minzoom: 0,
             maxzoom: 22,
-            layout: {
-              visibility: showSatellite ? 'visible' : 'none',
-            },
           },
         ],
       },
@@ -2184,27 +2162,6 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
   }, [mapInstance, isMapLoaded, selectedPaddockId, isEditActive])
 
-  // Toggle satellite/OSM basemap
-  useEffect(() => {
-    if (!isMapReady()) return
-    const map = mapInstance!
-    if (!map) return
-
-    if (map.getLayer('satellite-tiles')) {
-      map.setLayoutProperty(
-        'satellite-tiles',
-        'visibility',
-        showSatellite ? 'visible' : 'none'
-      )
-    }
-    if (map.getLayer('osm-tiles')) {
-      map.setLayoutProperty(
-        'osm-tiles',
-        'visibility',
-        showSatellite ? 'none' : 'visible'
-      )
-    }
-  }, [mapInstance, isMapLoaded, showSatellite])
 
   // Toggle NDVI heat layer
   useEffect(() => {

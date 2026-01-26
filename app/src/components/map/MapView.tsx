@@ -52,7 +52,6 @@ export function MapView() {
   } = useGeometry()
   
   const [layers, setLayers] = useState({
-    satellite: true,
     ndviHeat: false,
     paddocks: true,
     labels: true,
@@ -98,10 +97,8 @@ export function MapView() {
     // Only enter edit mode if explicitly requested via URL params
     if (search.edit) {
       setEditMode(true)
-      // When editing sections, show satellite imagery
       if (search.entityType === 'section') {
         setEntityType('section')
-        setLayers(prev => ({ ...prev, satellite: true }))
       }
       if (search.paddockId) {
         setFocusPaddockId(search.paddockId)
@@ -274,7 +271,6 @@ export function MapView() {
       setSelectedPaddock(null)
       setSelectedNoGrazeZone(null)
       setSelectedWaterSource(null)
-      setLayers(prev => ({ ...prev, satellite: true }))
       nextFocusPaddockId = request.paddockId
       nextEditSectionId = request.sectionId
       nextInitialPaddockId = undefined
@@ -396,7 +392,6 @@ export function MapView() {
           onNoGrazeZoneClick={handleNoGrazeZoneClick}
           onWaterSourceClick={handleWaterSourceClick}
           selectedPaddockId={selectedPaddock?.id}
-          showSatellite={layers.satellite}
           showNdviHeat={layers.ndviHeat}
           showPaddocks={layers.paddocks}
           showLabels={layers.labels}

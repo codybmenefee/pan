@@ -3,7 +3,6 @@ import { cn } from '@/lib/utils'
 
 interface LayerTogglesProps {
   layers: {
-    satellite: boolean
     ndviHeat: boolean
     paddocks: boolean
     labels: boolean
@@ -21,7 +20,6 @@ export function LayerToggles({
   onToggleRGB,
 }: LayerTogglesProps) {
   const buttons = [
-    { key: 'satellite' as const, label: 'Satellite' },
     { key: 'ndviHeat' as const, label: 'NDVI Heat' },
     { key: 'paddocks' as const, label: 'Paddocks' },
     { key: 'sections' as const, label: 'Sections' },

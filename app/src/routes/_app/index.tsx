@@ -13,6 +13,8 @@ import { MapAddMenu } from '@/components/map/MapAddMenu'
 import { DragPreview, type DragEntityType } from '@/components/map/DragPreview'
 import { NoGrazeEditPanel } from '@/components/map/NoGrazeEditPanel'
 import { WaterSourceEditPanel } from '@/components/map/WaterSourceEditPanel'
+import { SatelliteFetchBanner } from '@/components/map/SatelliteFetchBanner'
+import { BoundarySavedDialog } from '@/components/map/BoundarySavedDialog'
 import type { NoGrazeZone, WaterSource, WaterSourceType, NoGrazeZoneType, WaterSourceStatus } from '@/lib/types'
 import { MorningBrief } from '@/components/brief/MorningBrief'
 import { getFormattedDate } from '@/data/mock/plan'
@@ -252,6 +254,10 @@ function GISRoute() {
         console.error('[handleBoundarySaved] Error creating paddock:', err)
         toast.error('Failed to create paddock')
       }
+    } else {
+      // For non-onboarding boundary edits, show the satellite refresh dialog
+      console.log('[handleBoundarySaved] Opening satellite refresh dialog')
+      setBoundarySavedDialogOpen(true)
     }
   }, [search.onboarded, addPaddock])
 
@@ -271,7 +277,6 @@ function GISRoute() {
   } | null>(null)
 
   const [layers, setLayers] = useState({
-    satellite: true,
     ndviHeat: false,
     paddocks: true,
     labels: true,
@@ -304,6 +309,9 @@ function GISRoute() {
 
   // Historical satellite view state
   const [satelliteViewOpen, setSatelliteViewOpen] = useState(false)
+
+  // Boundary saved dialog state - show after non-onboarding boundary save
+  const [boundarySavedDialogOpen, setBoundarySavedDialogOpen] = useState(false)
 
   // Plan modify mode state
   const [planModifyMode, setPlanModifyMode] = useState<{
@@ -589,7 +597,6 @@ function GISRoute() {
         onEditRequest={handleEditRequest}
         onNoGrazeZoneClick={handleNoGrazeZoneClick}
         onWaterSourceClick={handleWaterSourceClick}
-        showSatellite={layers.satellite}
         showNdviHeat={layers.ndviHeat}
         showPaddocks={layers.paddocks}
         showLabels={layers.labels}
@@ -820,6 +827,15 @@ function GISRoute() {
           isOverMap={dragState.isOverMap}
         />
       )}
+
+      {/* Satellite fetch processing banner */}
+      <SatelliteFetchBanner />
+
+      {/* Boundary saved dialog - offer to refresh satellite imagery */}
+      <BoundarySavedDialog
+        open={boundarySavedDialogOpen}
+        onOpenChange={setBoundarySavedDialogOpen}
+      />
     </div>
   )
 }
