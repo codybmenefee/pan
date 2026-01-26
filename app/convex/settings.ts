@@ -4,6 +4,7 @@ import { defaultFarmSettings } from './seedData'
 
 const mapPreferencesShape = v.object({
   showRGBSatellite: v.boolean(),
+  showNDVIHeatmap: v.optional(v.boolean()),
 })
 
 const settingsShape = {
@@ -100,7 +101,7 @@ export const updateMapPreference = mutation({
       .withIndex('by_farm', (q) => q.eq('farmExternalId', args.farmId))
       .first()
 
-    const currentPrefs = existing?.mapPreferences ?? { showRGBSatellite: false }
+    const currentPrefs = existing?.mapPreferences ?? { showRGBSatellite: false, showNDVIHeatmap: false }
     const updatedPrefs = { ...currentPrefs, [args.key]: args.value }
 
     if (!existing) {

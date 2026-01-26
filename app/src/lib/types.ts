@@ -161,6 +161,7 @@ export interface PaddockPerformance {
 // Map preferences for persisting user's map layer settings
 export interface MapPreferences {
   showRGBSatellite: boolean
+  showNDVIHeatmap?: boolean
 }
 
 // Settings types

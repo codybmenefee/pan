@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useQuery } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 
-export type TileType = 'rgb' | 'ndvi' | 'evi' | 'ndwi'
+export type TileType = 'rgb' | 'ndvi' | 'ndvi_heatmap' | 'evi' | 'ndwi'
 
 /**
  * Get the Convex site URL for HTTP endpoints.

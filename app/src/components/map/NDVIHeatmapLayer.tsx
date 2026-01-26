@@ -70,7 +70,7 @@ export function NDVIHeatmapLayer({
   const { tile } = useSatelliteTile(
     canAccessRawTiles ? farmId : undefined,
     captureDate ?? undefined,
-    'ndvi'
+    'ndvi_heatmap'
   )
 
   const sourceAdded = useRef(false)
@@ -95,16 +95,20 @@ export function NDVIHeatmapLayer({
     // Only add if we have a tile URL and it's visible
     if (!visible || !tile?.r2Url) return
 
-    // Add raster source
+    // Add image source (single georeferenced image, already colorized)
     map.addSource(sourceId, {
-      type: 'raster',
-      tiles: [tile.r2Url],
-      bounds: [tile.bounds.west, tile.bounds.south, tile.bounds.east, tile.bounds.north],
-      tileSize: 256,
+      type: 'image',
+      url: tile.r2Url,
+      coordinates: [
+        [tile.bounds.west, tile.bounds.north], // top-left
+        [tile.bounds.east, tile.bounds.north], // top-right
+        [tile.bounds.east, tile.bounds.south], // bottom-right
+        [tile.bounds.west, tile.bounds.south], // bottom-left
+      ],
     })
     sourceAdded.current = true
 
-    // Add raster layer with color ramp
+    // Add raster layer to display the image
     map.addLayer({
       id: layerId,
       type: 'raster',
@@ -112,6 +116,7 @@ export function NDVIHeatmapLayer({
       paint: {
         'raster-opacity': opacity,
         'raster-resampling': 'linear',
+        'raster-fade-duration': 0,
       },
     })
     layerAdded.current = true

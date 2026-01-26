@@ -458,6 +458,13 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     'rgb'
   )
 
+  // Fetch the NDVI heatmap tile for the most recent date
+  const { tile: ndviHeatmapTile } = useSatelliteTile(
+    farmId ?? undefined,
+    mostRecentDate,
+    'ndvi_heatmap'
+  )
+
   // Check if farm has a valid boundary (not the default tiny polygon)
   const hasValidBoundary = useCallback(() => {
     if (!farmGeometry) return false
@@ -2164,22 +2171,26 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
 
   // Toggle NDVI heat layer
+  // When satellite raster is available, hide the paddock aggregate fills
+  // and show the real satellite heatmap instead
   useEffect(() => {
     if (!isMapReady()) return
     const map = mapInstance!
     if (!map) return
-    
+
     const ndviLayers = ['ndvi-heat', 'ndvi-heat-outline']
+    // Only show paddock aggregate fills if NDVI Heat is on AND no satellite raster available
+    const showPaddockFills = showNdviHeat && !ndviHeatmapTile
     ndviLayers.forEach(layerId => {
       if (map.getLayer(layerId)) {
         map.setLayoutProperty(
           layerId,
           'visibility',
-          showNdviHeat ? 'visible' : 'none'
+          showPaddockFills ? 'visible' : 'none'
         )
       }
     })
-  }, [mapInstance, isMapLoaded, showNdviHeat])
+  }, [mapInstance, isMapLoaded, showNdviHeat, ndviHeatmapTile])
 
   // Toggle labels visibility
   useEffect(() => {
@@ -2257,6 +2268,19 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
           visible={showRGBSatellite}
           opacity={1}
           layerId="rgb-satellite"
+          beforeLayerId="paddocks-fill"
+        />
+      )}
+
+      {/* NDVI Heatmap layer - renders below paddocks when NDVI Heat toggle is on */}
+      {ndviHeatmapTile && showNdviHeat && (
+        <RasterTileLayer
+          map={mapInstance}
+          tileUrl={ndviHeatmapTile.r2Url}
+          bounds={ndviHeatmapTile.bounds}
+          visible={showNdviHeat}
+          opacity={0.85}
+          layerId="ndvi-heatmap-satellite"
           beforeLayerId="paddocks-fill"
         />
       )}

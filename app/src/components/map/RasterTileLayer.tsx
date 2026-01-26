@@ -119,11 +119,17 @@ export function RasterTileLayer({
 
     // Cleanup on unmount
     return () => {
-      if (map.getLayer(currentLayerId)) {
-        map.removeLayer(currentLayerId)
-      }
-      if (map.getSource(sourceId)) {
-        map.removeSource(sourceId)
+      // Check if map is still valid before cleanup
+      try {
+        if (!map || !map.getStyle()) return
+        if (map.getLayer(currentLayerId)) {
+          map.removeLayer(currentLayerId)
+        }
+        if (map.getSource(sourceId)) {
+          map.removeSource(sourceId)
+        }
+      } catch {
+        // Map may already be destroyed during navigation
       }
     }
   }, [map, tileUrl, bounds, sourceId, beforeLayerId])

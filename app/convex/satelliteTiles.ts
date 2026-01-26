@@ -13,6 +13,7 @@ export const getTilesForFarm = query({
       v.union(
         v.literal('rgb'),
         v.literal('ndvi'),
+        v.literal('ndvi_heatmap'),
         v.literal('evi'),
         v.literal('ndwi')
       )
@@ -46,6 +47,7 @@ export const getAvailableDates = query({
       v.union(
         v.literal('rgb'),
         v.literal('ndvi'),
+        v.literal('ndvi_heatmap'),
         v.literal('evi'),
         v.literal('ndwi')
       )
@@ -111,6 +113,7 @@ export const getTile = query({
     tileType: v.union(
       v.literal('rgb'),
       v.literal('ndvi'),
+      v.literal('ndvi_heatmap'),
       v.literal('evi'),
       v.literal('ndwi')
     ),
@@ -138,6 +141,7 @@ export const getTileByExternalId = query({
     tileType: v.union(
       v.literal('rgb'),
       v.literal('ndvi'),
+      v.literal('ndvi_heatmap'),
       v.literal('evi'),
       v.literal('ndwi')
     ),
@@ -186,6 +190,7 @@ export const getTilesForFarmByExternalId = query({
       v.union(
         v.literal('rgb'),
         v.literal('ndvi'),
+        v.literal('ndvi_heatmap'),
         v.literal('evi'),
         v.literal('ndwi')
       )
@@ -237,6 +242,7 @@ export const getAvailableDatesByExternalId = query({
       v.union(
         v.literal('rgb'),
         v.literal('ndvi'),
+        v.literal('ndvi_heatmap'),
         v.literal('evi'),
         v.literal('ndwi')
       )
@@ -322,6 +328,7 @@ export const createTile = mutation({
     tileType: v.union(
       v.literal('rgb'),
       v.literal('ndvi'),
+      v.literal('ndvi_heatmap'),
       v.literal('evi'),
       v.literal('ndwi')
     ),
@@ -381,6 +388,7 @@ export const createTileByExternalId = mutation({
     tileType: v.union(
       v.literal('rgb'),
       v.literal('ndvi'),
+      v.literal('ndvi_heatmap'),
       v.literal('evi'),
       v.literal('ndwi')
     ),

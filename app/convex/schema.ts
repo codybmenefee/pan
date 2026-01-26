@@ -102,6 +102,7 @@ export default defineSchema({
     apiKey: v.optional(v.string()),
     mapPreferences: v.optional(v.object({
       showRGBSatellite: v.boolean(),
+      showNDVIHeatmap: v.optional(v.boolean()),
     })),
     // Imagery check tracking for smart scheduling
     lastImageryCheckAt: v.optional(v.string()),   // When we last checked for new imagery (ISO timestamp)
@@ -239,6 +240,7 @@ export default defineSchema({
     tileType: v.union(
       v.literal('rgb'),
       v.literal('ndvi'),
+      v.literal('ndvi_heatmap'),
       v.literal('evi'),
       v.literal('ndwi')
     ),

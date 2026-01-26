@@ -45,7 +45,8 @@ export function useFarmSettings(): UseFarmSettingsResult {
     if (!farmId) {
       throw new Error('Farm ID is unavailable.')
     }
-    await updateMapPref({ farmId, key, value })
+    // Type assertion: callers always pass booleans, never undefined
+    await updateMapPref({ farmId, key, value: value as boolean })
   }
 
   return {
