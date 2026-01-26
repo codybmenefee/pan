@@ -45,7 +45,7 @@ from composite import (
     compute_ndwi,
 )
 from zonal_stats import compute_zonal_stats
-from writer import write_observations_to_convex
+from writer import write_observations_to_convex, notify_completion
 from observation_types import ObservationRecord
 
 
@@ -169,6 +169,124 @@ def save_png(
     return output_path
 
 
+def save_rgba_png(
+    data: 'np.ndarray',
+    output_path: str,
+) -> str:
+    """
+    Save RGBA array data as a PNG file with transparency support.
+
+    Args:
+        data: numpy array with shape (4, H, W) or (H, W, 4) containing uint8 RGBA values
+        output_path: Path to write the PNG
+
+    Returns:
+        Path to the saved file
+    """
+    from PIL import Image
+    import numpy as np
+
+    # Transpose from (4, H, W) to (H, W, 4) for PIL if needed
+    if data.shape[0] == 4:
+        data = np.transpose(data, (1, 2, 0))
+
+    img = Image.fromarray(data, mode='RGBA')
+    img.save(output_path, 'PNG')
+
+    return output_path
+
+
+# NDVI color ramp matching frontend NDVIHeatmapLayer.tsx
+# Brown (low/bare) -> Yellow (sparse) -> Light Green (moderate) -> Dark Green (healthy)
+NDVI_COLOR_RAMP = [
+    (-0.2, (139, 69, 19)),    # Brown #8B4513 (bare soil/water)
+    (0.0, (210, 105, 30)),    # Sienna #D2691E
+    (0.2, (218, 165, 32)),    # Goldenrod #DAA520
+    (0.3, (255, 215, 0)),     # Yellow #FFD700
+    (0.4, (154, 205, 50)),    # Yellow-green #9ACD32
+    (0.5, (124, 252, 0)),     # Light green #7CFC00
+    (0.6, (50, 205, 50)),     # Lime green #32CD32
+    (0.7, (34, 139, 34)),     # Forest green #228B22
+    (0.8, (0, 100, 0)),       # Dark green #006400
+]
+
+
+def colorize_ndvi_to_png(
+    ndvi: 'np.ndarray',
+    output_path: str,
+) -> str:
+    """
+    Apply NDVI color ramp and save as RGBA PNG.
+
+    Color ramp (matching frontend NDVIHeatmapLayer.tsx):
+    -0.2: #8B4513 (brown)     0.4: #9ACD32 (yellow-green)
+     0.0: #D2691E (sienna)    0.5: #7CFC00 (light green)
+     0.2: #DAA520 (gold)      0.6: #32CD32 (lime)
+     0.3: #FFD700 (yellow)    0.7: #228B22 (forest green)
+                              0.8: #006400 (dark green)
+
+    Args:
+        ndvi: 2D numpy array with NDVI values (-1 to 1)
+        output_path: Path to write the PNG
+
+    Returns:
+        Path to the saved file
+    """
+    import numpy as np
+
+    # Ensure 2D array
+    if ndvi.ndim == 3:
+        ndvi = ndvi[0]  # Take first band if 3D
+
+    height, width = ndvi.shape
+
+    # Create RGBA output array
+    rgba = np.zeros((height, width, 4), dtype=np.uint8)
+
+    # Create mask for valid (non-NaN) pixels
+    valid_mask = ~np.isnan(ndvi)
+
+    # Apply color ramp using linear interpolation
+    for i in range(len(NDVI_COLOR_RAMP) - 1):
+        val_low, color_low = NDVI_COLOR_RAMP[i]
+        val_high, color_high = NDVI_COLOR_RAMP[i + 1]
+
+        # Find pixels in this range
+        in_range = valid_mask & (ndvi >= val_low) & (ndvi < val_high)
+
+        if np.any(in_range):
+            # Calculate interpolation factor (0-1)
+            t = (ndvi[in_range] - val_low) / (val_high - val_low)
+            t = np.clip(t, 0, 1)
+
+            # Interpolate RGB values
+            for c in range(3):
+                rgba[in_range, c] = np.round(
+                    color_low[c] + t * (color_high[c] - color_low[c])
+                ).astype(np.uint8)
+
+            # Set alpha to fully opaque for valid pixels
+            rgba[in_range, 3] = 255
+
+    # Handle values at or above the max threshold
+    at_max = valid_mask & (ndvi >= NDVI_COLOR_RAMP[-1][0])
+    if np.any(at_max):
+        for c in range(3):
+            rgba[at_max, c] = NDVI_COLOR_RAMP[-1][1][c]
+        rgba[at_max, 3] = 255
+
+    # Handle values below the min threshold
+    at_min = valid_mask & (ndvi < NDVI_COLOR_RAMP[0][0])
+    if np.any(at_min):
+        for c in range(3):
+            rgba[at_min, c] = NDVI_COLOR_RAMP[0][1][c]
+        rgba[at_min, 3] = 255
+
+    # Invalid (NaN) pixels remain transparent (alpha = 0)
+
+    return save_rgba_png(rgba, output_path)
+
+
 def generate_tiles(
     bands: 'xr.DataArray',
     ndvi: 'xr.DataArray',
@@ -222,6 +340,15 @@ def generate_tiles(
     save_geotiff(ndvi_scaled, bounds, crs, ndvi_path, nodata=0)
     tiles['ndvi'] = ndvi_path
     logger.info(f"  Saved NDVI tile: {ndvi_path}")
+
+    # Generate colorized NDVI heatmap as PNG for direct MapLibre display
+    logger.info("Generating NDVI heatmap tile (PNG)...")
+    # Use the raw NDVI data (not scaled) for colorization
+    ndvi_raw = ndvi.values if hasattr(ndvi, 'values') else ndvi
+    ndvi_heatmap_path = os.path.join(output_dir, f"ndvi_heatmap_{capture_date}.png")
+    colorize_ndvi_to_png(ndvi_raw, ndvi_heatmap_path)
+    tiles['ndvi_heatmap'] = ndvi_heatmap_path
+    logger.info(f"  Saved NDVI heatmap tile: {ndvi_heatmap_path}")
 
     return tiles
 
@@ -599,6 +726,7 @@ def run_pipeline_for_farm(
         logger.info(f"    [{idx}] farm={obs['farmExternalId']}, paddock={obs['paddockExternalId']}, date={obs['date']}, ndvi={obs['ndviMean']:.3f}")
 
     # Step 8: Write to Convex if configured
+    write_success = False
     if pipeline_config.write_to_convex:
         logger.info("Writing observations to Convex...")
         logger.info(f"  DEBUG: About to write {len(observations)} observations to Convex")
@@ -611,8 +739,22 @@ def run_pipeline_for_farm(
                 # Use default writer
                 result = write_observations_to_convex(observations)
                 logger.info(f"  Wrote {result} observations")
+            write_success = True
         except Exception as e:
             logger.error(f"  Error writing to Convex: {e}", exc_info=True)
+
+    # Step 9: Notify completion (for real-time UI updates)
+    # Only notifies if CONVEX_DEPLOYMENT_URL is set
+    # Creates notifications for Sentinel-2 only (free tier)
+    # Planet Labs completions are silent to avoid notification spam
+    if pipeline_config.write_to_convex:
+        notify_completion(
+            farm_external_id=farm_config.external_id,
+            success=write_success and valid_count > 0,
+            provider=source_provider,
+            capture_date=observation_date,
+            error_message=None if write_success else "Failed to write observations",
+        )
 
     return PipelineResult(
         farm_id=farm_config.external_id,
