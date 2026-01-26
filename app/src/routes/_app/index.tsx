@@ -3,8 +3,9 @@ import type { Geometry } from 'geojson'
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Calendar, CheckCircle, Focus, Save } from 'lucide-react'
+import { Calendar, CheckCircle, Focus, Save, Satellite } from 'lucide-react'
 import { FarmMap, type FarmMapHandle } from '@/components/map/FarmMap'
+import { HistoricalSatelliteView } from '@/components/satellite/HistoricalSatelliteView'
 import { FarmBoundaryDrawer } from '@/components/map/FarmBoundaryDrawer'
 import { LayerToggles } from '@/components/map/LayerToggles'
 import { SaveIndicator } from '@/components/map/SaveIndicator'
@@ -12,7 +13,7 @@ import { MapAddMenu } from '@/components/map/MapAddMenu'
 import { DragPreview, type DragEntityType } from '@/components/map/DragPreview'
 import { NoGrazeEditPanel } from '@/components/map/NoGrazeEditPanel'
 import { WaterSourceEditPanel } from '@/components/map/WaterSourceEditPanel'
-import type { NoGrazeZone, WaterSource, WaterSourceType } from '@/lib/types'
+import type { NoGrazeZone, WaterSource, WaterSourceType, NoGrazeZoneType, WaterSourceStatus } from '@/lib/types'
 import { MorningBrief } from '@/components/brief/MorningBrief'
 import { getFormattedDate } from '@/data/mock/plan'
 import { PaddockEditDrawer } from '@/components/map/PaddockEditDrawer'
@@ -61,7 +62,7 @@ function GISRoute() {
     updateWaterSourceMetadata,
     deleteWaterSource,
   } = useGeometry()
-  const { startDraw, cancelDraw, isDrawingBoundary } = useFarmBoundary()
+  const { startDraw, cancelDraw, isDrawingBoundary, existingGeometry } = useFarmBoundary()
 
   const mapRef = useRef<FarmMapHandle>(null)
   // Close daily plan modal by default during onboarding/boundary edit flow
@@ -75,6 +76,19 @@ function GISRoute() {
     paddockId: string
     geometry: Feature<Polygon>
   } | null>(null)
+
+  // Track if we've done the initial check for plan status
+  const initialPlanCheckDone = useRef(false)
+
+  // Close the modal on initial load if the plan is already approved
+  useEffect(() => {
+    if (!initialPlanCheckDone.current && plan !== undefined) {
+      initialPlanCheckDone.current = true
+      if (plan && (plan.status === 'approved' || plan.status === 'modified')) {
+        setBriefOpen(false)
+      }
+    }
+  }, [plan])
 
   // Update map instance when ref changes
   useEffect(() => {
@@ -250,6 +264,9 @@ function GISRoute() {
     sections: true,
   })
 
+  // Historical satellite view state
+  const [satelliteViewOpen, setSatelliteViewOpen] = useState(false)
+
   // Plan modify mode state
   const [planModifyMode, setPlanModifyMode] = useState<{
     active: boolean
@@ -295,9 +312,11 @@ function GISRoute() {
   }
 
   const handleEditRequest = useCallback((request: {
-    entityType: 'paddock' | 'section'
+    entityType: 'paddock' | 'section' | 'noGrazeZone' | 'waterPolygon'
     paddockId?: string
     sectionId?: string
+    noGrazeZoneId?: string
+    waterSourceId?: string
     geometry?: Feature<Polygon>
   }) => {
     // If creating a new paddock with geometry (double-click on empty space)
@@ -310,6 +329,13 @@ function GISRoute() {
         geometry: request.geometry,
       })
       setDrawEntityType('paddock')
+      return
+    }
+
+    // For no-graze zones and water polygons, just enter edit mode
+    // The geometries will be loaded into draw by the FarmMap effects
+    if (request.entityType === 'noGrazeZone' || request.entityType === 'waterPolygon') {
+      setDrawEntityType(request.entityType)
       return
     }
 
@@ -348,8 +374,8 @@ function GISRoute() {
     }
   }, [getWaterSourceById])
 
-  const handleNoGrazeZoneSave = useCallback((id: string, name: string) => {
-    updateNoGrazeZoneMetadata(id, { name })
+  const handleNoGrazeZoneSave = useCallback((id: string, updates: { name?: string; type?: NoGrazeZoneType; description?: string }) => {
+    updateNoGrazeZoneMetadata(id, updates)
     setSelectedNoGrazeZone(null)
   }, [updateNoGrazeZoneMetadata])
 
@@ -358,7 +384,7 @@ function GISRoute() {
     setSelectedNoGrazeZone(null)
   }, [deleteNoGrazeZone])
 
-  const handleWaterSourceSave = useCallback((id: string, updates: { name?: string; type?: WaterSourceType }) => {
+  const handleWaterSourceSave = useCallback((id: string, updates: { name?: string; type?: WaterSourceType; status?: WaterSourceStatus; description?: string }) => {
     updateWaterSourceMetadata(id, updates)
     setSelectedWaterSource(null)
   }, [updateWaterSourceMetadata])
@@ -550,6 +576,7 @@ function GISRoute() {
           onCancel={handleBoundaryCancel}
           isPostOnboarding={search.onboarded === 'true'}
           onBoundarySaved={handleBoundarySaved}
+          existingBoundary={existingGeometry}
         />
       )}
 
@@ -561,6 +588,29 @@ function GISRoute() {
           showEditToggle={false}
         />
       </div>
+
+      {/* Historical Satellite button - bottom left, above layer toggles */}
+      <div className="absolute bottom-14 left-2 z-10">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setSatelliteViewOpen(true)}
+          className="gap-1 h-7 text-xs shadow-lg bg-white"
+        >
+          <Satellite className="h-3.5 w-3.5" />
+          Historical
+        </Button>
+      </div>
+
+      {/* Historical Satellite View */}
+      {activeFarmId && (
+        <HistoricalSatelliteView
+          farmId={activeFarmId}
+          map={mapInstance}
+          isOpen={satelliteViewOpen}
+          onClose={() => setSatelliteViewOpen(false)}
+        />
+      )}
 
       {/* Save indicator - top center */}
       <div className="absolute top-1.5 left-1/2 -translate-x-1/2 z-10">
