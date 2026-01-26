@@ -1,4 +1,0 @@
-# System dependencies for rasterio/GDAL geospatial processing
-[phases.setup]
-nixPkgs = ["gdal", "expat", "proj", "geos", "libxml2", "curl", "openssl"]
-aptPkgs = ["libexpat1", "libgdal-dev", "libproj-dev", "libgeos-dev"]
