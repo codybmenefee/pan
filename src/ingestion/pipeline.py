@@ -458,6 +458,15 @@ def run_pipeline_for_farm(
     provider_names = [p.__class__.__name__.replace("Provider", "").lower() for p in providers]
     source_provider = "merged" if len(providers) > 1 else provider_names[0]
 
+    # Map internal provider names to standardized API names
+    PROVIDER_NAME_MAP = {
+        "copernicus": "sentinel2",  # Copernicus provides Sentinel-2 data
+        "sentinel2": "sentinel2",
+        "planetscope": "planet",
+        "planet": "planet",
+    }
+    source_provider = PROVIDER_NAME_MAP.get(source_provider, source_provider)
+
     logger.info(f"  Providers: {', '.join(provider_names)}")
     logger.info(f"  Target resolution: {target_resolution}m")
 
