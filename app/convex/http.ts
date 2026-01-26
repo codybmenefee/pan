@@ -272,9 +272,195 @@ http.route({
 function corsHeaders(): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   }
 }
+
+/**
+ * Satellite Pipeline Completion Webhook
+ *
+ * Called by the Python pipeline when satellite processing completes.
+ * Creates notifications for Sentinel-2 (free tier) only.
+ * Planet Labs jobs complete silently to avoid notification spam.
+ */
+interface SatelliteCompletePayload {
+  farmExternalId: string
+  success: boolean
+  provider: 'sentinel2' | 'planet'
+  captureDate?: string
+  errorMessage?: string
+}
+
+http.route({
+  path: '/webhooks/satellite-complete',
+  method: 'POST',
+  handler: httpAction(async (ctx, request) => {
+    let payload: SatelliteCompletePayload
+    try {
+      payload = await request.json()
+    } catch {
+      return new Response('Invalid JSON', {
+        status: 400,
+        headers: corsHeaders(),
+      })
+    }
+
+    // Validate required fields
+    if (!payload.farmExternalId || typeof payload.success !== 'boolean' || !payload.provider) {
+      return new Response('Missing required fields: farmExternalId, success, provider', {
+        status: 400,
+        headers: corsHeaders(),
+      })
+    }
+
+    // Validate provider
+    if (payload.provider !== 'sentinel2' && payload.provider !== 'planet') {
+      return new Response('Invalid provider. Must be "sentinel2" or "planet"', {
+        status: 400,
+        headers: corsHeaders(),
+      })
+    }
+
+    console.log(`Received satellite-complete webhook for farm ${payload.farmExternalId}`)
+    console.log(`  Provider: ${payload.provider}, Success: ${payload.success}`)
+
+    try {
+      // Complete the job and create notification (for Sentinel-2 only)
+      await ctx.runMutation(api.satelliteFetchJobs.completeJobByFarm, {
+        farmExternalId: payload.farmExternalId,
+        provider: payload.provider,
+        success: payload.success,
+        captureDate: payload.captureDate,
+        errorMessage: payload.errorMessage,
+      })
+
+      return new Response(JSON.stringify({ status: 'ok' }), {
+        status: 200,
+        headers: {
+          ...corsHeaders(),
+          'Content-Type': 'application/json',
+        },
+      })
+    } catch (error) {
+      console.error('Satellite webhook error:', error)
+      return new Response('Internal error', {
+        status: 500,
+        headers: corsHeaders(),
+      })
+    }
+  }),
+})
+
+// Handle CORS preflight for satellite webhook
+http.route({
+  path: '/webhooks/satellite-complete',
+  method: 'OPTIONS',
+  handler: httpAction(async () => {
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders(),
+    })
+  }),
+})
+
+/**
+ * Manual Pipeline Trigger Webhook
+ *
+ * Allows manual triggering of satellite fetch jobs for testing.
+ * Creates a job that will be picked up by the next scheduler run.
+ */
+interface TriggerPipelinePayload {
+  farmExternalId: string
+  provider?: 'sentinel2' | 'planet'
+  triggeredBy?: 'boundary_update' | 'scheduled' | 'manual'
+}
+
+http.route({
+  path: '/webhooks/trigger-pipeline',
+  method: 'POST',
+  handler: httpAction(async (ctx, request) => {
+    let payload: TriggerPipelinePayload
+    try {
+      payload = await request.json()
+    } catch {
+      return new Response('Invalid JSON', {
+        status: 400,
+        headers: corsHeaders(),
+      })
+    }
+
+    // Validate required fields
+    if (!payload.farmExternalId) {
+      return new Response('Missing required field: farmExternalId', {
+        status: 400,
+        headers: corsHeaders(),
+      })
+    }
+
+    const provider = payload.provider ?? 'sentinel2'
+    const triggeredBy = payload.triggeredBy ?? 'manual'
+
+    console.log(`Received trigger-pipeline webhook for farm ${payload.farmExternalId}`)
+    console.log(`  Provider: ${provider}, TriggeredBy: ${triggeredBy}`)
+
+    try {
+      let jobId: string
+
+      // Create job based on trigger type
+      switch (triggeredBy) {
+        case 'boundary_update':
+          jobId = await ctx.runMutation(api.satelliteFetchJobs.createForBoundaryUpdate, {
+            farmExternalId: payload.farmExternalId,
+            provider,
+          })
+          break
+        case 'scheduled':
+          jobId = await ctx.runMutation(api.satelliteFetchJobs.createForScheduledCheck, {
+            farmExternalId: payload.farmExternalId,
+            provider,
+          })
+          break
+        case 'manual':
+        default:
+          jobId = await ctx.runMutation(api.satelliteFetchJobs.createForManualRefresh, {
+            farmExternalId: payload.farmExternalId,
+            provider,
+          })
+          break
+      }
+
+      return new Response(JSON.stringify({
+        status: 'ok',
+        jobId,
+        message: `Created ${triggeredBy} job for farm ${payload.farmExternalId}`,
+      }), {
+        status: 200,
+        headers: {
+          ...corsHeaders(),
+          'Content-Type': 'application/json',
+        },
+      })
+    } catch (error) {
+      console.error('Trigger pipeline webhook error:', error)
+      return new Response('Internal error', {
+        status: 500,
+        headers: corsHeaders(),
+      })
+    }
+  }),
+})
+
+// Handle CORS preflight for trigger-pipeline webhook
+http.route({
+  path: '/webhooks/trigger-pipeline',
+  method: 'OPTIONS',
+  handler: httpAction(async () => {
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders(),
+    })
+  }),
+})
 
 export default http

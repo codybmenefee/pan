@@ -39,6 +39,31 @@ export const getFarm = query({
   },
 })
 
+/**
+ * Get farm by external ID (for pipeline use).
+ * Returns null if not found (doesn't fall back to first farm).
+ */
+export const getByExternalId = query({
+  args: { externalId: v.string() },
+  handler: async (ctx, args) => {
+    // Try by externalId first
+    let farm = await ctx.db
+      .query('farms')
+      .withIndex('by_externalId', (q) => q.eq('externalId', args.externalId))
+      .first()
+
+    // Also check legacyExternalId for migration support
+    if (!farm) {
+      farm = await ctx.db
+        .query('farms')
+        .withIndex('by_legacyExternalId', (q: any) => q.eq('legacyExternalId', args.externalId))
+        .first()
+    }
+
+    return farm
+  },
+})
+
 export const seedSampleFarm = mutation({
   args: {
     farmId: v.optional(v.string()),

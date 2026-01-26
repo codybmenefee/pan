@@ -396,3 +396,73 @@ def write_satellite_tile_to_convex(tile: 'SatelliteTileRecord') -> str:
     except Exception as e:
         logger.error(f"Error writing satellite tile to Convex: {e}", exc_info=True)
         raise
+
+
+def notify_completion(
+    farm_external_id: str,
+    success: bool,
+    provider: str,
+    capture_date: Optional[str] = None,
+    error_message: Optional[str] = None,
+) -> bool:
+    """
+    Notify Convex that satellite processing has completed.
+
+    This calls the /webhooks/satellite-complete endpoint to:
+    - Update any active satellite fetch jobs
+    - Create notifications for Sentinel-2 data (free tier)
+    - Planet Labs completions are silent to avoid notification spam
+
+    Args:
+        farm_external_id: The farm's external ID
+        success: Whether processing succeeded
+        provider: 'sentinel2' or 'planet'
+        capture_date: Optional capture date (YYYY-MM-DD)
+        error_message: Optional error message if failed
+
+    Returns:
+        True if notification was sent successfully
+    """
+    deployment_url = os.environ.get("CONVEX_DEPLOYMENT_URL")
+    if not deployment_url:
+        logger.warning("CONVEX_DEPLOYMENT_URL not set, skipping completion notification")
+        return False
+
+    # Convex HTTP routes use .convex.site, not .convex.cloud
+    site_url = deployment_url.rstrip('/').replace('.convex.cloud', '.convex.site')
+    webhook_url = f"{site_url}/webhooks/satellite-complete"
+
+    payload = {
+        "farmExternalId": farm_external_id,
+        "success": success,
+        "provider": provider,
+    }
+
+    if capture_date:
+        payload["captureDate"] = capture_date
+    if error_message:
+        payload["errorMessage"] = error_message
+
+    try:
+        logger.info(f"Sending completion notification to {webhook_url}")
+        logger.info(f"  Farm: {farm_external_id}, Provider: {provider}, Success: {success}")
+
+        response = requests.post(
+            webhook_url,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=30,
+        )
+
+        if response.ok:
+            logger.info("Completion notification sent successfully")
+            return True
+        else:
+            logger.warning(
+                f"Completion notification failed: {response.status_code} - {response.text}"
+            )
+            return False
+
+    except Exception as e:
+        logger.error(f"Error sending completion notification: {e}", exc_info=True)
+        return False

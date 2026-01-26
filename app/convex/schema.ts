@@ -103,6 +103,9 @@ export default defineSchema({
     mapPreferences: v.optional(v.object({
       showRGBSatellite: v.boolean(),
     })),
+    // Imagery check tracking for smart scheduling
+    lastImageryCheckAt: v.optional(v.string()),   // When we last checked for new imagery (ISO timestamp)
+    lastNewImageryDate: v.optional(v.string()),   // Date of newest imagery found (YYYY-MM-DD)
     createdAt: v.string(),
     updatedAt: v.string(),
   })    .index('by_farm', ['farmExternalId']),
@@ -282,4 +285,48 @@ export default defineSchema({
   })
     .index('by_farm', ['farmId'])
     .index('by_clerk_subscription', ['clerkSubscriptionId']),
+
+  // Notifications for satellite data readiness and system alerts
+  notifications: defineTable({
+    farmExternalId: v.string(),
+    type: v.union(
+      v.literal('satellite_ready'),
+      v.literal('satellite_failed'),
+      v.literal('system')
+    ),
+    title: v.string(),
+    message: v.string(),
+    metadata: v.optional(v.object({
+      provider: v.optional(v.string()),
+      captureDate: v.optional(v.string()),
+    })),
+    isRead: v.boolean(),
+    createdAt: v.string(),
+  })
+    .index('by_farm', ['farmExternalId'])
+    .index('by_farm_unread', ['farmExternalId', 'isRead']),
+
+  // Track satellite fetch jobs for banner display
+  satelliteFetchJobs: defineTable({
+    farmExternalId: v.string(),
+    status: v.union(
+      v.literal('pending'),
+      v.literal('processing'),
+      v.literal('completed'),
+      v.literal('failed')
+    ),
+    provider: v.string(),
+    triggeredBy: v.union(
+      v.literal('boundary_update'),
+      v.literal('scheduled'),
+      v.literal('manual')
+    ),
+    priority: v.optional(v.number()),  // 1=boundary, 2=manual, 3=scheduled (lower = higher priority)
+    startedAt: v.string(),
+    completedAt: v.optional(v.string()),
+    errorMessage: v.optional(v.string()),
+  })
+    .index('by_farm', ['farmExternalId'])
+    .index('by_farm_status', ['farmExternalId', 'status'])
+    .index('by_status', ['status']),
 })

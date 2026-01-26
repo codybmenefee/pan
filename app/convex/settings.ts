@@ -122,3 +122,107 @@ export const updateMapPreference = mutation({
     return { id: existing._id }
   },
 })
+
+/**
+ * Update imagery check tracking for a farm.
+ * Called by the scheduler after checking Copernicus catalog.
+ */
+export const updateImageryCheckTime = mutation({
+  args: {
+    farmExternalId: v.string(),
+    checkTimestamp: v.string(),  // ISO timestamp of when we checked
+    latestImageryDate: v.optional(v.string()),  // YYYY-MM-DD of newest imagery found
+  },
+  handler: async (ctx, args) => {
+    const now = new Date().toISOString()
+    const existing = await ctx.db
+      .query('farmSettings')
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', args.farmExternalId))
+      .first()
+
+    if (!existing) {
+      // Create settings with imagery check info
+      const id = await ctx.db.insert('farmSettings', {
+        farmExternalId: args.farmExternalId,
+        ...defaultFarmSettings,
+        lastImageryCheckAt: args.checkTimestamp,
+        lastNewImageryDate: args.latestImageryDate,
+        createdAt: now,
+        updatedAt: now,
+      })
+      return { id }
+    }
+
+    // Update existing settings
+    const updates: Record<string, string | undefined> = {
+      lastImageryCheckAt: args.checkTimestamp,
+      updatedAt: now,
+    }
+
+    // Only update lastNewImageryDate if we found new imagery
+    if (args.latestImageryDate) {
+      updates.lastNewImageryDate = args.latestImageryDate
+    }
+
+    await ctx.db.patch(existing._id, updates)
+    return { id: existing._id }
+  },
+})
+
+/**
+ * Get farms that need their imagery checked (not checked in 24h).
+ * Used by daily scheduler to determine which farms to check.
+ */
+export const getFarmsNeedingImageryCheck = query({
+  args: {},
+  handler: async (ctx) => {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+
+    // Get all farm settings
+    const allSettings = await ctx.db.query('farmSettings').collect()
+
+    // Filter to farms not checked in 24 hours
+    const needsCheck = allSettings.filter((settings) => {
+      // If never checked, needs check
+      if (!settings.lastImageryCheckAt) {
+        return true
+      }
+      // If last check was more than 24 hours ago, needs check
+      return settings.lastImageryCheckAt < twentyFourHoursAgo
+    })
+
+    // Return farm external IDs with their last imagery dates
+    return needsCheck.map((s) => ({
+      farmExternalId: s.farmExternalId,
+      lastNewImageryDate: s.lastNewImageryDate ?? null,
+      lastImageryCheckAt: s.lastImageryCheckAt ?? null,
+    }))
+  },
+})
+
+/**
+ * Get imagery check status for a farm.
+ */
+export const getImageryCheckStatus = query({
+  args: {
+    farmExternalId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const settings = await ctx.db
+      .query('farmSettings')
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', args.farmExternalId))
+      .first()
+
+    if (!settings) {
+      return {
+        lastImageryCheckAt: null,
+        lastNewImageryDate: null,
+      }
+    }
+
+    return {
+      lastImageryCheckAt: settings.lastImageryCheckAt ?? null,
+      lastNewImageryDate: settings.lastNewImageryDate ?? null,
+    }
+  },
+})
