@@ -1,6 +1,7 @@
-import { HelpCircle, RotateCcw } from 'lucide-react'
+import { BookOpen, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FarmSelector } from './FarmSelector'
+import { NotificationBell } from './NotificationBell'
 import { useAppAuth } from '@/lib/auth'
 import { Link } from '@tanstack/react-router'
 
@@ -20,9 +21,13 @@ export function Header() {
           </Link>
         )}
 
-        <Button variant="ghost" size="icon" className="h-5 w-5">
-          <HelpCircle className="h-3 w-3" />
-        </Button>
+        <Link to="/docs">
+          <Button variant="ghost" size="icon" className="h-5 w-5" title="Documentation">
+            <BookOpen className="h-3 w-3" />
+          </Button>
+        </Link>
+
+        <NotificationBell />
 
         {/* Avatar placeholder */}
         <button className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-medium">
