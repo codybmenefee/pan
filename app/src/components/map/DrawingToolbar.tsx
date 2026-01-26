@@ -269,7 +269,7 @@ export function DrawingToolbar({
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom">
-            <p>Drag vertices to reshape the selected polygon</p>
+            <p>Drag vertices to reshape. Delete key removes selected vertex.</p>
           </TooltipContent>
         </Tooltip>
 

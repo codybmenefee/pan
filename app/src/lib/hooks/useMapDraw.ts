@@ -338,6 +338,40 @@ export function useMapDraw({
     onFeatureDeleted,
   ])
 
+  // Keyboard handler for vertex deletion in direct_select mode
+  useEffect(() => {
+    if (!map || !drawRef.current || !editable) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const draw = drawRef.current
+      if (!draw) return
+
+      const actualMode = draw.getMode()
+      if (actualMode !== 'direct_select') return
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return
+
+      e.preventDefault()
+
+      const selectedIds = draw.getSelectedIds()
+      if (selectedIds.length === 0) return
+
+      const feature = draw.get(selectedIds[0])
+      if (!feature || feature.geometry.type !== 'Polygon') return
+
+      const coords = (feature.geometry as Polygon).coordinates[0]
+      // Polygon needs 4+ coords (3 vertices + closing point)
+      if (coords.length <= 4) {
+        console.warn('Cannot delete vertex: polygon must have at least 3 vertices')
+        return
+      }
+
+      draw.trash()  // Deletes selected vertex in direct_select mode
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [map, editable])
+
   const setMode = useCallback((mode: DrawMode) => {
     if (drawRef.current) {
       // Type assertion needed due to MapboxDraw's strict overload types
