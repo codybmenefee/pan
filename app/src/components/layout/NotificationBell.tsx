@@ -1,5 +1,6 @@
 import { Bell, CheckCheck, Satellite, AlertCircle, Info } from 'lucide-react'
 import { useQuery, useMutation } from 'convex/react'
+import { useNavigate } from '@tanstack/react-router'
 import { api } from '../../../convex/_generated/api'
 import { useFarmContext } from '@/lib/farm'
 import { Button } from '@/components/ui/button'
@@ -43,6 +44,7 @@ function getNotificationIcon(type: string) {
 
 export function NotificationBell() {
   const { activeFarmId } = useFarmContext()
+  const navigate = useNavigate()
 
   const notifications = useQuery(
     api.notifications.getForFarm,
@@ -68,22 +70,38 @@ export function NotificationBell() {
     }
   }
 
+  const handleActionClick = (notification: Notification, e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent dropdown from closing
+    if (notification.metadata?.actionUrl) {
+      // Parse the URL and navigate
+      const url = new URL(notification.metadata.actionUrl, window.location.origin)
+      navigate({
+        to: url.pathname,
+        search: Object.fromEntries(url.searchParams),
+      })
+      // Mark as read when clicking action
+      if (!notification.isRead) {
+        markAsRead({ notificationId: notification._id })
+      }
+    }
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative h-5 w-5">
+        <button className="relative flex h-5 w-5 items-center justify-center rounded hover:bg-accent">
           <Bell className="h-3 w-3" />
-          {unreadCount && unreadCount > 0 && (
+          {unreadCount != null && unreadCount > 0 && (
             <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 text-[8px] font-medium text-white">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
-        </Button>
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
         <div className="flex items-center justify-between px-2 py-1.5">
           <DropdownMenuLabel className="p-0">Notifications</DropdownMenuLabel>
-          {unreadCount && unreadCount > 0 && (
+          {unreadCount != null && unreadCount > 0 && (
             <Button
               variant="ghost"
               size="sm"
@@ -123,6 +141,14 @@ export function NotificationBell() {
                   <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
                     {notification.message}
                   </p>
+                  {notification.metadata?.actionUrl && notification.metadata?.actionLabel && (
+                    <button
+                      onClick={(e) => handleActionClick(notification, e)}
+                      className="mt-2 text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                    >
+                      {notification.metadata.actionLabel} &rarr;
+                    </button>
+                  )}
                 </div>
                 {!notification.isRead && (
                   <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />

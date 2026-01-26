@@ -111,7 +111,7 @@ export function MapAddMenu({
   }
 
   return (
-    <div ref={menuRef} className={cn("absolute top-2 right-2 z-20", className)}>
+    <div ref={menuRef} className={cn("absolute top-2 right-1 z-20", className)}>
       {/* Plus button trigger */}
       <Button
         size="icon"
