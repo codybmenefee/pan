@@ -686,9 +686,7 @@ function GISRoute() {
             : (todaysSection && !sectionHasPendingDelete(todaysSection.id) ? todaysSection.id : undefined)
         }
         initialPaddockId={selectedEntityType === 'paddock' ? selectedEntityId : undefined}
-        showToolbar={true}
-        toolbarPosition="top-left"
-        compactToolbar={true}
+        showToolbar={false}
         selectedSectionId={
           editDrawerState.open &&
           selectedEntityType === 'section' &&
@@ -781,13 +779,12 @@ function GISRoute() {
         </div>
       )}
 
-      {/* Add menu - below save indicator */}
+      {/* Add menu - top right */}
       <MapAddMenu
         onAddPaddock={handleAddPaddock}
         onAddNoGrazeZone={handleAddNoGrazeZone}
         onAddWaterSource={handleAddWaterSource}
         onDragStart={handleDragStart}
-        className="top-9"
       />
 
       {/* Floating Save Button when in plan modify mode */}
@@ -843,7 +840,7 @@ function GISRoute() {
 
       {/* Toggle button when panel is closed */}
       {!briefOpen && (
-        <div className="absolute top-11 left-2 z-10">
+        <div className="absolute top-2 left-2 z-10">
           {plan?.status === 'approved' || plan?.status === 'modified' ? (
             <Button
               variant="default"
@@ -868,9 +865,18 @@ function GISRoute() {
         </div>
       )}
 
-      {/* Edit Drawer - right side */}
+      {/* Paddock Edit Modal */}
+      {selectedEntityType === 'paddock' && selectedPaddock && (
+        <PaddockEditDrawer
+          paddock={selectedPaddock}
+          open={editDrawerState.open}
+          onClose={closeEditDrawer}
+        />
+      )}
+
+      {/* Section Edit Drawer - right side */}
       <Drawer
-        open={editDrawerState.open}
+        open={editDrawerState.open && selectedEntityType === 'section'}
         onOpenChange={(open) => {
           if (!open) closeEditDrawer()
         }}
@@ -883,15 +889,9 @@ function GISRoute() {
           width={360}
           showCloseButton={false}
           showOverlay={false}
-          ariaLabel={
-            selectedEntityType === 'paddock'
-              ? `Edit ${selectedPaddock?.name ?? 'Paddock'}`
-              : 'Grazing Section'
-          }
+          ariaLabel="Grazing Section"
         >
-          {selectedEntityType === 'paddock' && selectedPaddock ? (
-            <PaddockEditDrawer paddock={selectedPaddock} onClose={closeEditDrawer} />
-          ) : selectedEntityType === 'section' && selectedEntityId && editDrawerState.geometry ? (
+          {selectedEntityType === 'section' && selectedEntityId && editDrawerState.geometry ? (
             <SectionEditDrawer
               sectionId={selectedEntityId}
               paddockId={parentPaddockIdForSection || ''}
@@ -908,6 +908,7 @@ function GISRoute() {
       {selectedNoGrazeZone && (
         <NoGrazeEditPanel
           zone={selectedNoGrazeZone}
+          open={true}
           onSave={handleNoGrazeZoneSave}
           onDelete={handleNoGrazeZoneDelete}
           onClose={() => setSelectedNoGrazeZone(null)}
@@ -918,6 +919,7 @@ function GISRoute() {
       {selectedWaterSource && (
         <WaterSourceEditPanel
           source={selectedWaterSource}
+          open={true}
           onSave={handleWaterSourceSave}
           onDelete={handleWaterSourceDelete}
           onClose={() => setSelectedWaterSource(null)}
