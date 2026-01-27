@@ -67,6 +67,47 @@ export const createForBoundaryUpdate = mutation({
 })
 
 /**
+ * Create a satellite fetch job when onboarding completes.
+ * Prevents duplicates by checking for existing pending/processing jobs.
+ */
+export const createForOnboardingComplete = mutation({
+  args: {
+    farmExternalId: v.string(),
+    provider: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Check for existing pending jobs
+    const pendingJobs = await ctx.db
+      .query('satelliteFetchJobs')
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', args.farmExternalId))
+      .filter((q) => q.eq(q.field('status'), 'pending'))
+      .collect()
+
+    // Check for existing processing jobs
+    const processingJobs = await ctx.db
+      .query('satelliteFetchJobs')
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', args.farmExternalId))
+      .filter((q) => q.eq(q.field('status'), 'processing'))
+      .collect()
+
+    // Return existing job if one already exists
+    if (pendingJobs.length > 0 || processingJobs.length > 0) {
+      return (pendingJobs[0] ?? processingJobs[0])._id
+    }
+
+    // Create new job with highest priority
+    return await ctx.db.insert('satelliteFetchJobs', {
+      farmExternalId: args.farmExternalId,
+      status: 'pending',
+      provider: args.provider ?? 'sentinel2',
+      triggeredBy: 'boundary_update',
+      priority: PRIORITY.BOUNDARY_UPDATE,
+      startedAt: new Date().toISOString(),
+    })
+  },
+})
+
+/**
  * Create a satellite fetch job for manual refresh.
  */
 export const createForManualRefresh = mutation({

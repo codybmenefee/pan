@@ -3,6 +3,11 @@ import { useSubscription } from '../../lib/hooks/useSubscription'
 import { useStorageUsage } from '../../lib/hooks/useSatelliteTiles'
 import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 import { ACRES_PER_HECTARE } from '@/lib/areaUnits'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
+import { Check } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface SubscriptionCardProps {
   /**
@@ -122,7 +127,7 @@ export function SubscriptionCard({
 
   if (isLoading) {
     return (
-      <div className={`animate-pulse bg-gray-100 rounded-lg h-64 ${className}`} />
+      <Card className={cn('animate-pulse h-64', className)} />
     )
   }
 
@@ -137,132 +142,115 @@ export function SubscriptionCard({
   const limitHectares = (subscription?.acreageLimit ?? 5) / ACRES_PER_HECTARE
 
   return (
-    <div className={`bg-white rounded-lg border border-gray-200 overflow-hidden ${className}`}>
+    <Card className={className}>
       {/* Header */}
-      <div className={`px-6 py-4 bg-${planDetails.color}-50 border-b border-${planDetails.color}-100`}>
+      <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">
+            <CardTitle className="text-base font-medium">
               {planDetails.name} Plan
-            </h3>
-            <p className="text-sm text-gray-600">{planDetails.description}</p>
+            </CardTitle>
+            <CardDescription>{planDetails.description}</CardDescription>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-bold text-gray-900">{planDetails.price}</p>
+            <p className="text-2xl font-bold">{planDetails.price}</p>
             {!isActive && tier !== 'free' && (
-              <span className="text-xs text-red-600 font-medium">
+              <span className="text-xs text-destructive font-medium">
                 {subscription?.status === 'past_due' ? 'Payment past due' : 'Canceled'}
               </span>
             )}
           </div>
         </div>
-      </div>
+      </CardHeader>
+
+      <Separator />
 
       {/* Usage Metrics */}
-      <div className="px-6 py-4 border-b border-gray-100">
-        <h4 className="text-sm font-medium text-gray-700 mb-3">Usage</h4>
-        <div className="space-y-3">
-          {/* Acreage */}
+      <CardContent className="space-y-3">
+        <h4 className="text-sm font-medium">Usage</h4>
+        {/* Acreage */}
+        <div>
+          <div className="flex justify-between text-sm mb-1">
+            <span className="text-muted-foreground">Land Area</span>
+            <span className="font-medium">
+              {preferHectares
+                ? `${farmHectares.toFixed(1)} / ${limitHectares.toFixed(1)} ha`
+                : `${farmAcreage.toFixed(1)} / ${subscription?.acreageLimit ?? 5} ac`
+              }
+            </span>
+          </div>
+          <div className="w-full bg-muted rounded-full h-2">
+            <div
+              className={`h-2 rounded-full ${
+                acreageUsage > 90 ? 'bg-red-500' : acreageUsage > 70 ? 'bg-yellow-500' : 'bg-green-500'
+              }`}
+              style={{ width: `${Math.min(acreageUsage, 100)}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Storage (for paid tiers) */}
+        {tier !== 'free' && (
           <div>
             <div className="flex justify-between text-sm mb-1">
-              <span className="text-gray-600">Land Area</span>
-              <span className="text-gray-900 font-medium">
-                {preferHectares
-                  ? `${farmHectares.toFixed(1)} / ${limitHectares.toFixed(1)} ha`
-                  : `${farmAcreage.toFixed(1)} / ${subscription?.acreageLimit ?? 5} ac`
-                }
+              <span className="text-muted-foreground">Tile Storage</span>
+              <span className="font-medium">
+                {usageLoading ? '...' : `${usage?.totalMB ?? 0} MB`}
               </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className={`h-2 rounded-full ${
-                  acreageUsage > 90 ? 'bg-red-500' : acreageUsage > 70 ? 'bg-yellow-500' : 'bg-green-500'
-                }`}
-                style={{ width: `${Math.min(acreageUsage, 100)}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Storage (for paid tiers) */}
-          {tier !== 'free' && (
-            <div>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-600">Tile Storage</span>
-                <span className="text-gray-900 font-medium">
-                  {usageLoading ? '...' : `${usage?.totalMB ?? 0} MB`}
-                </span>
-              </div>
-              <p className="text-xs text-gray-500">
-                {usage?.tileCount ?? 0} satellite tiles stored
-              </p>
-            </div>
-          )}
-
-          {/* Period end */}
-          {subscription?.currentPeriodEnd && tier !== 'free' && (
-            <p className="text-xs text-gray-500">
-              {subscription.status === 'active'
-                ? `Renews ${formatDate(subscription.currentPeriodEnd)}`
-                : `Access until ${formatDate(subscription.currentPeriodEnd)}`}
+            <p className="text-xs text-muted-foreground">
+              {usage?.tileCount ?? 0} satellite tiles stored
             </p>
-          )}
-        </div>
-      </div>
+          </div>
+        )}
+
+        {/* Period end */}
+        {subscription?.currentPeriodEnd && tier !== 'free' && (
+          <p className="text-xs text-muted-foreground">
+            {subscription.status === 'active'
+              ? `Renews ${formatDate(subscription.currentPeriodEnd)}`
+              : `Access until ${formatDate(subscription.currentPeriodEnd)}`}
+          </p>
+        )}
+      </CardContent>
+
+      <Separator />
 
       {/* Features */}
-      <div className="px-6 py-4 border-b border-gray-100">
-        <h4 className="text-sm font-medium text-gray-700 mb-3">Plan Features</h4>
+      <CardContent className="space-y-3">
+        <h4 className="text-sm font-medium">Plan Features</h4>
         <ul className="space-y-2">
           {displayFeatures.map((feature, idx) => (
             <li key={idx} className="flex items-start gap-2 text-sm">
-              <svg
-                className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span className="text-gray-600">{feature}</span>
+              <Check className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+              <span className="text-muted-foreground">{feature}</span>
             </li>
           ))}
         </ul>
-      </div>
+      </CardContent>
 
       {/* Actions */}
-      <div className="px-6 py-4 bg-gray-50">
-        <div className="flex items-center gap-3">
+      <CardFooter className="border-t pt-4">
+        <div className="flex items-center gap-3 w-full">
           {tier === 'free' ? (
-            <a
-              href="/upgrade"
-              className="flex-1 inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
-            >
-              Upgrade Plan
-            </a>
+            <Button asChild className="flex-1">
+              <a href="/upgrade">Upgrade Plan</a>
+            </Button>
           ) : (
             <>
-              <a
-                href="/billing"
-                className="flex-1 inline-flex justify-center items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                Manage Billing
-              </a>
+              <Button variant="outline" asChild className="flex-1">
+                <a href="/billing">Manage Billing</a>
+              </Button>
               {tier !== 'enterprise' && (
-                <a
-                  href="/upgrade"
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200"
-                >
-                  Upgrade
-                </a>
+                <Button variant="secondary" asChild>
+                  <a href="/upgrade">Upgrade</a>
+                </Button>
               )}
             </>
           )}
         </div>
-      </div>
-    </div>
+      </CardFooter>
+    </Card>
   )
 }
 
@@ -274,10 +262,10 @@ export function SubscriptionBadge({ farmId }: { farmId: string }) {
   const planDetails = PLAN_DETAILS[tier]
 
   const colorClasses: Record<SubscriptionTier, string> = {
-    free: 'bg-gray-100 text-gray-700',
-    starter: 'bg-blue-100 text-blue-700',
-    professional: 'bg-purple-100 text-purple-700',
-    enterprise: 'bg-amber-100 text-amber-700',
+    free: 'bg-muted text-muted-foreground',
+    starter: 'bg-blue-500/20 text-blue-400',
+    professional: 'bg-purple-500/20 text-purple-400',
+    enterprise: 'bg-amber-500/20 text-amber-400',
   }
 
   return (
@@ -286,7 +274,7 @@ export function SubscriptionBadge({ farmId }: { farmId: string }) {
     >
       {planDetails.name}
       {!isActive && tier !== 'free' && (
-        <span className="ml-1 text-red-500">!</span>
+        <span className="ml-1 text-destructive">!</span>
       )}
     </span>
   )
@@ -305,42 +293,38 @@ export function PlanComparisonGrid({ currentTier }: { currentTier: SubscriptionT
         const isCurrent = tier === currentTier
 
         return (
-          <div
+          <Card
             key={tier}
-            className={`rounded-lg border-2 p-6 ${
-              isCurrent ? 'border-green-500 bg-green-50' : 'border-gray-200'
-            }`}
+            className={cn(
+              'p-6',
+              isCurrent && 'border-2 border-primary bg-primary/5'
+            )}
           >
             {isCurrent && (
-              <span className="inline-block px-2 py-1 text-xs font-medium bg-green-500 text-white rounded mb-3">
+              <span className="inline-block px-2 py-1 text-xs font-medium bg-primary text-primary-foreground rounded mb-3">
                 Current Plan
               </span>
             )}
             <h3 className="text-lg font-semibold">{details.name}</h3>
             <p className="text-2xl font-bold my-2">{details.price}</p>
-            <p className="text-sm text-gray-600 mb-4">{details.description}</p>
+            <p className="text-sm text-muted-foreground mb-4">{details.description}</p>
             <ul className="space-y-2 mb-4">
               {details.features.slice(0, 4).map((feature, idx) => (
-                <li key={idx} className="text-sm text-gray-600 flex items-start gap-2">
-                  <svg className="w-4 h-4 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
+                <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
+                  <Check className="h-4 w-4 text-green-500 mt-0.5" />
                   {feature}
                 </li>
               ))}
             </ul>
             {!isCurrent && (
-              <button
-                className={`w-full py-2 px-4 rounded-md text-sm font-medium ${
-                  tier === 'enterprise'
-                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    : 'bg-green-600 text-white hover:bg-green-700'
-                }`}
+              <Button
+                variant={tier === 'enterprise' ? 'outline' : 'default'}
+                className="w-full"
               >
                 {tier === 'enterprise' ? 'Contact Sales' : 'Select Plan'}
-              </button>
+              </Button>
             )}
-          </div>
+          </Card>
         )
       })}
     </div>
