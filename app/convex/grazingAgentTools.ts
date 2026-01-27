@@ -7,8 +7,11 @@ import intersect from '@turf/intersect'
 import { featureCollection } from '@turf/helpers'
 import type { Feature, MultiPolygon, Polygon } from 'geojson'
 import { HECTARES_PER_SQUARE_METER } from './lib/areaConstants'
+import { createLogger } from './lib/logger'
 // NOTE: Braintrust logging is done at the action level (grazingAgentDirect.ts)
 // Mutations cannot use Node.js APIs, so we don't import Braintrust here
+
+const log = createLogger('grazingAgentTools')
 
 interface PaddockData {
   externalId: string
@@ -410,7 +413,7 @@ export const createPlanWithSection = mutation({
     // NOTE: Braintrust logging is done at the action level (grazingAgentDirect.ts)
     // This mutation is called from actions, so tool execution is logged there
     
-    console.log('[createPlanWithSection] START:', {
+    log.debug('createPlanWithSection START', {
         farmExternalId: args.farmExternalId,
         targetPaddockId: args.targetPaddockId,
         hasSectionGeometry: !!args.sectionGeometry,
@@ -496,14 +499,7 @@ export const createPlanWithSection = mutation({
       // Check by intersecting section with paddock - if intersection area equals section area, it's fully within
       const intersection = intersect(featureCollection([sectionFeature, paddockFeature]))
       
-      // #region debug log
-      fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentTools.ts:455',message:'Section validation start',data:{targetPaddockId:args.targetPaddockId,hasIntersection:!!intersection,sectionGeometryType:args.sectionGeometry?.type,paddockGeometryType:paddock.geometry?.type},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
-      
       if (!intersection) {
-        // #region debug log
-        fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentTools.ts:457',message:'Section completely outside paddock',data:{targetPaddockId:args.targetPaddockId,sectionCoords:JSON.stringify(args.sectionGeometry?.coordinates?.[0]).substring(0,200),paddockCoords:JSON.stringify((paddock.geometry as Feature<Polygon>)?.geometry?.coordinates?.[0]||[]).substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
         throw new Error(`Section geometry is completely outside paddock ${args.targetPaddockId} boundaries`)
       }
 
@@ -511,16 +507,9 @@ export const createPlanWithSection = mutation({
       const intersectionArea = area(intersection as Feature<Polygon>)
       const areaRatio = intersectionArea / sectionArea
 
-      // #region debug log
-      fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentTools.ts:465',message:'Section containment check',data:{targetPaddockId:args.targetPaddockId,sectionArea,intersectionArea,areaRatio,areaRatioPercent:Math.round(areaRatio*100),requiredPercent:99},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
-
       // If section extends outside paddock, clip it to paddock boundary
       // This handles LLM imprecision in coordinate generation
       if (areaRatio < 0.99) {
-        // #region debug log
-        fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentTools.ts:470',message:'Section extends outside - clipping to paddock',data:{targetPaddockId:args.targetPaddockId,areaRatio,areaRatioPercent:Math.round(areaRatio*100),originalArea:sectionArea,intersectionType:intersection?.type,intersectionGeometryType:intersection?.geometry?.type},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
         
         // Use intersection as the clipped geometry
         // intersection is guaranteed to exist here (we checked at line 462)
@@ -532,17 +521,9 @@ export const createPlanWithSection = mutation({
           // Use the intersection geometry as the clipped section
           // Cast to Polygon since we know it's the intersection of two polygons
           finalSectionGeometry = intersectionGeometry as Polygon
-          const clippedArea = area(intersectionFeature)
-          
-          // #region debug log
-          fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentTools.ts:477',message:'Section clipped successfully',data:{targetPaddockId:args.targetPaddockId,originalArea:sectionArea,clippedArea,areaReduction:((sectionArea-clippedArea)/sectionArea*100).toFixed(1)+'%',geometryType:intersectionGeometry.type},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
-          
-          console.log(`[createPlanWithSection] Clipped section geometry: ${Math.round(areaRatio * 100)}% was within paddock, using intersection (type: ${intersectionGeometry.type})`)
+
+          log.debug(`Clipped section geometry: ${Math.round(areaRatio * 100)}% was within paddock, using intersection`, { geometryType: intersectionGeometry.type })
         } else {
-          // #region debug log
-          fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentTools.ts:482',message:'Cannot clip - invalid intersection geometry',data:{targetPaddockId:args.targetPaddockId,areaRatio,intersectionType:intersection?.type,intersectionGeometryType:(intersection as any)?.geometry?.type,hasIntersection:!!intersection,hasGeometry:!!(intersection as any)?.geometry,intersectionKeys:intersection ? Object.keys(intersection) : [],intersectionString:JSON.stringify(intersection).substring(0,500)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
           throw new Error(`Section geometry extends outside paddock ${args.targetPaddockId} boundaries (${Math.round(areaRatio * 100)}% within paddock) and cannot be clipped - intersection has no valid geometry`)
         }
       }
@@ -636,14 +617,14 @@ export const createPlanWithSection = mutation({
             overlapAdjusted = true
           } else if (overlapPercent > 0) {
             // Log allowed overlap for debugging
-            console.log(`[createPlanWithSection] Allowing ${overlapPercent.toFixed(1)}% overlap (within ${ALLOWED_OVERLAP_PERCENT}% tolerance)`)
+            log.debug(`Allowing ${overlapPercent.toFixed(1)}% overlap (within ${ALLOWED_OVERLAP_PERCENT}% tolerance)`)
           }
         }
       }
 
       finalSectionGeometry = adjustedSectionGeometry
 
-      console.log('[createPlanWithSection] Section validation passed:', {
+      log.debug('Section validation passed', {
         withinPaddock: true,
         noOverlaps: true,
         previousSectionsCount: previousSections.length,
@@ -659,7 +640,7 @@ export const createPlanWithSection = mutation({
     const todayPlan = existingPlan.find((p: any) => p.date === today)
 
     if (todayPlan) {
-      console.log('[createPlanWithSection] Patching existing plan:', {
+      log.debug('Patching existing plan', {
         planId: todayPlan._id.toString(),
         date: todayPlan.date,
         currentStatus: todayPlan.status,
@@ -696,11 +677,11 @@ export const createPlanWithSection = mutation({
       }
       
       await ctx.db.patch(todayPlan._id, patchData)
-      console.log('[createPlanWithSection] Plan patched successfully:', todayPlan._id.toString())
+      log.debug('Plan patched successfully', { planId: todayPlan._id.toString() })
       return todayPlan._id
     }
 
-    console.log('[createPlanWithSection] Creating NEW plan:', {
+    log.debug('Creating NEW plan', {
       hasSectionGeometry: !!args.sectionGeometry,
       targetPaddockId: args.targetPaddockId,
       confidenceScore,
@@ -740,7 +721,7 @@ export const createPlanWithSection = mutation({
     }
     
     const newPlanId = await ctx.db.insert('plans', insertData)
-    console.log('[createPlanWithSection] Plan created successfully:', {
+    log.debug('Plan created successfully', {
       planId: newPlanId.toString(),
       date: today,
       hasSectionGeometry: !!args.sectionGeometry,

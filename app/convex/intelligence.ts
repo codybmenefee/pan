@@ -2,6 +2,9 @@ import { query, mutation } from './_generated/server'
 import { v } from 'convex/values'
 import { DEFAULT_FARM_EXTERNAL_ID } from './seedData'
 import { HECTARES_PER_SQUARE_METER } from './lib/areaConstants'
+import { createLogger } from './lib/logger'
+
+const log = createLogger('intelligence')
 
 
 export const getTodayPlan = query({
@@ -397,7 +400,7 @@ export const getAllSections = query({
   }[]> => {
     const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
 
-    console.log('[getAllSections] START - farmExternalId:', farmExternalId)
+    log.debug('getAllSections START', { farmExternalId })
     const startTime = Date.now()
 
     const plans = await ctx.db
@@ -405,7 +408,7 @@ export const getAllSections = query({
       .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
       .collect()
 
-    console.log('[getAllSections] Found', plans.length, 'total plans for farm')
+    log.debug('getAllSections found plans', { count: plans.length })
 
     const sections = []
     let plansWithSections = 0
@@ -413,7 +416,8 @@ export const getAllSections = query({
 
     for (const plan of plans) {
       const hasSection = !!plan.sectionGeometry
-      console.log('[getAllSections] Plan:', plan._id, {
+      log.debug('getAllSections plan', {
+        planId: plan._id.toString(),
         date: plan.date,
         paddockId: plan.primaryPaddockExternalId,
         hasSectionGeometry: hasSection,
@@ -438,13 +442,12 @@ export const getAllSections = query({
 
     const sorted = sections.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     const duration = Date.now() - startTime
-    
-    console.log('[getAllSections] END - Returning', sorted.length, 'sections', {
+
+    log.debug('getAllSections END', {
+      sectionsCount: sorted.length,
       plansWithSections,
       plansWithoutSections,
       duration: `${duration}ms`,
-      sectionDates: sorted.map(s => s.date),
-      sectionPaddocks: sorted.map(s => s.paddockId),
     })
 
     return sorted
@@ -565,7 +568,7 @@ export const updatePlanSectionGeometry = mutation({
         sectionAreaHectares = Math.round(area * HECTARES_PER_SQUARE_METER * 10) / 10
       }
     } catch (e) {
-      console.error('[updatePlanSectionGeometry] Error calculating area:', e)
+      log.error('Error calculating area in updatePlanSectionGeometry', { error: String(e) })
     }
 
     await ctx.db.patch(args.planId, {
@@ -575,7 +578,8 @@ export const updatePlanSectionGeometry = mutation({
       updatedAt: new Date().toISOString(),
     })
 
-    console.log('[updatePlanSectionGeometry] Updated plan', args.planId, {
+    log.debug('Updated plan section geometry', {
+      planId: args.planId.toString(),
       sectionAreaHectares,
       status: 'modified',
     })
@@ -603,11 +607,11 @@ export const deleteOldPlans = mutation({
       if (plan.date < args.beforeDate) {
         await ctx.db.delete(plan._id)
         deleted++
-        console.log('[deleteOldPlans] Deleted plan', plan._id, 'date:', plan.date)
+        log.debug('Deleted old plan', { planId: plan._id.toString(), date: plan.date })
       }
     }
 
-    console.log('[deleteOldPlans] Deleted', deleted, 'plans older than', args.beforeDate)
+    log.debug('deleteOldPlans completed', { deleted, beforeDate: args.beforeDate })
     return { deleted }
   },
 })
