@@ -13,11 +13,12 @@ export const Route = createFileRoute('/_app')({
 })
 
 function AppLayout() {
-  const { isLoaded, isSignedIn, isDevAuth } = useAppAuth()
+  const { isLoaded, isSignedIn, isDevAuth, needsOnboarding, isOrgLoaded } = useAppAuth()
   const navigate = useNavigate()
   const location = useRouterState({ select: (s) => s.location })
+  const isOnboarding = location.pathname === '/onboarding'
 
-  console.log('[AppLayout] Rendering with auth:', { isLoaded, isSignedIn, isDevAuth, pathname: location.pathname })
+  console.log('[AppLayout] Rendering with auth:', { isLoaded, isSignedIn, isDevAuth, needsOnboarding, pathname: location.pathname })
 
   // Handle auth redirect in component when auth loads
   useEffect(() => {
@@ -30,6 +31,25 @@ function AppLayout() {
       })
     }
   }, [isLoaded, isSignedIn, isDevAuth, navigate, location.pathname])
+
+  // Handle onboarding redirect for first-time users (no organizations)
+  useEffect(() => {
+    if (isDevAuth) return
+    // Wait until auth and org data are fully loaded
+    if (!isLoaded || !isOrgLoaded) return
+    // Must be signed in
+    if (!isSignedIn) return
+    // Check if user needs onboarding and is not already on the onboarding page
+    if (needsOnboarding && !isOnboarding) {
+      console.log('[AppLayout] First-time user detected, redirecting to onboarding')
+      navigate({ to: '/onboarding' })
+    }
+    // If user is on onboarding but doesn't need it anymore (org was created), redirect to home
+    if (!needsOnboarding && isOnboarding) {
+      console.log('[AppLayout] Onboarding complete, redirecting to home')
+      navigate({ to: '/', search: { onboarded: 'true', editBoundary: 'true' } })
+    }
+  }, [isDevAuth, isLoaded, isOrgLoaded, isSignedIn, needsOnboarding, isOnboarding, navigate])
 
   // Show loading while auth is being checked
   if (!isDevAuth && !isLoaded) {
@@ -49,16 +69,47 @@ function AppLayout() {
     )
   }
 
-  const isOnboarding = location.pathname === '/onboarding'
+  // Show loading while checking for onboarding redirect
+  // Skip this check on the onboarding page - onboarding handles its own loading states
+  // and shouldn't be unmounted during org state transitions (which would reset step state)
+  if (!isDevAuth && isSignedIn && !isOrgLoaded && !isOnboarding) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner message="Loading your account..." />
+      </div>
+    )
+  }
+
+  // Show loading while onboarding redirect is happening
+  if (!isDevAuth && needsOnboarding && !isOnboarding) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner message="Setting up your account..." />
+      </div>
+    )
+  }
+
+  // Onboarding doesn't need geometry provider (no farm exists yet)
+  if (isOnboarding) {
+    return (
+      <FarmProvider>
+        <div className="flex h-screen flex-col bg-background text-foreground">
+          <main className="flex-1 overflow-auto">
+            <Outlet />
+          </main>
+        </div>
+      </FarmProvider>
+    )
+  }
 
   return (
     <FarmProvider>
       <GeometryProviderWithConvex>
         <TutorialProvider>
           <div className="flex h-screen flex-col bg-background text-foreground">
-            {!isOnboarding && <Header />}
+            <Header />
             <div className="flex flex-1 overflow-hidden">
-              {!isOnboarding && <Sidebar />}
+              <Sidebar />
               <main className="flex-1 overflow-auto">
                 <Outlet />
               </main>

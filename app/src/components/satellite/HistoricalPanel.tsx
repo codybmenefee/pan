@@ -3,11 +3,13 @@ import type { Map as MapLibreMap } from 'maplibre-gl'
 import { Satellite, Layers } from 'lucide-react'
 import { FloatingPanel } from '../ui/floating-panel'
 import { Button } from '../ui/button'
+import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip'
 import { HistoricalDatePicker } from './HistoricalDatePicker'
 import { NDVIHeatmapLayer, NDVIColorLegend } from '../map/NDVIHeatmapLayer'
 import { RasterTileLayer } from '../map/RasterTileLayer'
 import { useSatelliteTile } from '../../lib/hooks/useSatelliteTiles'
 import { useSubscription } from '../../lib/hooks/useSubscription'
+import { useAppAuth } from '../../lib/auth'
 import { FEATURES } from '../../lib/featureFlags'
 import { cn } from '@/lib/utils'
 
@@ -187,6 +189,7 @@ export function HistoricalPanel({
 
 /**
  * Button to open the historical panel.
+ * Shows "Coming soon" disabled state on deployed sites (non-dev mode).
  */
 export function HistoricalPanelButton({
   onClick,
@@ -197,15 +200,44 @@ export function HistoricalPanelButton({
   active?: boolean
   className?: string
 }) {
-  return (
+  const { isDevAuth } = useAppAuth()
+
+  // In production (non-dev mode), show disabled "coming soon" state
+  const isComingSoon = !isDevAuth
+
+  const button = (
     <Button
       variant={active ? 'default' : 'outline'}
       size="sm"
-      onClick={onClick}
-      className={cn('gap-1 h-7 text-xs shadow-lg', !active && 'bg-white', className)}
+      onClick={isComingSoon ? undefined : onClick}
+      disabled={isComingSoon}
+      className={cn(
+        'gap-1 h-7 text-xs shadow-lg',
+        !active && !isComingSoon && 'bg-white',
+        isComingSoon && 'opacity-70 cursor-not-allowed',
+        className
+      )}
     >
       <Satellite className="h-3.5 w-3.5" />
       Historical
+      {isComingSoon && (
+        <span className="ml-1 text-[10px] font-normal opacity-75">(Coming soon)</span>
+      )}
     </Button>
   )
+
+  if (isComingSoon) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-block">{button}</span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          Historical satellite imagery is coming soon
+        </TooltipContent>
+      </Tooltip>
+    )
+  }
+
+  return button
 }

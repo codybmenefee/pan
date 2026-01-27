@@ -33,6 +33,21 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   // Track which orgs we've already tried to create farms for
   const createdFarmsRef = useRef<Set<string>>(new Set())
 
+  // Track if we've already tried to auto-activate an org
+  const autoActivatedRef = useRef(false)
+
+  // Auto-select first organization if user has orgs but none is active
+  useEffect(() => {
+    if (isDevAuth || autoActivatedRef.current) return
+    if (!isOrgLoaded) return
+    // If user has orgs but no active one, activate the first
+    if (organizationList.length > 0 && !organizationId) {
+      autoActivatedRef.current = true
+      console.log('[FarmContext] No active org, auto-selecting first:', organizationList[0].id)
+      void setActiveOrganization(organizationList[0].id)
+    }
+  }, [isDevAuth, isOrgLoaded, organizationList, organizationId, setActiveOrganization])
+
   // Get all farm records for the user's organizations
   const orgIds = useMemo(() => organizationList.map(org => org.id), [organizationList])
 
@@ -97,7 +112,9 @@ export function FarmProvider({ children }: { children: ReactNode }) {
     }
   }, [setActiveOrganization, userId, setActiveFarmMutation])
 
-  const isLoading = !isOrgLoaded || (organizationId !== null && activeFarmDoc === undefined)
+  // Loading if: org data not loaded, or waiting for farm doc, or need to auto-activate an org
+  const needsAutoActivation = organizationList.length > 0 && !organizationId
+  const isLoading = !isOrgLoaded || (organizationId !== null && activeFarmDoc === undefined) || needsAutoActivation
 
   const value = useMemo<FarmContextValue>(() => ({
     activeFarmId: organizationId,

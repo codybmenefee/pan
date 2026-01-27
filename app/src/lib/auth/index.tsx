@@ -2,6 +2,7 @@ import { createContext, useContext, useMemo, useCallback, type ReactNode } from 
 import { ClerkProvider, SignIn, useAuth, useOrganization, useOrganizationList } from '@clerk/clerk-react'
 import { ErrorState } from '@/components/ui/error/ErrorState'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
+import { clerkAppearance } from './clerkTheme'
 
 export const DEV_USER_EXTERNAL_ID = 'dev-user-1'
 
@@ -28,6 +29,8 @@ interface AppAuthContextValue {
   organizationList: OrganizationInfo[]
   isOrgLoaded: boolean
   setActiveOrganization: (orgId: string) => Promise<void>
+  // Onboarding detection - true when user is signed in but has no organizations
+  needsOnboarding: boolean
 }
 
 const AppAuthContext = createContext<AppAuthContextValue | null>(null)
@@ -70,6 +73,19 @@ function ClerkAuthBridge({ children }: { children: ReactNode }) {
     }
   }, [setActive])
 
+  // Determine if user needs onboarding (signed in but no organizations)
+  const needsOnboarding = useMemo(() => {
+    // Wait until both auth and org data are loaded
+    if (!isLoaded || !isOrgLoaded) return false
+    // User must be signed in
+    if (!isSignedIn) return false
+    // If they have an active organization, they don't need onboarding
+    // (organization?.id updates immediately when setActive is called, before organizationList refreshes)
+    if (organization?.id) return false
+    // If they have organizations in the list, they don't need onboarding
+    return organizationList.length === 0
+  }, [isLoaded, isOrgLoaded, isSignedIn, organization?.id, organizationList.length])
+
   const value = useMemo<AppAuthContextValue>(() => {
     return {
       userId: userId ?? null,
@@ -80,8 +96,9 @@ function ClerkAuthBridge({ children }: { children: ReactNode }) {
       organizationList,
       isOrgLoaded,
       setActiveOrganization,
+      needsOnboarding,
     }
-  }, [userId, isLoaded, isSignedIn, organization?.id, organizationList, isOrgLoaded, setActiveOrganization])
+  }, [userId, isLoaded, isSignedIn, organization?.id, organizationList, isOrgLoaded, setActiveOrganization, needsOnboarding])
 
   return <AppAuthContext.Provider value={value}>{children}</AppAuthContext.Provider>
 }
@@ -101,6 +118,7 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
           setActiveOrganization: async () => {
             // No-op in dev mode, could add localStorage persistence if needed
           },
+          needsOnboarding: false, // Dev mode always has an org
         }}
       >
         {children}
@@ -120,7 +138,13 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <ClerkProvider publishableKey={clerkPublishableKey}>
+    <ClerkProvider
+      publishableKey={clerkPublishableKey}
+      appearance={clerkAppearance}
+      signInForceRedirectUrl="/"
+      signUpForceRedirectUrl="/"
+      afterSignOutUrl="/sign-in"
+    >
       <ClerkAuthBridge>{children}</ClerkAuthBridge>
     </ClerkProvider>
   )
@@ -152,7 +176,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   if (!isSignedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
-        <SignIn routing="hash" />
+        <SignIn routing="hash" forceRedirectUrl="/" appearance={clerkAppearance} />
       </div>
     )
   }
