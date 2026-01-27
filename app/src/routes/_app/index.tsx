@@ -77,10 +77,8 @@ function GISRoute() {
   const { startDraw, cancelDraw, isDrawingBoundary, existingGeometry } = useFarmBoundary()
 
   const mapRef = useRef<FarmMapHandle>(null)
-  // Close daily plan modal by default during onboarding/boundary edit flow
-  const [briefOpen, setBriefOpen] = useState(() =>
-    search.onboarded !== 'true' && search.editBoundary !== 'true'
-  )
+  // Daily plan modal closed by default - user can open it when ready
+  const [briefOpen, setBriefOpen] = useState(false)
   const [mapInstance, setMapInstance] = useState<ReturnType<FarmMapHandle['getMap']>>(null)
 
   // Track when we need to save after creating a paddock during onboarding

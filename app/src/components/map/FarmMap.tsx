@@ -491,6 +491,40 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   const farmLat = farm?.coordinates?.[1] ?? null
   const farmGeometry = farm?.geometry ?? null
 
+  // Compute initial map center from farm boundary if valid, otherwise use address
+  const initialMapCenter = useMemo<[number, number] | null>(() => {
+    // First try to use the farm boundary center
+    if (farmGeometry) {
+      const coords = farmGeometry.geometry.coordinates[0]
+      if (coords && coords.length >= 4) {
+        let minLng = Infinity
+        let minLat = Infinity
+        let maxLng = -Infinity
+        let maxLat = -Infinity
+
+        coords.forEach(([lng, lat]) => {
+          minLng = Math.min(minLng, lng)
+          maxLng = Math.max(maxLng, lng)
+          minLat = Math.min(minLat, lat)
+          maxLat = Math.max(maxLat, lat)
+        })
+
+        // Check if boundary is valid (not the tiny default)
+        const lngSpan = maxLng - minLng
+        const latSpan = maxLat - minLat
+        if (lngSpan > 0.0005 && latSpan > 0.0005) {
+          // Use center of the boundary
+          return [(minLng + maxLng) / 2, (minLat + maxLat) / 2]
+        }
+      }
+    }
+    // Fall back to address coordinates
+    if (farmLng !== null && farmLat !== null) {
+      return [farmLng, farmLat]
+    }
+    return null
+  }, [farmGeometry, farmLng, farmLat])
+
   // Fetch available satellite tile dates (dates with actual raster imagery)
   // We specifically query for ndvi_heatmap tiles since that's what the NDVI layer displays
   const { dates: availableTileDates } = useAvailableTileDates(farmId ?? undefined, 'ndvi_heatmap')
@@ -930,7 +964,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || farmLng === null || farmLat === null || mapRef.current) return
+    if (!mapContainer.current || !initialMapCenter || mapRef.current) return
 
     const map = new maplibregl.Map({
       container: mapContainer.current,
@@ -957,7 +991,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
           },
         ],
       },
-      center: [farmLng, farmLat],
+      center: initialMapCenter,
       zoom: 14,
       doubleClickZoom: false,
     })
@@ -995,7 +1029,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       setMapInstance(null)
       setIsMapLoaded(false)
     }
-  }, [farmId, farmLng, farmLat, hasValidBoundary, farmGeometry])
+  }, [farmId, initialMapCenter, hasValidBoundary, farmGeometry])
 
   // Add paddock and section layers once map is loaded
   useEffect(() => {
