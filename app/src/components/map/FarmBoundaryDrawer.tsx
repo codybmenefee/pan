@@ -3,7 +3,7 @@ import { X, Check, MousePointer2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useFarmBoundary } from '@/lib/hooks/useFarmBoundary'
-import { createSquareFromCorners } from '@/lib/geometry'
+import { createSquareFromCorners, translatePolygon } from '@/lib/geometry'
 import { createLogger } from '@/lib/logger'
 import type { Feature, Polygon } from 'geojson'
 import type { Map as MapLibreMap, GeoJSONSource } from 'maplibre-gl'
@@ -30,8 +30,13 @@ const CORNER_MARKERS_LAYER_ID = 'boundary-corner-markers-layer'
 
 interface DragState {
   isDragging: boolean
-  cornerIndex: number
-  anchorCorner: [number, number]
+  dragType: 'corner' | 'move'
+  // For corner drag:
+  cornerIndex?: number
+  anchorCorner?: [number, number]
+  // For move drag:
+  startLngLat?: [number, number]
+  originalGeometry?: Feature<Polygon>
 }
 
 export function FarmBoundaryDrawer({
@@ -253,12 +258,12 @@ export function FarmBoundaryDrawer({
 
     const handleMouseDown = (e: maplibregl.MapMouseEvent) => {
       // Check if click is on a corner marker
-      const features = map.queryRenderedFeatures(e.point, {
+      const cornerFeatures = map.queryRenderedFeatures(e.point, {
         layers: [CORNER_MARKERS_LAYER_ID],
       })
 
-      if (features.length > 0 && drawnGeometry) {
-        const cornerIndex = features[0].properties?.cornerIndex as number
+      if (cornerFeatures.length > 0 && drawnGeometry) {
+        const cornerIndex = cornerFeatures[0].properties?.cornerIndex as number
         const corners = getCornerPoints(drawnGeometry)
 
         // The anchor is the opposite corner (index + 2) % 4
@@ -267,8 +272,30 @@ export function FarmBoundaryDrawer({
 
         setDragState({
           isDragging: true,
+          dragType: 'corner',
           cornerIndex,
           anchorCorner,
+        })
+
+        // Disable map panning
+        map.dragPan.disable()
+        map.getCanvas().style.cursor = 'grabbing'
+
+        e.preventDefault()
+        return
+      }
+
+      // Check if click is on the boundary fill (for moving)
+      const fillFeatures = map.queryRenderedFeatures(e.point, {
+        layers: [PREVIEW_FILL_LAYER_ID],
+      })
+
+      if (fillFeatures.length > 0 && drawnGeometry) {
+        setDragState({
+          isDragging: true,
+          dragType: 'move',
+          startLngLat: [e.lngLat.lng, e.lngLat.lat],
+          originalGeometry: drawnGeometry,
         })
 
         // Disable map panning
@@ -281,19 +308,38 @@ export function FarmBoundaryDrawer({
 
     const handleMouseMove = (e: maplibregl.MapMouseEvent) => {
       if (!dragState?.isDragging) {
-        // Update cursor on hover over corner markers
-        const features = map.queryRenderedFeatures(e.point, {
+        // Update cursor on hover - check corners first, then fill
+        const cornerFeatures = map.queryRenderedFeatures(e.point, {
           layers: [CORNER_MARKERS_LAYER_ID],
         })
-        map.getCanvas().style.cursor = features.length > 0 ? 'grab' : ''
+        if (cornerFeatures.length > 0) {
+          map.getCanvas().style.cursor = 'grab'
+          return
+        }
+
+        const fillFeatures = map.queryRenderedFeatures(e.point, {
+          layers: [PREVIEW_FILL_LAYER_ID],
+        })
+        map.getCanvas().style.cursor = fillFeatures.length > 0 ? 'move' : ''
         return
       }
 
-      // Create new square from anchor + cursor
-      const cursorPoint: [number, number] = [e.lngLat.lng, e.lngLat.lat]
-      const newGeometry = createSquare(dragState.anchorCorner, cursorPoint)
+      if (dragState.dragType === 'corner' && dragState.anchorCorner) {
+        // Create new square from anchor + cursor
+        const cursorPoint: [number, number] = [e.lngLat.lng, e.lngLat.lat]
+        const newGeometry = createSquare(dragState.anchorCorner, cursorPoint)
 
-      if (newGeometry) {
+        if (newGeometry) {
+          setDrawnGeometry(newGeometry)
+          updatePreview(newGeometry)
+          updateCornerMarkers(newGeometry)
+        }
+      } else if (dragState.dragType === 'move' && dragState.startLngLat && dragState.originalGeometry) {
+        // Calculate delta and translate the polygon
+        const deltaLng = e.lngLat.lng - dragState.startLngLat[0]
+        const deltaLat = e.lngLat.lat - dragState.startLngLat[1]
+        const newGeometry = translatePolygon(dragState.originalGeometry, deltaLng, deltaLat)
+
         setDrawnGeometry(newGeometry)
         updatePreview(newGeometry)
         updateCornerMarkers(newGeometry)
@@ -480,7 +526,7 @@ export function FarmBoundaryDrawer({
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-sm">
               <MousePointer2 className="h-4 w-4 text-muted-foreground" />
-              <span>Drag any corner to resize the boundary</span>
+              <span>Drag corners to resize, or drag inside to move</span>
             </div>
             <div className="flex items-center gap-2">
               <Button size="sm" onClick={handleDoneEditing} disabled={isSaving}>
