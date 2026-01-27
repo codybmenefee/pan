@@ -1,10 +1,11 @@
-import { Wrench, RotateCcw, Trash2, Calendar, Database, Settings } from 'lucide-react'
+import { Wrench, RotateCcw, Trash2, Calendar, Database, Settings, GraduationCap, Camera } from 'lucide-react'
 import { useMutation } from 'convex/react'
 import { useNavigate } from '@tanstack/react-router'
 import { toast } from 'sonner'
 import { api } from '../../../convex/_generated/api'
 import { useFarmContext } from '@/lib/farm'
 import { useAppAuth } from '@/lib/auth'
+import { useTutorial } from '@/components/onboarding/tutorial'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,13 +18,20 @@ export function DevToolsDropdown() {
   const { isDevAuth } = useAppAuth()
   const { activeFarmId } = useFarmContext()
   const navigate = useNavigate()
+  const { startTutorial, resetTutorial } = useTutorial()
 
   const deleteTodayPlan = useMutation(api.intelligence.deleteTodayPlan)
   const clearGrazingEvents = useMutation(api.intelligence.clearGrazingEvents)
   const resetSettings = useMutation(api.settings.resetSettings)
+  const setupTutorialDemo = useMutation(api.farms.setupTutorialDemo)
 
   // Only render in dev mode
   if (!isDevAuth) return null
+
+  const handleViewTutorial = () => {
+    resetTutorial()
+    startTutorial()
+  }
 
   const handleResetOnboarding = () => {
     navigate({ to: '/onboarding' })
@@ -66,6 +74,18 @@ export function DevToolsDropdown() {
     }
   }
 
+  const handleSetupTutorialDemo = async () => {
+    try {
+      const result = await setupTutorialDemo({ farmExternalId: activeFarmId ?? undefined })
+      toast.success(`Tutorial demo setup complete! ${result.paddocksUpdated} paddocks updated.`)
+      // Refresh the page to show updated data
+      window.location.reload()
+    } catch (error) {
+      toast.error('Failed to setup tutorial demo')
+      console.error('Tutorial demo setup error:', error)
+    }
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -74,6 +94,14 @@ export function DevToolsDropdown() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem onClick={handleSetupTutorialDemo}>
+          <Camera className="h-3.5 w-3.5 mr-2" />
+          Setup Tutorial Demo
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleViewTutorial}>
+          <GraduationCap className="h-3.5 w-3.5 mr-2" />
+          View Tutorial
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={handleResetOnboarding}>
           <RotateCcw className="h-3.5 w-3.5 mr-2" />
           Reset Onboarding

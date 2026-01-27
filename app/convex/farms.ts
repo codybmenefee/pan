@@ -9,6 +9,9 @@ import {
   samplePaddocks,
   sampleGrazingEvents,
   sampleObservations,
+  tutorialDemoPaddocks,
+  generateTutorialDemoGrazingEvents,
+  generateTutorialDemoObservations,
 } from './seedData'
 import { HECTARES_PER_SQUARE_METER } from './lib/areaConstants'
 
@@ -356,5 +359,130 @@ export const listAllWithSettings = query({
     )
 
     return farmsWithData
+  },
+})
+
+/**
+ * Setup tutorial demo data for compelling screenshots.
+ * Updates farm name, paddock NDVI/restDays, grazing events, and observations.
+ */
+export const setupTutorialDemo = mutation({
+  args: { farmExternalId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const externalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
+    const now = new Date().toISOString()
+    const today = now.split('T')[0]
+
+    // 1. Get or create the farm
+    let farm = await ctx.db
+      .query('farms')
+      .withIndex('by_externalId', (q) => q.eq('externalId', externalId))
+      .first()
+
+    if (!farm) {
+      farm = await ctx.db
+        .query('farms')
+        .withIndex('by_legacyExternalId', (q: any) => q.eq('legacyExternalId', externalId))
+        .first()
+    }
+
+    if (!farm) {
+      throw new Error(`Farm not found: ${externalId}`)
+    }
+
+    // 2. Update farm name to "Hillcrest Station"
+    await ctx.db.patch(farm._id, {
+      name: 'Hillcrest Station',
+      updatedAt: now,
+    })
+
+    // 3. Update each paddock with tutorial demo data
+    const allPaddocks = await ctx.db
+      .query('paddocks')
+      .withIndex('by_farm', (q) => q.eq('farmId', farm._id))
+      .collect()
+
+    for (const demoData of tutorialDemoPaddocks) {
+      const paddock = allPaddocks.find(p => p.externalId === demoData.externalId)
+
+      if (paddock) {
+        // Calculate lastGrazed based on restDays
+        const lastGrazedDate = new Date()
+        lastGrazedDate.setDate(lastGrazedDate.getDate() - demoData.restDays)
+        const lastGrazed = lastGrazedDate.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        })
+
+        await ctx.db.patch(paddock._id, {
+          name: demoData.name,
+          ndvi: demoData.ndvi,
+          restDays: demoData.restDays,
+          status: demoData.status,
+          lastGrazed,
+          updatedAt: now,
+        })
+      }
+    }
+
+    // 4. Clear old grazing events
+    const existingEvents = await ctx.db
+      .query('grazingEvents')
+      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', externalId))
+      .collect()
+
+    for (const event of existingEvents) {
+      await ctx.db.delete(event._id)
+    }
+
+    // 5. Insert tutorial demo grazing events
+    const demoEvents = generateTutorialDemoGrazingEvents(externalId)
+    for (const event of demoEvents) {
+      await ctx.db.insert('grazingEvents', {
+        ...event,
+        createdAt: now,
+      })
+    }
+
+    // 6. Clear old observations for today and insert new ones
+    const existingObservations = await ctx.db
+      .query('observations')
+      .withIndex('by_farm_date', (q: any) =>
+        q.eq('farmExternalId', externalId).eq('date', today)
+      )
+      .collect()
+
+    for (const obs of existingObservations) {
+      await ctx.db.delete(obs._id)
+    }
+
+    // Insert tutorial demo observations
+    const demoObservations = generateTutorialDemoObservations(externalId)
+    for (const obs of demoObservations) {
+      await ctx.db.insert('observations', {
+        ...obs,
+        createdAt: now,
+      })
+    }
+
+    // 7. Delete today's plan so agent generates fresh one
+    const existingPlans = await ctx.db
+      .query('plans')
+      .withIndex('by_farm_date', (q: any) => q.eq('farmExternalId', externalId))
+      .collect()
+
+    const todayPlan = existingPlans.find((p: any) => p.date === today)
+    if (todayPlan) {
+      await ctx.db.delete(todayPlan._id)
+    }
+
+    return {
+      success: true,
+      farmName: 'Hillcrest Station',
+      paddocksUpdated: tutorialDemoPaddocks.length,
+      grazingEventsInserted: demoEvents.length,
+      observationsInserted: demoObservations.length,
+      planDeleted: !!todayPlan,
+    }
   },
 })

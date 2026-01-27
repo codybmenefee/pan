@@ -204,6 +204,76 @@ export const sampleGrazingEvents = [
   },
 ]
 
+// Tutorial Demo Data - Ideal values for compelling screenshots
+// Status distribution: 2 Ready, 2 Almost Ready, 2 Recovering, 2 Grazed (25% each)
+export const tutorialDemoPaddocks = [
+  { externalId: 'p1', name: 'South Valley', ndvi: 0.52, restDays: 28, status: 'ready' as const },     // Ready - fully recovered
+  { externalId: 'p2', name: 'North Flat', ndvi: 0.48, restDays: 24, status: 'ready' as const },       // Ready - good candidate
+  { externalId: 'p3', name: 'East Ridge', ndvi: 0.45, restDays: 18, status: 'almost_ready' as const }, // Almost Ready
+  { externalId: 'p4', name: 'Creek Bend', ndvi: 0.42, restDays: 16, status: 'almost_ready' as const }, // Almost Ready
+  { externalId: 'p5', name: 'Top Block', ndvi: 0.38, restDays: 12, status: 'recovering' as const },    // Recovering
+  { externalId: 'p6', name: 'West Slope', ndvi: 0.35, restDays: 9, status: 'recovering' as const },    // Recovering
+  { externalId: 'p7', name: 'Creek Side', ndvi: 0.28, restDays: 4, status: 'grazed' as const },        // Grazed
+  { externalId: 'p8', name: 'Lower Paddock', ndvi: 0.22, restDays: 2, status: 'grazed' as const },     // Grazed
+]
+
+// Tutorial Demo Grazing Events - ~10 events over past 60 days showing healthy rotation
+// Mix of statuses for ~70% approval rate
+export function generateTutorialDemoGrazingEvents(farmExternalId: string) {
+  const today = new Date()
+  const events = [
+    // Recent events (grazed paddocks)
+    { paddockExternalId: 'p8', daysAgo: 2, status: 'approved', notes: 'Moved herd to Lower Paddock' },
+    { paddockExternalId: 'p7', daysAgo: 6, status: 'approved', notes: 'Grazing Creek Side section' },
+    // Recovering paddocks were grazed earlier
+    { paddockExternalId: 'p6', daysAgo: 17, status: 'modified', notes: 'Adjusted to West Slope based on conditions' },
+    { paddockExternalId: 'p5', daysAgo: 14, status: 'approved', notes: 'Top Block rotation' },
+    // Almost ready paddocks grazed 2-3 weeks ago
+    { paddockExternalId: 'p4', daysAgo: 26, status: 'approved', notes: 'Creek Bend looking good' },
+    { paddockExternalId: 'p3', daysAgo: 22, status: 'approved', notes: 'East Ridge pasture quality excellent' },
+    // Ready paddocks haven't been grazed in a while
+    { paddockExternalId: 'p2', daysAgo: 48, status: 'approved', notes: 'North Flat rotation complete' },
+    { paddockExternalId: 'p1', daysAgo: 56, status: 'modified', notes: 'Started with South Valley section' },
+    // Some additional historical events
+    { paddockExternalId: 'p8', daysAgo: 38, status: 'approved', notes: 'Lower Paddock cycle' },
+    { paddockExternalId: 'p5', daysAgo: 45, status: 'rejected', notes: 'Skipped - weather conditions' },
+  ]
+
+  return events.map(event => {
+    const date = new Date(today)
+    date.setDate(date.getDate() - event.daysAgo)
+    return {
+      farmExternalId,
+      paddockExternalId: event.paddockExternalId,
+      date: date.toISOString().split('T')[0],
+      durationDays: 3,
+      notes: event.notes,
+    }
+  })
+}
+
+// Generate corresponding observations for tutorial demo NDVI values
+export function generateTutorialDemoObservations(farmExternalId: string) {
+  const today = new Date().toISOString().split('T')[0]
+
+  return tutorialDemoPaddocks.map(paddock => ({
+    farmExternalId,
+    paddockExternalId: paddock.externalId,
+    date: today,
+    ndviMean: paddock.ndvi,
+    ndviMin: Math.round((paddock.ndvi - 0.12) * 100) / 100,
+    ndviMax: Math.round((paddock.ndvi + 0.10) * 100) / 100,
+    ndviStd: 0.05,
+    eviMean: Math.round(paddock.ndvi * 0.85 * 100) / 100,
+    ndwiMean: Math.round((paddock.ndvi * 0.6 - 0.1) * 100) / 100,
+    cloudFreePct: 92,
+    pixelCount: 1100,
+    isValid: true,
+    sourceProvider: 'sentinel-2',
+    resolutionMeters: 10,
+  }))
+}
+
 export const sampleFarmerObservations = [
   {
     farmId: '' as any, // Will be set during seeding
