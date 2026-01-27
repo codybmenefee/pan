@@ -595,7 +595,7 @@ function GISRoute() {
         properties: {},
         geometry: geometry as Polygon,
       }
-      mapRef.current?.focusOnGeometry(feature, 50)
+      mapRef.current?.focusOnGeometry(feature, 120)
     }
   }, [])
 

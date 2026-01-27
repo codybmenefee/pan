@@ -144,6 +144,7 @@ export function MapView() {
 
   // Focus map on section bounds when available
   useEffect(() => {
+    if (editMode) return
     if (!effectiveSectionGeometry) return
 
     const tryFocus = () => {
@@ -164,13 +165,14 @@ export function MapView() {
     return () => {
       timers.forEach(clearTimeout)
     }
-  }, [effectiveSectionGeometry])
+  }, [editMode, effectiveSectionGeometry])
 
   // Focus map on paddock when editing sections
   // Use a retry mechanism since the map ref might not be ready immediately
   useEffect(() => {
+    if (editMode) return
     if (!focusPaddockId || effectiveSectionGeometry) return
-    
+
     const tryFocus = () => {
       if (mapRef.current) {
         mapRef.current.focusOnPaddock(focusPaddockId)
@@ -191,10 +193,11 @@ export function MapView() {
     return () => {
       timers.forEach(clearTimeout)
     }
-  }, [focusPaddockId, effectiveSectionGeometry])
+  }, [editMode, focusPaddockId, effectiveSectionGeometry])
 
   // Focus map on today's section by default when navigating via sidebar
   useEffect(() => {
+    if (editMode) return
     console.log('[MapView] Focus effect running, todaysSection:', todaysSection?.id, 'search:', search)
     if (search.edit || search.sectionId) {
       console.log('[MapView] Skipping focus - edit mode or specific section requested')
@@ -231,7 +234,7 @@ export function MapView() {
     return () => {
       timers.forEach(clearTimeout)
     }
-  }, [search.edit, search.sectionId, todaysSection, effectiveSectionGeometry])
+  }, [editMode, search.edit, search.sectionId, todaysSection, effectiveSectionGeometry])
 
   const toggleLayer = (layer: keyof typeof layers) => {
     setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }))

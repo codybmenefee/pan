@@ -68,10 +68,11 @@ export interface FarmMapHandle {
   deleteSelected: () => void
   cancelDrawing: () => void
   focusOnPaddock: (paddockId: string) => void
-  focusOnGeometry: (geometry: Feature<Polygon>, padding?: number) => void
+  focusOnGeometry: (geometry: Feature<Polygon>, padding?: number, force?: boolean) => void
   createPaddockAtCenter: () => string | null
   createEntityAtScreenPoint: (type: EntityDropType, screenX: number, screenY: number) => string | null
   getMapContainerRect: () => DOMRect | null
+  resetUserInteraction: () => void
 }
 
 interface SectionRenderItem {
@@ -471,6 +472,10 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   const sectionStateRef = useRef<SectionRenderState>({ current: [], yesterday: [], grazed: [], alternatives: [] })
   const paddockGeometryRef = useRef<Record<string, Feature<Polygon>>>({})
   const lastResetCounterRef = useRef<number>(0)
+  // Track if user has manually adjusted the map (pan/zoom) to suppress auto-focus
+  const userHasInteractedRef = useRef(false)
+  // Track the last section ID we focused on to avoid re-focusing during vertex edits
+  const lastFocusedSectionIdRef = useRef<string | null>(null)
 
   const { paddocks, sections, getPaddockById, noGrazeZones, waterSources, addPaddock, addNoGrazeZone, addWaterSource, resetCounter } = useGeometry()
   const { farm, isLoading: isFarmLoading } = useFarm()
@@ -615,8 +620,25 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
   }, [mapInstance, isMapLoaded, isEditActive, currentMode, selectedFeatureIds.length, draw])
 
+  // Track user pan/zoom gestures to suppress auto-focus
+  useEffect(() => {
+    if (!mapInstance || !isMapLoaded) return
+
+    const handleUserInteraction = () => {
+      userHasInteractedRef.current = true
+    }
+
+    mapInstance.on('dragend', handleUserInteraction)
+    mapInstance.on('zoomend', handleUserInteraction)
+
+    return () => {
+      mapInstance.off('dragend', handleUserInteraction)
+      mapInstance.off('zoomend', handleUserInteraction)
+    }
+  }, [mapInstance, isMapLoaded])
+
   // Expose map methods via ref
-  const fitPolygonBounds = useCallback((geometry: Feature<Polygon>, padding = 60) => {
+  const fitPolygonBounds = useCallback((geometry: Feature<Polygon>, padding = 120) => {
     if (!mapInstance) return
     const coords = geometry.geometry.coordinates[0]
     let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
@@ -669,7 +691,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       if (!paddock) return
 
       const doFocus = () => {
-        fitPolygonBounds(paddock.geometry, 60)
+        fitPolygonBounds(paddock.geometry, 120)
       }
 
       // If map is already loaded, focus immediately. Otherwise wait for it.
@@ -679,8 +701,10 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         mapInstance.once('load', doFocus)
       }
     },
-    focusOnGeometry: (geometry: Feature<Polygon>, padding = 60) => {
+    focusOnGeometry: (geometry: Feature<Polygon>, padding = 120, force = false) => {
       if (!mapInstance) return
+      // Skip focus if user has manually interacted (unless force is true)
+      if (userHasInteractedRef.current && !force) return
 
       const doFocus = () => {
         fitPolygonBounds(geometry, padding)
@@ -764,6 +788,9 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       }
       console.log('[FarmMap] Created entity:', { type, entityId, draft: draft.geometry.coordinates[0] })
       return entityId
+    },
+    resetUserInteraction: () => {
+      userHasInteractedRef.current = false
     },
   }), [mapInstance, draw, setMode, deleteSelected, cancelDrawing, getPaddockById, fitPolygonBounds, createDraftSquare, addPaddock, addNoGrazeZone, addWaterSource])
 
@@ -1421,15 +1448,20 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         const sectionId = feature.properties?.id
         const paddockId = feature.properties?.paddockId
         if (sectionId && feature.geometry?.type === 'Polygon') {
+          const geometry: Feature<Polygon> = {
+            type: 'Feature',
+            properties: feature.properties ?? {},
+            geometry: feature.geometry as Polygon,
+          }
+          // Focus on double-click and reset interaction flag
+          fitPolygonBounds(geometry, 120)
+          userHasInteractedRef.current = false
+          lastFocusedSectionIdRef.current = sectionId
           onEditRequest?.({
             entityType: 'section',
             sectionId,
             paddockId,
-            geometry: {
-              type: 'Feature',
-              properties: feature.properties ?? {},
-              geometry: feature.geometry as Polygon,
-            },
+            geometry,
           })
         }
         return
@@ -1442,6 +1474,12 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       if (paddockFeatures.length > 0) {
         const paddockId = paddockFeatures[0]?.properties?.id
         if (paddockId) {
+          // Focus on paddock on double-click
+          const paddock = getPaddockById(paddockId)
+          if (paddock) {
+            fitPolygonBounds(paddock.geometry, 120)
+            userHasInteractedRef.current = false
+          }
           onEditRequest?.({ entityType: 'paddock', paddockId })
         }
         return
@@ -1457,6 +1495,9 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
       const draft = createDraftSquare(e.lngLat, 50)
       if (draft) {
+        // Focus on new paddock on double-click
+        fitPolygonBounds(draft, 120)
+        userHasInteractedRef.current = false
         onEditRequest?.({
           entityType: 'paddock',
           geometry: draft,
@@ -1514,17 +1555,21 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       if (e.features && e.features[0]) {
         e.preventDefault()
         const zoneId = e.features[0].properties?.id as string | undefined
-        const geometry = e.features[0].geometry
-        console.log('[FarmMap] No-graze zone double-click:', { zoneId, geometryType: geometry?.type })
-        if (zoneId && geometry?.type === 'Polygon') {
+        const geom = e.features[0].geometry
+        console.log('[FarmMap] No-graze zone double-click:', { zoneId, geometryType: geom?.type })
+        if (zoneId && geom?.type === 'Polygon') {
+          const geometry: Feature<Polygon> = {
+            type: 'Feature',
+            properties: e.features[0].properties ?? {},
+            geometry: geom as Polygon,
+          }
+          // Focus on double-click and reset interaction flag
+          fitPolygonBounds(geometry, 120)
+          userHasInteractedRef.current = false
           onEditRequest?.({
             entityType: 'noGrazeZone',
             noGrazeZoneId: zoneId,
-            geometry: {
-              type: 'Feature',
-              properties: e.features[0].properties ?? {},
-              geometry: geometry as Polygon,
-            },
+            geometry,
           })
         }
       }
@@ -1562,17 +1607,21 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       if (e.features && e.features[0]) {
         e.preventDefault()
         const sourceId = e.features[0].properties?.id as string | undefined
-        const geometry = e.features[0].geometry
-        console.log('[FarmMap] Water source double-click:', { sourceId, geometryType: geometry?.type })
-        if (sourceId && geometry?.type === 'Polygon') {
+        const geom = e.features[0].geometry
+        console.log('[FarmMap] Water source double-click:', { sourceId, geometryType: geom?.type })
+        if (sourceId && geom?.type === 'Polygon') {
+          const geometry: Feature<Polygon> = {
+            type: 'Feature',
+            properties: e.features[0].properties ?? {},
+            geometry: geom as Polygon,
+          }
+          // Focus on double-click and reset interaction flag
+          fitPolygonBounds(geometry, 120)
+          userHasInteractedRef.current = false
           onEditRequest?.({
             entityType: 'waterPolygon',
             waterSourceId: sourceId,
-            geometry: {
-              type: 'Feature',
-              properties: e.features[0].properties ?? {},
-              geometry: geometry as Polygon,
-            },
+            geometry,
           })
         }
       }
@@ -2212,10 +2261,22 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   }, [draw, isEditActive, entityType, initialPaddockId, initialSectionId])
 
   // Focus map on the section bounds when editing sections
+  // Only focus when the section ID changes, not when geometry updates during vertex editing
   useEffect(() => {
-    if (!isMapLoaded || !isEditActive || entityType !== 'section' || !initialSectionFeature) return
-    fitPolygonBounds(initialSectionFeature, 80)
-  }, [entityType, fitPolygonBounds, initialSectionFeature, isEditActive, isMapLoaded])
+    if (!isMapLoaded || !isEditActive || entityType !== 'section' || !initialSectionFeature || !initialSectionId) return
+    // Skip if user has manually adjusted the map or we already focused on this section
+    if (userHasInteractedRef.current) return
+    if (lastFocusedSectionIdRef.current === initialSectionId) return
+    lastFocusedSectionIdRef.current = initialSectionId
+    fitPolygonBounds(initialSectionFeature, 120)
+  }, [entityType, fitPolygonBounds, initialSectionFeature, initialSectionId, isEditActive, isMapLoaded])
+
+  // Reset focus tracking when leaving section edit mode
+  useEffect(() => {
+    if (entityType !== 'section' || !isEditActive) {
+      lastFocusedSectionIdRef.current = null
+    }
+  }, [entityType, isEditActive])
 
   // Hide selected feature from its MapLibre display layer to avoid duplication
   // MapboxDraw renders the selected feature with vertex handles
