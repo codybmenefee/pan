@@ -118,7 +118,7 @@ export function BriefCard({
           </div>
           <ConfidenceBar value={activeConfidence} />
           {selectedAlternative && (
-            <p className="text-[10px] xl:text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+            <p className="text-[10px] xl:text-xs text-[#F4D47C] mt-0.5">
               Using alternative section - {selectedAlternative.reasoning}
             </p>
           )}
