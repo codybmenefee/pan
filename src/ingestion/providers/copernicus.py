@@ -76,6 +76,7 @@ class CopernicusProvider(BaseSatelliteProvider):
             green="B03", # Green, 10m (for RGB composite)
             swir="B11",  # Short-wave infrared, 20m (will be resampled)
             blue="B02",  # Blue, 10m
+            scl="SCL",   # Scene Classification Layer, 20m (will be resampled)
         )
 
     @property
@@ -338,9 +339,13 @@ class CopernicusProvider(BaseSatelliteProvider):
             x_coords = None
             y_coords = None
 
+            # Always load SCL band for cloud masking (add to band_ids if not present)
+            if "SCL" not in band_ids:
+                band_ids = band_ids + ["SCL"]
+
             for band_id in band_ids:
                 # Handle different resolutions
-                if band_id == "B11":  # SWIR is 20m
+                if band_id in ("B11", "SCL"):  # SWIR and SCL are 20m
                     res_dir = os_module.path.join(granule_dir, granules[0], "IMG_DATA", "R20m")
                 else:
                     res_dir = granule_path
@@ -390,8 +395,11 @@ class CopernicusProvider(BaseSatelliteProvider):
                         logger.warning(f"Window error for {band_id}: {e}, reading full raster")
                         data = src.read(1)
 
-                    # Convert DN to reflectance (divide by 10000)
-                    data = data.astype(np.float32) / 10000
+                    # Convert DN to reflectance (divide by 10000) - except for SCL which is classification
+                    if band_id == "SCL":
+                        data = data.astype(np.float32)  # Keep as-is (0-11 classification values)
+                    else:
+                        data = data.astype(np.float32) / 10000
 
                     # Track target shape and transform from 10m bands
                     if band_id != "B11" and target_shape is None:
@@ -433,17 +441,20 @@ class CopernicusProvider(BaseSatelliteProvider):
 
                     band_arrays[band_id] = data
 
-            # Resample B11 (20m) to match 10m bands if needed
-            if "B11" in band_arrays and target_shape is not None:
-                from scipy.ndimage import zoom
-                b11_data = band_arrays["B11"]
-                if b11_data.shape != target_shape:
-                    zoom_factors = (
-                        target_shape[0] / b11_data.shape[0],
-                        target_shape[1] / b11_data.shape[1]
-                    )
-                    logger.info(f"Resampling B11 from {b11_data.shape} to {target_shape}")
-                    band_arrays["B11"] = zoom(b11_data, zoom_factors, order=1)
+            # Resample 20m bands (B11, SCL) to match 10m bands if needed
+            from scipy.ndimage import zoom
+            for band_20m in ["B11", "SCL"]:
+                if band_20m in band_arrays and target_shape is not None:
+                    band_data = band_arrays[band_20m]
+                    if band_data.shape != target_shape:
+                        zoom_factors = (
+                            target_shape[0] / band_data.shape[0],
+                            target_shape[1] / band_data.shape[1]
+                        )
+                        # Use order=0 (nearest neighbor) for SCL to preserve classification values
+                        interp_order = 0 if band_20m == "SCL" else 1
+                        logger.info(f"Resampling {band_20m} from {band_data.shape} to {target_shape}")
+                        band_arrays[band_20m] = zoom(band_data, zoom_factors, order=interp_order)
 
             # Stack into xarray DataArray
             # Rename to semantic names
@@ -481,42 +492,91 @@ class CopernicusProvider(BaseSatelliteProvider):
         data: 'xr.DataArray',
         items: list,
         bbox: list[float] | None = None
-    ) -> tuple['xr.DataArray', float]:
+    ) -> tuple['xr.DataArray', float, 'xr.DataArray']:
         """
         Apply cloud mask using Sentinel-2 SCL (Scene Classification) band.
 
-        For now, uses cloud cover metadata from the product.
-        A production implementation would load and apply the SCL band.
+        SCL classification values:
+        - 0: No data
+        - 1: Saturated/defective
+        - 2: Dark area
+        - 3: Cloud shadow (MASK)
+        - 4: Vegetation
+        - 5: Bare soil
+        - 6: Water
+        - 7: Unclassified
+        - 8: Cloud medium probability (MASK)
+        - 9: Cloud high probability (MASK)
+        - 10: Thin cirrus (MASK)
+        - 11: Snow/ice
 
         Args:
-            data: xarray DataArray with band data
+            data: xarray DataArray with band data including 'scl' band
             items: Product metadata from query()
             bbox: Optional bounding box
 
         Returns:
-            Tuple of (masked_data, cloud_free_percentage)
+            Tuple of (masked_data, cloud_free_percentage, cloud_mask)
+            - masked_data: DataArray with cloudy pixels set to NaN
+            - cloud_free_percentage: Fraction of clear pixels (0.0-1.0)
+            - cloud_mask: Boolean DataArray where True = cloudy/invalid pixel
         """
         import numpy as np
         import xarray as xr
 
-        # Get average cloud cover from items
-        cloud_covers = []
-        for item in items:
-            cc = item.get("properties", {}).get("eo:cloud_cover")
-            if cc is not None:
-                cloud_covers.append(cc)
+        # Check if SCL band is available
+        band_names = list(data.coords.get("band", []))
+        if "scl" not in band_names:
+            logger.warning("SCL band not found in data, falling back to metadata cloud cover")
+            # Fallback to metadata-based cloud cover
+            cloud_covers = []
+            for item in items:
+                cc = item.get("properties", {}).get("eo:cloud_cover")
+                if cc is not None:
+                    cloud_covers.append(cc)
 
-        if cloud_covers:
-            avg_cloud_cover = sum(cloud_covers) / len(cloud_covers)
-            cloud_free_pct = 1.0 - (avg_cloud_cover / 100.0)
-        else:
-            cloud_free_pct = 0.7
+            if cloud_covers:
+                avg_cloud_cover = sum(cloud_covers) / len(cloud_covers)
+                cloud_free_pct = 1.0 - (avg_cloud_cover / 100.0)
+            else:
+                cloud_free_pct = 0.7
 
-        # For now, return data as-is
-        # In production, we'd load SCL and apply proper masking
-        masked = data.where(~data.isnull())
+            # Create empty cloud mask (all False = no clouds masked)
+            first_band = data.isel(band=0)
+            cloud_mask_arr = xr.DataArray(
+                np.zeros(first_band.shape, dtype=bool),
+                dims=first_band.dims,
+                coords={k: v for k, v in first_band.coords.items() if k != 'band'},
+                attrs={'crs': data.attrs.get('crs', 'EPSG:4326')},  # Preserve CRS for zonal stats
+            )
+            return data, cloud_free_pct, cloud_mask_arr
 
-        return masked, cloud_free_pct
+        # Extract SCL band
+        scl = data.sel(band='scl')
+
+        # Create cloud mask: True = cloudy/invalid pixel
+        # Classes to mask: 3 (shadow), 8 (cloud med), 9 (cloud high), 10 (cirrus)
+        cloud_classes = [3, 8, 9, 10]
+        cloud_mask_arr = xr.DataArray(
+            np.isin(scl.values, cloud_classes),
+            dims=scl.dims,
+            coords={k: v for k, v in scl.coords.items() if k != 'band'},
+            attrs={'crs': data.attrs.get('crs', 'EPSG:4326')},  # Preserve CRS for zonal stats
+        )
+
+        # Calculate actual cloud-free percentage
+        total_pixels = cloud_mask_arr.size
+        clear_pixels = int((~cloud_mask_arr).sum().values)
+        cloud_free_pct = float(clear_pixels) / total_pixels if total_pixels > 0 else 0.0
+
+        logger.info(f"SCL-based cloud masking: {clear_pixels}/{total_pixels} clear pixels ({cloud_free_pct:.1%})")
+
+        # Apply mask to all bands except SCL (set cloudy pixels to NaN)
+        # Create a mask that broadcasts across all bands
+        spectral_bands = [b for b in band_names if b != 'scl']
+        masked_data = data.sel(band=spectral_bands).where(~cloud_mask_arr)
+
+        return masked_data, cloud_free_pct, cloud_mask_arr
 
     def get_metadata(self, item: dict) -> dict:
         """

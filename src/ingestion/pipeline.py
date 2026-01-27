@@ -481,6 +481,7 @@ def run_pipeline_for_farm(
     all_provider_data = []
     all_provider_masks = []
     all_provider_cloud_pcts = []
+    all_provider_cloud_masks = []  # Boolean cloud masks for zonal stats
 
     for provider in providers:
         logger.info(f"Querying {provider.__class__.__name__}...")
@@ -511,7 +512,7 @@ def run_pipeline_for_farm(
 
             # Apply cloud masking
             logger.info("  Applying cloud mask...")
-            masked_data, cloud_free_pct = provider.cloud_mask(data, items, bbox)
+            masked_data, cloud_free_pct, cloud_mask = provider.cloud_mask(data, items, bbox)
             logger.info(f"  Cloud-free pixels: {cloud_free_pct:.1%}")
 
             all_provider_data.append(masked_data)
@@ -519,6 +520,7 @@ def run_pipeline_for_farm(
             valid_mask = ~masked_data.isnull()
             all_provider_masks.append(valid_mask)
             all_provider_cloud_pcts.append(cloud_free_pct)
+            all_provider_cloud_masks.append(cloud_mask)
 
         except ActivationTimeoutError as e:
             # Planet asset activation timed out - skip this provider and try others
@@ -549,6 +551,7 @@ def run_pipeline_for_farm(
         composite_data = all_provider_data[0]
         combined_mask = all_provider_masks[0]
         avg_cloud_free_pct = all_provider_cloud_pcts[0]
+        combined_cloud_mask = all_provider_cloud_masks[0]
     else:
         # Multiple providers - merge at target resolution
         logger.info(f"  Merging {len(all_provider_data)} providers at {target_resolution}m")
@@ -559,6 +562,13 @@ def run_pipeline_for_farm(
             merge_method="highest_resolution",
         )
         avg_cloud_free_pct = sum(all_provider_cloud_pcts) / len(all_provider_cloud_pcts)
+        # For multiple providers, use OR of cloud masks (pixel is cloudy if any provider says so)
+        # This is conservative - we only trust pixels clear in all providers
+        import numpy as np
+        import xarray as xr
+        combined_cloud_mask = all_provider_cloud_masks[0]
+        for mask in all_provider_cloud_masks[1:]:
+            combined_cloud_mask = combined_cloud_mask | mask
 
     # Step 5: Compute vegetation indices
     logger.info("Computing vegetation indices...")
@@ -692,6 +702,7 @@ def run_pipeline_for_farm(
         data=composite_data,
         paddocks=farm_config.paddocks,
         resolution_meters=target_resolution,
+        cloud_mask=combined_cloud_mask,
     )
 
     logger.info(f"  Processed {len(stats)} paddocks")
@@ -703,9 +714,8 @@ def run_pipeline_for_farm(
     observations: list[ObservationRecord] = []
 
     for stat in stats:
-        # Calculate cloud-free percentage for this specific paddock
-        # This is a simplified calculation - in production, we'd compute per-paddock
-        paddock_cloud_pct = avg_cloud_free_pct
+        # Use per-paddock cloud-free percentage from zonal stats
+        paddock_cloud_pct = stat.get("cloud_free_pct", avg_cloud_free_pct)
 
         observation = ObservationRecord(
             farmExternalId=farm_config.external_id,

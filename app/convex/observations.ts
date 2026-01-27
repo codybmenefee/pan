@@ -168,6 +168,75 @@ export const deleteObservations = mutation({
   },
 })
 
+/**
+ * Get the most recent observation meeting quality thresholds.
+ * Used by agent to avoid making decisions on cloudy data.
+ */
+export const getLatestReliableObservation = query({
+  args: {
+    farmId: v.string(),
+    paddockId: v.string(),
+    minCloudFreePct: v.number(), // 0-1
+  },
+  handler: async (ctx, args) => {
+    const observations = await ctx.db
+      .query('observations')
+      .withIndex('by_paddock_date', (q) =>
+        q.eq('paddockExternalId', args.paddockId)
+      )
+      .collect()
+
+    // Sort by date descending
+    observations.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+    // Find first observation meeting quality threshold
+    return observations.find(o =>
+      o.isValid && o.cloudFreePct >= args.minCloudFreePct
+    ) ?? null
+  },
+})
+
+/**
+ * Get observation quality context for a paddock.
+ * Returns both latest and latest reliable observations with metadata.
+ */
+export const getObservationQualityContext = query({
+  args: {
+    farmId: v.string(),
+    paddockId: v.string(),
+    minCloudFreePct: v.number(), // 0-1
+  },
+  handler: async (ctx, args) => {
+    const observations = await ctx.db
+      .query('observations')
+      .withIndex('by_paddock_date', (q) =>
+        q.eq('paddockExternalId', args.paddockId)
+      )
+      .collect()
+
+    // Sort by date descending
+    observations.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+    const latest = observations[0] ?? null
+    const reliable = observations.find(o =>
+      o.isValid && o.cloudFreePct >= args.minCloudFreePct
+    ) ?? null
+
+    const isCurrentReliable = latest && latest.cloudFreePct >= args.minCloudFreePct && latest.isValid
+    const daysSinceReliable = reliable
+      ? Math.floor((Date.now() - new Date(reliable.date).getTime()) / (1000 * 60 * 60 * 24))
+      : null
+
+    return {
+      latestObservation: latest,
+      latestReliableObservation: reliable,
+      isCurrentReliable,
+      daysSinceReliable,
+      usingFallback: !isCurrentReliable && reliable !== null,
+    }
+  },
+})
+
 export const getObservationsTrend = query({
   args: {
     paddockId: v.string(),

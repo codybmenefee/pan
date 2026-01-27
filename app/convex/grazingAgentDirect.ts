@@ -281,8 +281,26 @@ async function runGrazingAgentCore(
   fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:196',message:'Target paddock geometry check',data:{targetPaddockId:targetPaddock?.externalId,hasGeometry:!!targetPaddock?.geometry,geometryPreview:targetPaddock?.geometry?JSON.stringify(targetPaddock.geometry).substring(0,200):'null'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
   // #endregion
 
-  const prompt = `Generate today's grazing plan for farm "${farmName}".
+  // Build data quality warnings section if any paddocks have warnings
+  const dataQualityWarnings = allPaddocks
+    ?.filter((p: any) => p.dataQualityWarning)
+    .map((p: any) => `- ${p.name}: ${p.dataQualityWarning}`) ?? []
 
+  const qualitySection = dataQualityWarnings.length > 0
+    ? `## DATA QUALITY WARNINGS
+${dataQualityWarnings.join('\n')}
+
+IMPORTANT: When paddock data has quality warnings:
+- Avoid recommending paddock moves based solely on NDVI from stale observations
+- Prefer keeping livestock in current paddock if uncertain about alternative conditions
+- Note data quality concerns in your sectionJustification
+- Consider lower confidence score when using fallback data
+
+`
+    : ''
+
+  const prompt = `Generate today's grazing plan for farm "${farmName}".
+${qualitySection}
 ## ACTIVE PADDOCK: ${targetPaddock?.name} (${targetPaddock?.externalId})
 - Total Area: ${targetPaddock?.area} hectares
 - Target Section: ~20% = ${Math.round((targetPaddock?.area ?? 0) * 0.2 * 10) / 10} hectares

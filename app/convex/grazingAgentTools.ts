@@ -47,13 +47,14 @@ interface PaddockSummary {
   lastGrazed: string | null
   status: string
   geometry: any
+  dataQualityWarning: string | null
 }
 
 export const getAllPaddocksWithObservations = query({
   args: { farmExternalId: v.optional(v.string()) },
   handler: async (ctx, args): Promise<PaddockSummary[]> => {
     const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
-    
+
     const farm = await ctx.db
       .query('farms')
       .withIndex('by_externalId', (q: any) => q.eq('externalId', farmExternalId))
@@ -82,6 +83,15 @@ export const getAllPaddocksWithObservations = query({
       .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
       .collect()
 
+    // Get farm settings for cloudCoverTolerance
+    const settings = await ctx.db
+      .query('farmSettings')
+      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
+      .first()
+
+    // cloudCoverTolerance is stored as percentage (0-100), convert to 0-1
+    const minCloudFreePct = (settings?.cloudCoverTolerance ?? 50) / 100
+
     const calculateAreaHectares = (geometry: any): number => {
       try {
         const sqMeters = area(geometry)
@@ -95,20 +105,45 @@ export const getAllPaddocksWithObservations = query({
       const paddockObservations = observations.filter(
         (o: any) => o.paddockExternalId === paddock.externalId
       )
-      
-      const latestObservation = paddockObservations.length > 0
-        ? paddockObservations.reduce((latest: any, obs: any) => {
-            if (!latest || new Date(obs.date) > new Date(latest.date)) {
-              return obs
-            }
-            return latest
-          }, null)
+
+      // Sort observations by date descending
+      paddockObservations.sort((a: any, b: any) =>
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      )
+
+      const latestObservation = paddockObservations[0] ?? null
+
+      // Find latest reliable observation (meeting quality threshold)
+      const reliableObservation = paddockObservations.find(
+        (o: any) => o.isValid && o.cloudFreePct >= minCloudFreePct
+      ) ?? null
+
+      // Determine if current data is reliable
+      const isCurrentReliable = latestObservation &&
+        latestObservation.cloudFreePct >= minCloudFreePct &&
+        latestObservation.isValid
+
+      // Use reliable observation for NDVI if current is unreliable
+      const observationToUse = isCurrentReliable ? latestObservation : (reliableObservation ?? latestObservation)
+
+      // Calculate days since reliable observation
+      const daysSinceReliable = reliableObservation
+        ? Math.floor((Date.now() - new Date(reliableObservation.date).getTime()) / (1000 * 60 * 60 * 24))
         : null
+
+      // Generate data quality warning if using fallback data
+      let dataQualityWarning: string | null = null
+      if (!isCurrentReliable && reliableObservation) {
+        dataQualityWarning = `Using ${daysSinceReliable}-day-old data (recent imagery cloudy)`
+      } else if (!isCurrentReliable && !reliableObservation && latestObservation) {
+        const cloudPct = Math.round((1 - latestObservation.cloudFreePct) * 100)
+        dataQualityWarning = `Latest observation has ${cloudPct}% cloud cover - no reliable historical data`
+      }
 
       const paddockGrazingEvents = grazingEvents.filter(
         (e: any) => e.paddockExternalId === paddock.externalId
       )
-      
+
       const mostRecentEvent = paddockGrazingEvents.length > 0
         ? paddockGrazingEvents.reduce((latest: any, event: any) => {
             if (!latest || new Date(event.date) > new Date(latest.date)) {
@@ -119,17 +154,17 @@ export const getAllPaddocksWithObservations = query({
         : null
 
       let restDays = 0
-      if (mostRecentEvent?.date && latestObservation?.date) {
+      if (mostRecentEvent?.date && observationToUse?.date) {
         try {
           const lastDate = new Date(mostRecentEvent.date)
-          const obsDate = new Date(latestObservation.date)
+          const obsDate = new Date(observationToUse.date)
           restDays = Math.max(0, Math.floor((obsDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)))
         } catch {
           restDays = 0
         }
       }
 
-      const ndviMean = latestObservation?.ndviMean ?? paddock.ndvi ?? 0
+      const ndviMean = observationToUse?.ndviMean ?? paddock.ndvi ?? 0
 
       let status = 'recovering'
       if (ndviMean >= 0.4 && restDays >= 21) {
@@ -149,6 +184,7 @@ export const getAllPaddocksWithObservations = query({
         lastGrazed: mostRecentEvent?.date || null,
         status,
         geometry: paddock.geometry,
+        dataQualityWarning,
       }
     }).sort((a: any, b: any) => b.ndviMean - a.ndviMean)
   },
