@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useSearch } from '@tanstack/react-router'
+import { Crosshair } from 'lucide-react'
 import { FarmMap, type FarmMapHandle } from './FarmMap'
 import { PaddockPanel } from './PaddockPanel'
 import { PaddockEditPanel } from './PaddockEditPanel'
@@ -7,10 +8,12 @@ import { NoGrazeEditPanel } from './NoGrazeEditPanel'
 import { WaterSourceEditPanel } from './WaterSourceEditPanel'
 import { LayerToggles } from './LayerToggles'
 import { MapAddMenu } from './MapAddMenu'
+import { Button } from '@/components/ui/button'
 import { useGeometry, clipPolygonToPolygon } from '@/lib/geometry'
 import { useTodayPlan } from '@/lib/convex/usePlan'
 import { useCurrentUser } from '@/lib/convex/useCurrentUser'
 import { useFarmSettings } from '@/lib/convex/useFarmSettings'
+import { useFarmBoundary } from '@/lib/hooks/useFarmBoundary'
 import type { Paddock, Section, SectionAlternative, NoGrazeZone, WaterSource } from '@/lib/types'
 import type { Feature, Polygon } from 'geojson'
 
@@ -27,6 +30,7 @@ export function MapView() {
   const { farmId } = useCurrentUser()
   const { plan } = useTodayPlan(farmId || '')
   const { settings, updateMapPreference } = useFarmSettings()
+  const { hasBoundary: hasFarmBoundary } = useFarmBoundary()
 
   const [selectedPaddock, setSelectedPaddock] = useState<Paddock | null>(null)
   const [selectedNoGrazeZone, setSelectedNoGrazeZone] = useState<NoGrazeZone | null>(null)
@@ -426,6 +430,19 @@ export function MapView() {
               Editing {entityType === 'section' ? 'Sections' : entityType === 'noGrazeZone' ? 'No-graze Zone' : entityType === 'waterPoint' || entityType === 'waterPolygon' ? 'Water Source' : 'Paddocks'}
             </div>
           </div>
+        )}
+
+        {/* Target button - center on farm boundary */}
+        {hasFarmBoundary && (
+          <Button
+            size="icon"
+            variant="outline"
+            className="absolute top-2 right-10 z-20 h-8 w-8 rounded-full shadow-lg bg-background"
+            onClick={() => mapRef.current?.focusOnFarmBoundary()}
+            title="Center on farm boundary"
+          >
+            <Crosshair className="h-4 w-4" />
+          </Button>
         )}
 
         {/* Add menu (visible when not in edit mode) */}
