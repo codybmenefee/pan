@@ -33,7 +33,7 @@ import { useTodayPlan } from '@/lib/convex/usePlan'
 import { LivestockDrawer } from '@/components/livestock'
 import { useFarmBoundary } from '@/lib/hooks/useFarmBoundary'
 import { useFarmSettings } from '@/lib/convex/useFarmSettings'
-import { useAvailableDates } from '@/lib/hooks/useSatelliteTiles'
+import { useAvailableDates, useAvailableTileDates } from '@/lib/hooks/useSatelliteTiles'
 import type { Feature, Polygon } from 'geojson'
 import type { Paddock, Section } from '@/lib/types'
 
@@ -305,6 +305,10 @@ function GISRoute() {
 
   const handleToggleRGB = useCallback((enabled: boolean) => {
     updateMapPreference('showRGBSatellite', enabled)
+    // NDVI and RGB are mutually exclusive - turn off NDVI when RGB is enabled
+    if (enabled) {
+      setLayers(prev => ({ ...prev, ndviHeat: false }))
+    }
   }, [updateMapPreference])
 
   // Fetch available satellite dates for RGB imagery badge
@@ -322,6 +326,22 @@ function GISRoute() {
       nextEstimate,
     }
   }, [availableDates])
+
+  // Fetch available NDVI heatmap tile dates for NDVI imagery badge
+  const { dates: ndviTileDates } = useAvailableTileDates(activeFarmId ?? undefined, 'ndvi_heatmap')
+  const ndviImageryInfo = useMemo(() => {
+    if (!ndviTileDates || ndviTileDates.length === 0) return null
+    const mostRecent = ndviTileDates[0]
+    const captureDate = new Date(mostRecent.date + 'T00:00:00')
+    // Sentinel-2 has ~5-day revisit time
+    const nextEstimate = new Date(captureDate)
+    nextEstimate.setDate(nextEstimate.getDate() + 5)
+    return {
+      date: mostRecent.date,
+      provider: mostRecent.provider,
+      nextEstimate,
+    }
+  }, [ndviTileDates])
 
   // Historical satellite view state
   const [satelliteViewOpen, setSatelliteViewOpen] = useState(false)
@@ -382,7 +402,14 @@ function GISRoute() {
   }, [todaysSection, sectionPaddock, sectionHasPendingDelete])
 
   const toggleLayer = (layer: keyof typeof layers) => {
-    setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }))
+    setLayers((prev) => {
+      const newValue = !prev[layer]
+      // NDVI and RGB are mutually exclusive - turn off RGB when NDVI is enabled
+      if (layer === 'ndviHeat' && newValue) {
+        updateMapPreference('showRGBSatellite', false)
+      }
+      return { ...prev, [layer]: newValue }
+    })
   }
 
   const handleEditRequest = useCallback((request: {
@@ -763,6 +790,25 @@ function GISRoute() {
                 day: 'numeric',
               })}
             </span>
+          </div>
+        </div>
+      )}
+
+      {/* NDVI Imagery info badge - top center, below save indicator */}
+      {layers.ndviHeat && ndviImageryInfo && (
+        <div className="absolute top-10 left-1/2 -translate-x-1/2 z-10">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-full shadow-lg">
+            <Satellite className="h-3.5 w-3.5" />
+            <span>NDVI</span>
+            <span className="text-green-200">•</span>
+            <span>
+              {new Date(ndviImageryInfo.date + 'T00:00:00').toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+              })}
+            </span>
+            <span className="text-green-200">•</span>
+            <span className="text-green-100">{ndviImageryInfo.provider}</span>
           </div>
         </div>
       )}

@@ -5,9 +5,8 @@ import { FloatingPanel } from '../ui/floating-panel'
 import { Button } from '../ui/button'
 import { HistoricalDatePicker } from './HistoricalDatePicker'
 import { NDVIHeatmapLayer, NDVIColorLegend } from '../map/NDVIHeatmapLayer'
-import { NDVIPaddockOverlay } from '../map/NDVIPaddockOverlay'
 import { RasterTileLayer } from '../map/RasterTileLayer'
-import { useSatelliteTile, useObservationsByDate } from '../../lib/hooks/useSatelliteTiles'
+import { useSatelliteTile } from '../../lib/hooks/useSatelliteTiles'
 import { useSubscription } from '../../lib/hooks/useSubscription'
 import { FEATURES } from '../../lib/featureFlags'
 import { cn } from '@/lib/utils'
@@ -50,9 +49,6 @@ export function HistoricalPanel({
     selectedDate ?? undefined,
     activeLayer
   )
-
-  // Get observation data for selected date (for all tiers)
-  const { observations } = useObservationsByDate(farmId, selectedDate)
 
   // Clear selection when panel closes
   useEffect(() => {
@@ -150,13 +146,10 @@ export function HistoricalPanel({
             <NDVIColorLegend className="!p-2 !mt-1" />
           )}
 
-          {/* Observation summary */}
-          {selectedDate && observations.length > 0 && (
+          {/* Tile info */}
+          {selectedDate && tile && (
             <div className="text-[10px] text-muted-foreground pt-1 border-t">
-              {observations.length} paddock{observations.length !== 1 ? 's' : ''} observed
-              {tile && (
-                <> • {tile.provider} ({tile.resolutionMeters}m)</>
-              )}
+              {tile.provider} ({tile.resolutionMeters}m)
             </div>
           )}
         </div>
@@ -178,20 +171,12 @@ export function HistoricalPanel({
             />
           )}
 
-          {/* NDVI raster heatmap layer */}
+          {/* NDVI raster heatmap layer - satellite data only */}
           <NDVIHeatmapLayer
             map={map}
             farmId={farmId}
             captureDate={selectedDate}
             visible={activeLayer === 'ndvi' && !!tile}
-            opacity={0.7}
-          />
-
-          {/* Paddock overlay for observation-based NDVI */}
-          <NDVIPaddockOverlay
-            map={map}
-            observations={observations}
-            visible={activeLayer === 'ndvi' && observations.length > 0}
             opacity={0.7}
           />
         </>

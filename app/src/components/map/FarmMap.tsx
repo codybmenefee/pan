@@ -8,7 +8,7 @@ import { useGeometry, clipPolygonToPolygon, getTranslationDelta, translatePolygo
 import { createNoGrazeStripePatternByType, getNoGrazeZoneTypes } from '@/lib/map/patterns'
 import { useMapDraw, loadGeometriesToDraw, createTypedFeatureId, parseTypedFeatureId, type DrawMode } from '@/lib/hooks'
 import type { EntityType } from '@/lib/geometry'
-import { useSatelliteTile, useAvailableDates } from '@/lib/hooks/useSatelliteTiles'
+import { useSatelliteTile, useAvailableTileDates } from '@/lib/hooks/useSatelliteTiles'
 import { DrawingToolbar } from './DrawingToolbar'
 import { RasterTileLayer } from './RasterTileLayer'
 import type { Feature, Polygon } from 'geojson'
@@ -491,13 +491,14 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   const farmLat = farm?.coordinates?.[1] ?? null
   const farmGeometry = farm?.geometry ?? null
 
-  // Fetch available satellite dates and get the most recent one
-  const { dates: availableDates } = useAvailableDates(farmId ?? undefined)
+  // Fetch available satellite tile dates (dates with actual raster imagery)
+  // We specifically query for ndvi_heatmap tiles since that's what the NDVI layer displays
+  const { dates: availableTileDates } = useAvailableTileDates(farmId ?? undefined, 'ndvi_heatmap')
   const mostRecentDate = useMemo(() => {
-    if (!availableDates || availableDates.length === 0) return undefined
+    if (!availableTileDates || availableTileDates.length === 0) return undefined
     // Dates are returned sorted by date descending, so first is most recent
-    return availableDates[0].date
-  }, [availableDates])
+    return availableTileDates[0].date
+  }, [availableTileDates])
 
   // Fetch the RGB tile for the most recent date
   const { tile: rgbTile } = useSatelliteTile(

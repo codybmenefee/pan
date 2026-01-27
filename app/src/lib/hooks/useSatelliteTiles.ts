@@ -117,6 +117,29 @@ export function useAvailableDates(
 }
 
 /**
+ * Hook to fetch available dates that have actual satellite raster tiles.
+ * Unlike useAvailableDates (which queries observations), this queries the
+ * satelliteImageTiles table directly to find dates with actual imagery.
+ */
+export function useAvailableTileDates(
+  farmId: string | undefined,
+  tileType?: TileType
+): {
+  dates: AvailableDate[]
+  isLoading: boolean
+} {
+  const rawDates = useQuery(
+    api.satelliteTiles.getAvailableDatesByExternalId,
+    farmId ? { farmExternalId: farmId, tileType } : 'skip'
+  )
+
+  return {
+    dates: (rawDates as AvailableDate[]) ?? [],
+    isLoading: rawDates === undefined,
+  }
+}
+
+/**
  * Hook to fetch a specific tile by date and type.
  * Returns the tile with r2Url transformed to use the CORS proxy.
  */

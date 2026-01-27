@@ -19,6 +19,7 @@ import type * as intelligence from "../intelligence.js";
 import type * as intelligenceActions from "../intelligenceActions.js";
 import type * as internal_ from "../internal.js";
 import type * as lib_areaConstants from "../lib/areaConstants.js";
+import type * as lib_logger from "../lib/logger.js";
 import type * as livestock from "../livestock.js";
 import type * as migrations_migrateToClerkOrgs from "../migrations/migrateToClerkOrgs.js";
 import type * as ndviGrid from "../ndviGrid.js";
@@ -54,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   intelligenceActions: typeof intelligenceActions;
   internal: typeof internal_;
   "lib/areaConstants": typeof lib_areaConstants;
+  "lib/logger": typeof lib_logger;
   livestock: typeof livestock;
   "migrations/migrateToClerkOrgs": typeof migrations_migrateToClerkOrgs;
   ndviGrid: typeof ndviGrid;
