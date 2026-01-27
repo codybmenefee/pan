@@ -7,6 +7,7 @@ import { Beef, Calendar, CheckCircle, Focus, Save, Satellite } from 'lucide-reac
 import { FarmMap, type FarmMapHandle } from '@/components/map/FarmMap'
 import { HistoricalPanel } from '@/components/satellite/HistoricalPanel'
 import { FarmBoundaryDrawer } from '@/components/map/FarmBoundaryDrawer'
+import { AnimalLocationStep } from '@/components/onboarding'
 import { LayerToggles } from '@/components/map/LayerToggles'
 import { SaveIndicator } from '@/components/map/SaveIndicator'
 import { MapAddMenu } from '@/components/map/MapAddMenu'
@@ -40,6 +41,7 @@ import type { Paddock, Section } from '@/lib/types'
 const searchSchema = z.object({
   editBoundary: z.string().optional(),
   onboarded: z.string().optional(),
+  setAnimalLocation: z.string().optional(),
 })
 
 type DrawEntityType = 'paddock' | 'section' | 'noGrazeZone' | 'waterPoint' | 'waterPolygon'
@@ -51,6 +53,8 @@ interface EditDrawerState {
   featureId: string | null
   // Optional geometry for newly created entities
   geometry?: Feature<Polygon>
+  // Parent paddock ID for sections (needed for plan sections not in geometry context)
+  paddockId?: string
 }
 
 function GISRoute() {
@@ -166,20 +170,15 @@ function GISRoute() {
         // Focus on the new paddock
         mapRef.current?.focusOnGeometry(geometry, 100)
 
-        // Keep the daily plan closed during paddock editing
+        // Keep the daily plan closed during animal location step
         setBriefOpen(false)
 
-        // Open the paddock edit drawer so user can customize
-        setEditDrawerState({
-          open: true,
-          featureId: createTypedFeatureId('paddock', paddockId),
-          geometry,
-        })
-        setDrawEntityType('paddock')
-
         toast.success('Farm boundary saved!', {
-          description: 'We created a starter paddock for you. Resize and rename it below.',
+          description: 'Now tell us where your animals are today.',
         })
+
+        // Navigate to animal location step instead of opening paddock edit drawer
+        navigate({ to: '/', search: { setAnimalLocation: 'true' } })
       } catch (err) {
         console.error('[Onboarding Save Effect] Error saving paddock:', err)
         toast.error('Failed to save paddock')
@@ -189,7 +188,7 @@ function GISRoute() {
     }
 
     doSave()
-  }, [pendingOnboardingSave, saveChanges])
+  }, [pendingOnboardingSave, saveChanges, navigate])
 
   const handleBoundaryComplete = useCallback(() => {
     // Mark that we're intentionally completing to prevent effect re-triggering
@@ -469,6 +468,7 @@ function GISRoute() {
         open: true,
         featureId: createTypedFeatureId('section', request.sectionId),
         geometry: request.geometry,
+        paddockId: request.paddockId,
       })
       setDrawEntityType('section')
     }
@@ -646,13 +646,14 @@ function GISRoute() {
   }, [selectedEntityType, selectedEntityId, getPaddockById])
 
   // Get the parent paddock ID for sections
+  // Falls back to editDrawerState.paddockId for plan sections not in geometry context
   const parentPaddockIdForSection = useMemo(() => {
     if (selectedEntityType === 'section' && selectedEntityId) {
       const section = getSectionById(selectedEntityId)
-      return section?.paddockId
+      return section?.paddockId ?? editDrawerState.paddockId
     }
     return undefined
-  }, [selectedEntityType, selectedEntityId, getSectionById])
+  }, [selectedEntityType, selectedEntityId, getSectionById, editDrawerState.paddockId])
 
   if (isLoading) {
     return (
@@ -678,16 +679,16 @@ function GISRoute() {
       {/* Full-screen map */}
       <FarmMap
         ref={mapRef}
-        onEditRequest={handleEditRequest}
-        onNoGrazeZoneClick={handleNoGrazeZoneClick}
-        onWaterSourceClick={handleWaterSourceClick}
+        onEditRequest={search.setAnimalLocation !== 'true' ? handleEditRequest : undefined}
+        onNoGrazeZoneClick={search.setAnimalLocation !== 'true' ? handleNoGrazeZoneClick : undefined}
+        onWaterSourceClick={search.setAnimalLocation !== 'true' ? handleWaterSourceClick : undefined}
         showNdviHeat={layers.ndviHeat}
         showPaddocks={layers.paddocks}
         showLabels={layers.labels}
         showSections={layers.sections}
         showRGBSatellite={showRGBSatellite}
-        editable={true}
-        editMode={true}
+        editable={search.setAnimalLocation !== 'true'}
+        editMode={search.setAnimalLocation !== 'true'}
         entityType={drawEntityType}
         parentPaddockId={parentPaddockIdForSection}
         initialSectionFeature={
@@ -720,6 +721,24 @@ function GISRoute() {
           isPostOnboarding={search.onboarded === 'true'}
           onBoundarySaved={handleBoundarySaved}
           existingBoundary={existingGeometry}
+        />
+      )}
+
+      {/* Animal Location Step - shown during onboarding after paddocks exist */}
+      {search.setAnimalLocation === 'true' && activeFarmId && (
+        <AnimalLocationStep
+          farmExternalId={activeFarmId}
+          map={mapInstance}
+          onComplete={() => {
+            // Clear the query param and show the daily plan
+            navigate({ to: '/', search: {} })
+            setBriefOpen(true)
+          }}
+          onSkip={() => {
+            // Allow skipping - just clear the param
+            navigate({ to: '/', search: {} })
+            setBriefOpen(true)
+          }}
         />
       )}
 

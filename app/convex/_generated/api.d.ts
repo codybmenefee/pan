@@ -26,6 +26,7 @@ import type * as ndviGrid from "../ndviGrid.js";
 import type * as noGrazeZones from "../noGrazeZones.js";
 import type * as notifications from "../notifications.js";
 import type * as observations from "../observations.js";
+import type * as onboarding from "../onboarding.js";
 import type * as organizations from "../organizations.js";
 import type * as paddocks from "../paddocks.js";
 import type * as satelliteFetchJobs from "../satelliteFetchJobs.js";
@@ -62,6 +63,7 @@ declare const fullApi: ApiFromModules<{
   noGrazeZones: typeof noGrazeZones;
   notifications: typeof notifications;
   observations: typeof observations;
+  onboarding: typeof onboarding;
   organizations: typeof organizations;
   paddocks: typeof paddocks;
   satelliteFetchJobs: typeof satelliteFetchJobs;
