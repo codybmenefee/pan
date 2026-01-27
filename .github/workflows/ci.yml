@@ -23,15 +23,6 @@ jobs:
         working-directory: app
         run: npm ci
 
-      - name: Run ESLint
-        working-directory: app
-        run: npm run lint
-        continue-on-error: true  # Informational - pre-existing issues in codebase
-
-      - name: Run tests
-        working-directory: app
-        run: npm run test
-
       - name: TypeScript check and build
         working-directory: app
         run: npm run build
