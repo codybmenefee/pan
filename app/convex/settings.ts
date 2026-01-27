@@ -240,6 +240,45 @@ export const getImageryCheckStatus = query({
 })
 
 /**
+ * Update just the virtual fence provider setting.
+ * Used during onboarding where we don't want to overwrite other settings.
+ */
+export const updateFarmSettings = mutation({
+  args: {
+    farmId: v.string(),
+    settings: v.object({
+      virtualFenceProvider: v.optional(v.string()),
+      apiKey: v.optional(v.string()),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const now = new Date().toISOString()
+    const existing = await ctx.db
+      .query('farmSettings')
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', args.farmId))
+      .first()
+
+    if (!existing) {
+      const id = await ctx.db.insert('farmSettings', {
+        farmExternalId: args.farmId,
+        ...defaultFarmSettings,
+        ...args.settings,
+        createdAt: now,
+        updatedAt: now,
+      })
+      return { id }
+    }
+
+    await ctx.db.patch(existing._id, {
+      ...args.settings,
+      updatedAt: now,
+    })
+
+    return { id: existing._id }
+  },
+})
+
+/**
  * Update livestock settings (AU factors and consumption rate)
  */
 export const updateLivestockSettings = mutation({

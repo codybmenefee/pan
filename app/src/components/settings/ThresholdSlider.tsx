@@ -1,5 +1,7 @@
 import { memo, useMemo } from 'react'
+import { RotateCcw } from 'lucide-react'
 import { Slider } from '@/components/ui/slider'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 interface ThresholdSliderProps {
@@ -13,6 +15,8 @@ interface ThresholdSliderProps {
   onChange: (value: number) => void
   formatValue?: (value: number) => string
   className?: string
+  defaultValue?: number
+  onReset?: () => void
 }
 
 export const ThresholdSlider = memo(function ThresholdSlider({
@@ -26,22 +30,49 @@ export const ThresholdSlider = memo(function ThresholdSlider({
   onChange,
   formatValue,
   className,
+  defaultValue,
+  onReset,
 }: ThresholdSliderProps) {
   const displayValue = formatValue ? formatValue(value) : value.toString()
+  const defaultDisplayValue = defaultValue !== undefined
+    ? (formatValue ? formatValue(defaultValue) : defaultValue.toString())
+    : null
   const sliderValue = useMemo(() => [value], [value])
+
+  // Check if value differs from default (with tolerance for floating point)
+  const isDifferentFromDefault = defaultValue !== undefined &&
+    Math.abs(value - defaultValue) > step / 2
 
   return (
     <div className={cn('space-y-3', className)}>
       <div className="flex items-center justify-between">
-        <div>
+        <div className="flex-1">
           <label className="text-sm font-medium">{label}</label>
           {description && (
             <p className="text-xs text-muted-foreground">{description}</p>
           )}
         </div>
-        <span className="text-sm font-mono font-medium">
-          {displayValue} {unit}
-        </span>
+        <div className="flex items-center gap-2">
+          {isDifferentFromDefault && defaultDisplayValue && (
+            <span className="text-xs text-muted-foreground">
+              (default: {defaultDisplayValue}{unit ? ` ${unit}` : ''})
+            </span>
+          )}
+          {isDifferentFromDefault && onReset && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={onReset}
+              title="Reset to default"
+            >
+              <RotateCcw className="h-3 w-3" />
+            </Button>
+          )}
+          <span className="text-sm font-mono font-medium">
+            {displayValue} {unit}
+          </span>
+        </div>
       </div>
       <Slider
         value={sliderValue}

@@ -7,7 +7,7 @@ import { Beef, Calendar, CheckCircle, Focus, Save, Satellite } from 'lucide-reac
 import { FarmMap, type FarmMapHandle } from '@/components/map/FarmMap'
 import { HistoricalPanel } from '@/components/satellite/HistoricalPanel'
 import { FarmBoundaryDrawer } from '@/components/map/FarmBoundaryDrawer'
-import { AnimalLocationStep } from '@/components/onboarding'
+import { AnimalLocationStep, PaddockPositionStep } from '@/components/onboarding'
 import { LayerToggles } from '@/components/map/LayerToggles'
 import { SaveIndicator } from '@/components/map/SaveIndicator'
 import { MapAddMenu } from '@/components/map/MapAddMenu'
@@ -41,6 +41,7 @@ import type { Paddock, Section } from '@/lib/types'
 const searchSchema = z.object({
   editBoundary: z.string().optional(),
   onboarded: z.string().optional(),
+  editPaddock: z.string().optional(),
   setAnimalLocation: z.string().optional(),
 })
 
@@ -170,15 +171,15 @@ function GISRoute() {
         // Focus on the new paddock
         mapRef.current?.focusOnGeometry(geometry, 100)
 
-        // Keep the daily plan closed during animal location step
+        // Keep the daily plan closed during paddock editing step
         setBriefOpen(false)
 
         toast.success('Farm boundary saved!', {
-          description: 'Now tell us where your animals are today.',
+          description: 'Now position your paddock on the map.',
         })
 
-        // Navigate to animal location step instead of opening paddock edit drawer
-        navigate({ to: '/', search: { setAnimalLocation: 'true' } })
+        // Navigate to paddock editing step
+        navigate({ to: '/', search: { editPaddock: 'true' } })
       } catch (err) {
         console.error('[Onboarding Save Effect] Error saving paddock:', err)
         toast.error('Failed to save paddock')
@@ -255,9 +256,9 @@ function GISRoute() {
       try {
         const paddockId = addPaddock(paddockGeometry, {
           name: 'Main Paddock',
-          status: 'recovering',
-          ndvi: 0.35,
-          restDays: 0,
+          status: 'ready',
+          ndvi: 0.45,
+          restDays: 14,
           waterAccess: 'None',
         })
 
@@ -720,6 +721,18 @@ function GISRoute() {
           isPostOnboarding={search.onboarded === 'true'}
           onBoundarySaved={handleBoundarySaved}
           existingBoundary={existingGeometry}
+        />
+      )}
+
+      {/* Paddock Position Step - shown during onboarding after boundary is set */}
+      {search.editPaddock === 'true' && (
+        <PaddockPositionStep
+          onComplete={() => {
+            // Save any pending changes and proceed to animal location
+            saveChanges().then(() => {
+              navigate({ to: '/', search: { setAnimalLocation: 'true' } })
+            })
+          }}
         />
       )}
 

@@ -52,8 +52,11 @@ export function Header() {
   }
 
   return (
-    <header className="flex h-10 items-center justify-between border-b border-border bg-background pl-1 pr-3 py-2">
+    <header className="flex h-10 items-center border-b border-border bg-background pl-1 pr-3 py-2">
       <FarmSelector />
+      <div className="flex-1 flex justify-center">
+        <span className="text-sm font-semibold tracking-tight">OpenPasture</span>
+      </div>
       <div className="flex items-center gap-2">
         <DevToolsDropdown />
 

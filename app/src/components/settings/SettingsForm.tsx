@@ -18,6 +18,7 @@ import type { FarmSettings, AreaUnit } from '@/lib/types'
 import { useFarm } from '@/lib/convex/useFarm'
 import { useFarmBoundary } from '@/lib/hooks/useFarmBoundary'
 import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
+import { defaultSettings } from '@/data/mock/settings'
 
 interface SettingsFormProps {
   settings: FarmSettings
@@ -160,10 +161,12 @@ export function SettingsForm({ settings, onChange }: SettingsFormProps) {
             unit=""
             formatValue={(v) => v.toFixed(2)}
             onChange={(v) => updateSetting('minNDVIThreshold', v)}
+            defaultValue={defaultSettings.minNDVIThreshold}
+            onReset={() => updateSetting('minNDVIThreshold', defaultSettings.minNDVIThreshold)}
           />
-          
+
           <Separator />
-          
+
           <ThresholdSlider
             label="Minimum Rest Period"
             description="Days since last grazing before recommending"
@@ -173,10 +176,12 @@ export function SettingsForm({ settings, onChange }: SettingsFormProps) {
             step={1}
             unit="days"
             onChange={(v) => updateSetting('minRestPeriod', v)}
+            defaultValue={defaultSettings.minRestPeriod}
+            onReset={() => updateSetting('minRestPeriod', defaultSettings.minRestPeriod)}
           />
-          
+
           <Separator />
-          
+
           <ThresholdSlider
             label="Cloud Cover Tolerance"
             description="Maximum cloud cover for usable satellite data"
@@ -186,6 +191,8 @@ export function SettingsForm({ settings, onChange }: SettingsFormProps) {
             step={5}
             unit="%"
             onChange={(v) => updateSetting('cloudCoverTolerance', v)}
+            defaultValue={defaultSettings.cloudCoverTolerance}
+            onReset={() => updateSetting('cloudCoverTolerance', defaultSettings.cloudCoverTolerance)}
           />
         </CardContent>
       </Card>

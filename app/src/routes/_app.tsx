@@ -49,14 +49,16 @@ function AppLayout() {
     )
   }
 
+  const isOnboarding = location.pathname === '/onboarding'
+
   return (
     <FarmProvider>
       <GeometryProviderWithConvex>
         <TutorialProvider>
           <div className="flex h-screen flex-col bg-background text-foreground">
-            <Header />
+            {!isOnboarding && <Header />}
             <div className="flex flex-1 overflow-hidden">
-              <Sidebar />
+              {!isOnboarding && <Sidebar />}
               <main className="flex-1 overflow-auto">
                 <Outlet />
               </main>

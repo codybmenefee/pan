@@ -7,7 +7,10 @@ import {
   OnboardingContainer,
   WelcomeStep,
   FarmSetupForm,
+  LivestockStep,
+  GeoFenceStep,
 } from '@/components/onboarding'
+import type { LivestockData, GeoFenceData } from '@/components/onboarding'
 import { useAppAuth } from '@/lib/auth'
 import {
   TutorialProvider,
@@ -20,7 +23,7 @@ export const Route = createFileRoute('/_app/onboarding')({
   component: OnboardingPage,
 })
 
-const steps = ['Welcome', 'Farm Setup']
+const steps = ['Welcome', 'Farm Setup', 'Livestock', 'Virtual Fence']
 const isDevMode = import.meta.env.VITE_DEV_AUTH === 'true'
 
 interface FarmData {
@@ -59,6 +62,8 @@ function DevOnboarding({ organizationId }: { organizationId: string | null }) {
   const navigate = useNavigate()
   const geocodeAddress = useAction(api.geocoding.geocodeAddress)
   const setupFarm = useMutation(api.organizations.setupFarmFromOnboarding)
+  const upsertLivestock = useMutation(api.livestock.upsertLivestock)
+  const updateSettings = useMutation(api.settings.updateFarmSettings)
 
   const [currentStep, setCurrentStep] = useState(0)
   const [farmData, setFarmData] = useState<FarmData>({
@@ -66,6 +71,18 @@ function DevOnboarding({ organizationId }: { organizationId: string | null }) {
     location: '',
     area: '',
   })
+  const [livestockData, setLivestockData] = useState<LivestockData>({
+    cows: 0,
+    calves: 0,
+    sheep: 0,
+    lambs: 0,
+  })
+  const [geoFenceData, setGeoFenceData] = useState<GeoFenceData>({
+    usesVirtualFence: false,
+    provider: '',
+    customProvider: '',
+  })
+  const [createdFarmId, setCreatedFarmId] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showTutorial, setShowTutorial] = useState(false)
@@ -109,6 +126,81 @@ function DevOnboarding({ organizationId }: { organizationId: string | null }) {
         totalArea: paddockSize,
       })
 
+      // Store the org ID as the farm ID for later mutations
+      // (livestock and settings use external ID, not internal Convex ID)
+      setCreatedFarmId(organizationId)
+      setIsSubmitting(false)
+      handleNext()
+    } catch (err) {
+      console.error('Onboarding error:', err)
+      setError(err instanceof Error ? err.message : 'An error occurred during setup')
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleLivestockNext = (data: LivestockData) => {
+    setLivestockData(data)
+    handleNext()
+  }
+
+  const handleLivestockSkip = () => {
+    handleNext()
+  }
+
+  const handleGeoFenceNext = async (data: GeoFenceData) => {
+    setGeoFenceData(data)
+    await finishOnboarding(livestockData, data)
+  }
+
+  const handleGeoFenceSkip = async () => {
+    await finishOnboarding(livestockData, geoFenceData)
+  }
+
+  const finishOnboarding = async (
+    livestock: LivestockData,
+    geoFence: GeoFenceData
+  ) => {
+    if (!createdFarmId) {
+      // If no farm was created yet, just show tutorial
+      if (!getTutorialCompleted()) {
+        setShowTutorial(true)
+      } else {
+        navigate({ to: '/', search: { onboarded: 'true', editBoundary: 'true' } })
+      }
+      return
+    }
+
+    try {
+      // Save livestock if any values are set
+      if (livestock.cows > 0 || livestock.calves > 0) {
+        await upsertLivestock({
+          farmId: createdFarmId,
+          animalType: 'cow',
+          adultCount: livestock.cows,
+          offspringCount: livestock.calves,
+        })
+      }
+      if (livestock.sheep > 0 || livestock.lambs > 0) {
+        await upsertLivestock({
+          farmId: createdFarmId,
+          animalType: 'sheep',
+          adultCount: livestock.sheep,
+          offspringCount: livestock.lambs,
+        })
+      }
+
+      // Save virtual fence provider if selected
+      if (geoFence.usesVirtualFence && geoFence.provider) {
+        const provider =
+          geoFence.provider === 'other'
+            ? geoFence.customProvider
+            : geoFence.provider
+        await updateSettings({
+          farmId: createdFarmId,
+          settings: { virtualFenceProvider: provider },
+        })
+      }
+
       // Check if tutorial should be shown
       if (!getTutorialCompleted()) {
         setShowTutorial(true)
@@ -116,9 +208,13 @@ function DevOnboarding({ organizationId }: { organizationId: string | null }) {
         navigate({ to: '/', search: { onboarded: 'true', editBoundary: 'true' } })
       }
     } catch (err) {
-      console.error('Onboarding error:', err)
-      setError(err instanceof Error ? err.message : 'An error occurred during setup')
-      setIsSubmitting(false)
+      console.error('Error saving onboarding data:', err)
+      // Continue to tutorial even if saving fails
+      if (!getTutorialCompleted()) {
+        setShowTutorial(true)
+      } else {
+        navigate({ to: '/', search: { onboarded: 'true', editBoundary: 'true' } })
+      }
     }
   }
 
@@ -138,16 +234,45 @@ function DevOnboarding({ organizationId }: { organizationId: string | null }) {
     )
   }
 
+  const renderStep = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <FarmSetupForm
+            onComplete={handleFarmSetup}
+            onBack={handleBack}
+            initialData={farmData}
+            isSubmitting={isSubmitting}
+            error={error}
+          />
+        )
+      case 2:
+        return (
+          <LivestockStep
+            onNext={handleLivestockNext}
+            onBack={handleBack}
+            onSkip={handleLivestockSkip}
+            initialData={livestockData}
+          />
+        )
+      case 3:
+        return (
+          <GeoFenceStep
+            onNext={handleGeoFenceNext}
+            onBack={handleBack}
+            onSkip={handleGeoFenceSkip}
+            initialData={geoFenceData}
+          />
+        )
+      default:
+        return null
+    }
+  }
+
   return (
     <>
       <OnboardingContainer steps={steps.slice(1)} currentStep={currentStep - 1}>
-        <FarmSetupForm
-          onComplete={handleFarmSetup}
-          onBack={handleBack}
-          initialData={farmData}
-          isSubmitting={isSubmitting}
-          error={error}
-        />
+        {renderStep()}
         {isDevMode && (
           <div className="mt-4 flex gap-4 justify-center">
             <button
@@ -192,6 +317,8 @@ function ClerkOnboarding() {
   const navigate = useNavigate()
   const geocodeAddress = useAction(api.geocoding.geocodeAddress)
   const createFarmFromOrg = useMutation(api.organizations.createFarmFromOrg)
+  const upsertLivestock = useMutation(api.livestock.upsertLivestock)
+  const updateSettings = useMutation(api.settings.updateFarmSettings)
 
   const [currentStep, setCurrentStep] = useState(0)
   const [farmData, setFarmData] = useState<FarmData>({
@@ -199,6 +326,18 @@ function ClerkOnboarding() {
     location: '',
     area: '',
   })
+  const [livestockData, setLivestockData] = useState<LivestockData>({
+    cows: 0,
+    calves: 0,
+    sheep: 0,
+    lambs: 0,
+  })
+  const [geoFenceData, setGeoFenceData] = useState<GeoFenceData>({
+    usesVirtualFence: false,
+    provider: '',
+    customProvider: '',
+  })
+  const [createdFarmId, setCreatedFarmId] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showTutorial, setShowTutorial] = useState(false)
@@ -247,16 +386,95 @@ function ClerkOnboarding() {
         await setActive({ organization: org.id })
       }
 
-      // Step 5: Check if tutorial should be shown
+      // Store the org ID as the farm ID for later mutations
+      // (livestock and settings use external ID, not internal Convex ID)
+      setCreatedFarmId(org.id)
+      setIsSubmitting(false)
+      handleNext()
+    } catch (err) {
+      console.error('Onboarding error:', err)
+      setError(err instanceof Error ? err.message : 'An error occurred during setup')
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleLivestockNext = (data: LivestockData) => {
+    setLivestockData(data)
+    handleNext()
+  }
+
+  const handleLivestockSkip = () => {
+    handleNext()
+  }
+
+  const handleGeoFenceNext = async (data: GeoFenceData) => {
+    setGeoFenceData(data)
+    await finishOnboarding(livestockData, data)
+  }
+
+  const handleGeoFenceSkip = async () => {
+    await finishOnboarding(livestockData, geoFenceData)
+  }
+
+  const finishOnboarding = async (
+    livestock: LivestockData,
+    geoFence: GeoFenceData
+  ) => {
+    if (!createdFarmId) {
+      // If no farm was created yet, just show tutorial
+      if (!getTutorialCompleted()) {
+        setShowTutorial(true)
+      } else {
+        navigate({ to: '/', search: { onboarded: 'true', editBoundary: 'true' } })
+      }
+      return
+    }
+
+    try {
+      // Save livestock if any values are set
+      if (livestock.cows > 0 || livestock.calves > 0) {
+        await upsertLivestock({
+          farmId: createdFarmId,
+          animalType: 'cow',
+          adultCount: livestock.cows,
+          offspringCount: livestock.calves,
+        })
+      }
+      if (livestock.sheep > 0 || livestock.lambs > 0) {
+        await upsertLivestock({
+          farmId: createdFarmId,
+          animalType: 'sheep',
+          adultCount: livestock.sheep,
+          offspringCount: livestock.lambs,
+        })
+      }
+
+      // Save virtual fence provider if selected
+      if (geoFence.usesVirtualFence && geoFence.provider) {
+        const provider =
+          geoFence.provider === 'other'
+            ? geoFence.customProvider
+            : geoFence.provider
+        await updateSettings({
+          farmId: createdFarmId,
+          settings: { virtualFenceProvider: provider },
+        })
+      }
+
+      // Check if tutorial should be shown
       if (!getTutorialCompleted()) {
         setShowTutorial(true)
       } else {
         navigate({ to: '/', search: { onboarded: 'true', editBoundary: 'true' } })
       }
     } catch (err) {
-      console.error('Onboarding error:', err)
-      setError(err instanceof Error ? err.message : 'An error occurred during setup')
-      setIsSubmitting(false)
+      console.error('Error saving onboarding data:', err)
+      // Continue to tutorial even if saving fails
+      if (!getTutorialCompleted()) {
+        setShowTutorial(true)
+      } else {
+        navigate({ to: '/', search: { onboarded: 'true', editBoundary: 'true' } })
+      }
     }
   }
 
@@ -268,16 +486,45 @@ function ClerkOnboarding() {
     )
   }
 
+  const renderStep = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <FarmSetupForm
+            onComplete={handleFarmSetup}
+            onBack={handleBack}
+            initialData={farmData}
+            isSubmitting={isSubmitting}
+            error={error}
+          />
+        )
+      case 2:
+        return (
+          <LivestockStep
+            onNext={handleLivestockNext}
+            onBack={handleBack}
+            onSkip={handleLivestockSkip}
+            initialData={livestockData}
+          />
+        )
+      case 3:
+        return (
+          <GeoFenceStep
+            onNext={handleGeoFenceNext}
+            onBack={handleBack}
+            onSkip={handleGeoFenceSkip}
+            initialData={geoFenceData}
+          />
+        )
+      default:
+        return null
+    }
+  }
+
   return (
     <>
       <OnboardingContainer steps={steps.slice(1)} currentStep={currentStep - 1}>
-        <FarmSetupForm
-          onComplete={handleFarmSetup}
-          onBack={handleBack}
-          initialData={farmData}
-          isSubmitting={isSubmitting}
-          error={error}
-        />
+        {renderStep()}
       </OnboardingContainer>
       {showTutorial && <TutorialTrigger onComplete={handleTutorialComplete} />}
     </>
