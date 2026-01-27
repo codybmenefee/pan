@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useMutation, useQuery } from 'convex/react'
+import { RotateCcw } from 'lucide-react'
 import { api } from '../../../convex/_generated/api'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ThresholdSlider } from './ThresholdSlider'
-import { Separator } from '@/components/ui/separator'
+import { CompactSlider } from './CompactSlider'
 import { useFarmContext } from '@/lib/farm'
 import { DEFAULT_LIVESTOCK_SETTINGS } from '@/lib/animalUnits'
 import type { LivestockSettings as LivestockSettingsType } from '@/lib/types'
@@ -24,7 +23,6 @@ export function LivestockSettings() {
   const [hasChanges, setHasChanges] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  // Initialize from server data
   useEffect(() => {
     if (settingsData) {
       setSettings(settingsData as LivestockSettingsType)
@@ -60,27 +58,34 @@ export function LivestockSettings() {
     setHasChanges(true)
   }
 
+  const isModified =
+    settings.cowAU !== DEFAULT_LIVESTOCK_SETTINGS.cowAU ||
+    settings.calfAU !== DEFAULT_LIVESTOCK_SETTINGS.calfAU ||
+    settings.sheepAU !== DEFAULT_LIVESTOCK_SETTINGS.sheepAU ||
+    settings.lambAU !== DEFAULT_LIVESTOCK_SETTINGS.lambAU ||
+    settings.dailyDMPerAU !== DEFAULT_LIVESTOCK_SETTINGS.dailyDMPerAU
+
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base font-medium">Livestock Calculations</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          Configure animal unit (AU) factors and consumption rates for grazing calculations.
-          These defaults work for most operations but can be adjusted for your specific breeds
-          and conditions.
+          Configure AU factors and consumption rates for grazing calculations
         </p>
+        {isModified && (
+          <Button variant="ghost" size="sm" onClick={handleReset}>
+            <RotateCcw className="h-3 w-3 mr-1" />
+            Reset all
+          </Button>
+        )}
+      </div>
 
-        <div className="space-y-4">
-          <h4 className="text-sm font-medium">Animal Unit Factors</h4>
-          <p className="text-xs text-muted-foreground">
-            AU factors determine the relative grazing impact. A mature cow is typically 1.0 AU.
-          </p>
-
-          <ThresholdSlider
+      {/* Animal Unit Factors */}
+      <div>
+        <h4 className="text-sm font-medium mb-2">Animal Unit Factors</h4>
+        <div className="space-y-1">
+          <CompactSlider
             label="Cow AU"
-            description="Mature breeding cow"
+            description="Mature breeding cow. Standard reference is 1.0 AU"
             value={settings.cowAU}
             min={0.5}
             max={1.5}
@@ -90,7 +95,7 @@ export function LivestockSettings() {
             onChange={(v) => handleChange('cowAU', v)}
           />
 
-          <ThresholdSlider
+          <CompactSlider
             label="Calf AU"
             description="Nursing or weaned calf"
             value={settings.calfAU}
@@ -102,7 +107,7 @@ export function LivestockSettings() {
             onChange={(v) => handleChange('calfAU', v)}
           />
 
-          <ThresholdSlider
+          <CompactSlider
             label="Sheep AU"
             description="Mature breeding ewe"
             value={settings.sheepAU}
@@ -114,7 +119,7 @@ export function LivestockSettings() {
             onChange={(v) => handleChange('sheepAU', v)}
           />
 
-          <ThresholdSlider
+          <CompactSlider
             label="Lamb AU"
             description="Nursing or weaned lamb"
             value={settings.lambAU}
@@ -126,34 +131,30 @@ export function LivestockSettings() {
             onChange={(v) => handleChange('lambAU', v)}
           />
         </div>
+      </div>
 
-        <Separator />
+      {/* Daily Consumption */}
+      <div>
+        <h4 className="text-sm font-medium mb-2">Daily Consumption</h4>
+        <CompactSlider
+          label="Dry Matter/AU"
+          description="Daily forage consumption per animal unit"
+          value={settings.dailyDMPerAU}
+          min={8}
+          max={16}
+          step={0.5}
+          unit="kg"
+          formatValue={(v) => v.toFixed(1)}
+          onChange={(v) => handleChange('dailyDMPerAU', v)}
+        />
+      </div>
 
-        <div className="space-y-4">
-          <h4 className="text-sm font-medium">Daily Consumption</h4>
-
-          <ThresholdSlider
-            label="Dry Matter per AU"
-            description="Daily forage consumption per animal unit"
-            value={settings.dailyDMPerAU}
-            min={8}
-            max={16}
-            step={0.5}
-            unit="kg"
-            formatValue={(v) => v.toFixed(1)}
-            onChange={(v) => handleChange('dailyDMPerAU', v)}
-          />
-        </div>
-
-        <div className="flex items-center justify-between pt-2">
-          <Button variant="outline" size="sm" onClick={handleReset}>
-            Reset to Defaults
-          </Button>
-          <Button size="sm" onClick={handleSave} disabled={!hasChanges || saving}>
-            {saving ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      {/* Save button for livestock (kept separate as it uses Convex mutation) */}
+      <div className="flex justify-end pt-2">
+        <Button size="sm" onClick={handleSave} disabled={!hasChanges || saving}>
+          {saving ? 'Saving...' : 'Save Livestock Settings'}
+        </Button>
+      </div>
+    </div>
   )
 }

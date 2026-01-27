@@ -1,7 +1,15 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { SettingsForm, LivestockSettings } from '@/components/settings'
-import { SubscriptionCard } from '@/components/settings/SubscriptionCard'
+import { RotateCcw } from 'lucide-react'
+import {
+  FarmInfoStrip,
+  GeneralSettings,
+  ThresholdSettings,
+  LivestockSettings,
+  PlanSummary,
+} from '@/components/settings'
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
 import { useFarmSettings } from '@/lib/convex/useFarmSettings'
@@ -53,48 +61,65 @@ function SettingsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-3xl">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-semibold">Settings</h1>
-        <p className="text-muted-foreground">
-          Configure your farm preferences and thresholds
-        </p>
-      </div>
+    <div className="p-4 max-w-4xl">
+      <h1 className="text-xl font-semibold mb-3">Settings</h1>
 
-      {/* Subscription Card */}
-      {activeFarmId && (
-        <div>
-          <h2 className="text-lg font-medium mb-3">Subscription</h2>
-          <SubscriptionCard
-            farmId={activeFarmId}
-            farmAcreage={50}
-          />
-        </div>
-      )}
+      <FarmInfoStrip />
 
-      <SettingsForm settings={displaySettings} onChange={handleChange} />
+      <Card className="mt-3">
+        <Tabs defaultValue="general">
+          <CardHeader className="pb-0 pt-4">
+            <TabsList className="h-10 p-1 gap-1">
+              <TabsTrigger value="general" className="px-4 py-2">General</TabsTrigger>
+              <TabsTrigger value="thresholds" className="px-4 py-2">Thresholds</TabsTrigger>
+              <TabsTrigger value="livestock" className="px-4 py-2">Livestock</TabsTrigger>
+              <TabsTrigger value="plan" className="px-4 py-2">Plan</TabsTrigger>
+            </TabsList>
+          </CardHeader>
 
-      {/* Livestock Settings */}
-      <LivestockSettings />
+          <CardContent className="pt-4">
+            <TabsContent value="general" className="mt-0">
+              <GeneralSettings settings={displaySettings} onChange={handleChange} />
+            </TabsContent>
 
-      {/* Actions */}
-      <div className="flex items-center justify-between pt-4 border-t">
-        <Button variant="outline" onClick={handleReset}>
-          Reset to Defaults
-        </Button>
-        <div className="flex items-center gap-3">
-          {saved && (
-            <span className="text-sm text-green-600">Settings saved</span>
-          )}
-          <Button variant="outline" onClick={handleCancel} disabled={!hasChanges}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={!hasChanges}>
-            Save Changes
-          </Button>
-        </div>
-      </div>
+            <TabsContent value="thresholds" className="mt-0">
+              <ThresholdSettings settings={displaySettings} onChange={handleChange} />
+            </TabsContent>
+
+            <TabsContent value="livestock" className="mt-0">
+              <LivestockSettings />
+            </TabsContent>
+
+            <TabsContent value="plan" className="mt-0">
+              {activeFarmId ? (
+                <PlanSummary farmId={activeFarmId} farmAcreage={50} />
+              ) : (
+                <p className="text-muted-foreground text-sm">
+                  Select a farm to view subscription details
+                </p>
+              )}
+            </TabsContent>
+          </CardContent>
+
+          <CardFooter className="border-t justify-between gap-2 pt-3">
+            <Button variant="ghost" size="sm" onClick={handleReset}>
+              <RotateCcw className="h-3 w-3 mr-1" />
+              Reset to Defaults
+            </Button>
+            <div className="flex items-center gap-2">
+              {saved && (
+                <span className="text-sm text-green-500">Saved</span>
+              )}
+              <Button variant="ghost" size="sm" onClick={handleCancel} disabled={!hasChanges}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleSave} disabled={!hasChanges}>
+                Save Changes
+              </Button>
+            </div>
+          </CardFooter>
+        </Tabs>
+      </Card>
     </div>
   )
 }
