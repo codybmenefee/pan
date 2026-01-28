@@ -7,6 +7,8 @@ import { FarmProvider } from '@/lib/farm'
 import { useAppAuth } from '@/lib/auth'
 import { useEffect } from 'react'
 import { TutorialProvider, TutorialOverlay } from '@/components/onboarding/tutorial'
+import { SatelliteAnimationProvider } from '@/lib/satellite-animation'
+import { SatelliteCollapseAnimation } from '@/components/layout/SatelliteCollapseAnimation'
 
 export const Route = createFileRoute('/_app')({
   component: AppLayout,
@@ -107,18 +109,21 @@ function AppLayout() {
   return (
     <FarmProvider>
       <GeometryProviderWithConvex>
-        <TutorialProvider>
-          <div className="flex h-screen flex-col bg-background text-foreground">
-            <Header />
-            <div className="flex flex-1 overflow-hidden">
-              <Sidebar />
-              <main className="flex-1 overflow-hidden">
-                <Outlet />
-              </main>
+        <SatelliteAnimationProvider>
+          <TutorialProvider>
+            <div className="flex h-screen flex-col bg-background text-foreground">
+              <Header />
+              <div className="flex flex-1 overflow-hidden">
+                <Sidebar />
+                <main className="flex-1 overflow-hidden">
+                  <Outlet />
+                </main>
+              </div>
             </div>
-          </div>
-          <TutorialOverlay />
-        </TutorialProvider>
+            <TutorialOverlay />
+            <SatelliteCollapseAnimation />
+          </TutorialProvider>
+        </SatelliteAnimationProvider>
       </GeometryProviderWithConvex>
     </FarmProvider>
   )

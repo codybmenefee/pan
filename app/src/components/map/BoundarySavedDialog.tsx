@@ -2,6 +2,7 @@ import { Satellite } from 'lucide-react'
 import { useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import { useFarmContext } from '@/lib/farm'
+import { useSatelliteAnimation } from '@/lib/satellite-animation'
 import {
   Dialog,
   DialogContent,
@@ -19,6 +20,7 @@ interface BoundarySavedDialogProps {
 
 export function BoundarySavedDialog({ open, onOpenChange }: BoundarySavedDialogProps) {
   const { activeFarmId } = useFarmContext()
+  const { triggerCollapseAnimation } = useSatelliteAnimation()
   const createJob = useMutation(api.satelliteFetchJobs.createForBoundaryUpdate)
 
   const handleRefresh = async () => {
@@ -28,6 +30,8 @@ export function BoundarySavedDialog({ open, onOpenChange }: BoundarySavedDialogP
         provider: 'sentinel2',
       })
     }
+    // Trigger animation before closing dialog
+    triggerCollapseAnimation()
     onOpenChange(false)
   }
 
