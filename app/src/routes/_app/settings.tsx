@@ -61,6 +61,7 @@ function SettingsPage() {
   }
 
   return (
+    <div className="h-full overflow-auto">
     <div className="p-4 max-w-4xl">
       <h1 className="text-xl font-semibold mb-3">Settings</h1>
 
@@ -120,6 +121,7 @@ function SettingsPage() {
           </CardFooter>
         </Tabs>
       </Card>
+    </div>
     </div>
   )
 }

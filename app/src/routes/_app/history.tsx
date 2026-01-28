@@ -75,6 +75,7 @@ function HistoryPage() {
   }
 
   return (
+    <div className="h-full overflow-auto">
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -120,6 +121,7 @@ function HistoryPage() {
         plans={plans}
         paddockNameMap={paddockNameMap}
       />
+    </div>
     </div>
   )
 }

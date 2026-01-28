@@ -91,6 +91,7 @@ function AnalyticsPage() {
   const readyPaddocks = recoveryData.filter(p => p.recoveryPct >= 80).length
 
   return (
+    <div className="h-full overflow-auto">
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -136,6 +137,7 @@ function AnalyticsPage() {
         <FarmNDVIChart data={ndviTrend} />
         <AIPartnershipChart data={planStats} />
       </div>
+    </div>
     </div>
   )
 }

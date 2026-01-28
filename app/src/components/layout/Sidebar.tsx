@@ -27,7 +27,7 @@ export function Sidebar() {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <aside className="flex h-screen w-9 flex-col items-center border-r border-sidebar-border bg-sidebar py-1">
+      <aside className="flex h-full w-9 flex-col items-center border-r border-sidebar-border bg-sidebar py-1">
         {/* Navigation */}
         <nav className="flex flex-1 flex-col items-center gap-0.5">
           {navItems.map((item) => {
