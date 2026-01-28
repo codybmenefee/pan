@@ -1,0 +1,89 @@
+import { Layers, ChevronDown } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+
+type SatelliteLayer = 'ndvi' | 'rgb' | null
+
+interface LayerSelectorProps {
+  satelliteLayer: SatelliteLayer
+  onSatelliteLayerChange: (value: SatelliteLayer) => void
+  layers: {
+    paddocks: boolean
+    sections: boolean
+    labels: boolean
+  }
+  onToggleLayer: (layer: 'paddocks' | 'sections' | 'labels') => void
+}
+
+export function LayerSelector({
+  satelliteLayer,
+  onSatelliteLayerChange,
+  layers,
+  onToggleLayer,
+}: LayerSelectorProps) {
+  const label = satelliteLayer === 'ndvi' ? 'NDVI' : satelliteLayer === 'rgb' ? 'RGB' : 'Layers'
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex items-center gap-1.5 px-2 py-1 bg-gray-900/90 text-white rounded-full shadow-lg backdrop-blur hover:bg-gray-800/90 transition-colors">
+          <Layers className="h-3.5 w-3.5" />
+          <span className="text-[11px] font-medium">{label}</span>
+          <ChevronDown className="h-3 w-3 text-gray-400" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-[100px]">
+        {/* Satellite layers - mutually exclusive */}
+        <DropdownMenuCheckboxItem
+          className="text-xs py-1"
+          checked={satelliteLayer === 'ndvi'}
+          onCheckedChange={(checked) => onSatelliteLayerChange(checked ? 'ndvi' : null)}
+          onSelect={(e) => e.preventDefault()}
+        >
+          NDVI
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem
+          className="text-xs py-1"
+          checked={satelliteLayer === 'rgb'}
+          onCheckedChange={(checked) => onSatelliteLayerChange(checked ? 'rgb' : null)}
+          onSelect={(e) => e.preventDefault()}
+        >
+          RGB
+        </DropdownMenuCheckboxItem>
+
+        <DropdownMenuSeparator />
+
+        {/* Visibility layers - multi-select */}
+        <DropdownMenuCheckboxItem
+          className="text-xs py-1"
+          checked={layers.paddocks}
+          onCheckedChange={() => onToggleLayer('paddocks')}
+          onSelect={(e) => e.preventDefault()}
+        >
+          Paddocks
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem
+          className="text-xs py-1"
+          checked={layers.sections}
+          onCheckedChange={() => onToggleLayer('sections')}
+          onSelect={(e) => e.preventDefault()}
+        >
+          Sections
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem
+          className="text-xs py-1"
+          checked={layers.labels}
+          onCheckedChange={() => onToggleLayer('labels')}
+          onSelect={(e) => e.preventDefault()}
+        >
+          Labels
+        </DropdownMenuCheckboxItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}

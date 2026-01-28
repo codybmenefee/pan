@@ -5,10 +5,10 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { Calendar, CheckCircle, Crosshair, Focus, Save, Satellite } from 'lucide-react'
 import { FarmMap, type FarmMapHandle } from '@/components/map/FarmMap'
-import { HistoricalPanel } from '@/components/satellite/HistoricalPanel'
+import { HistoricalPanel, HistoricalPanelButton } from '@/components/satellite/HistoricalPanel'
 import { FarmBoundaryDrawer } from '@/components/map/FarmBoundaryDrawer'
 import { AnimalLocationStep, PaddockPositionStep } from '@/components/onboarding'
-import { LayerToggles } from '@/components/map/LayerToggles'
+import { LayerSelector } from '@/components/map/LayerSelector'
 import { SaveIndicator } from '@/components/map/SaveIndicator'
 import { MapAddMenu } from '@/components/map/MapAddMenu'
 import { DragPreview, type DragEntityType } from '@/components/map/DragPreview'
@@ -26,7 +26,6 @@ import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
 import { ErrorState } from '@/components/ui/error/ErrorState'
 import { useFarmContext } from '@/lib/farm'
-import { cn } from '@/lib/utils'
 import { useGeometry, clipPolygonToPolygon } from '@/lib/geometry'
 import { createTypedFeatureId, parseTypedFeatureId } from '@/lib/hooks'
 import { useTodayPlan } from '@/lib/convex/usePlan'
@@ -305,13 +304,6 @@ function GISRoute() {
   const { settings, updateMapPreference } = useFarmSettings()
   const showRGBSatellite = settings.mapPreferences?.showRGBSatellite ?? false
 
-  const handleToggleRGB = useCallback((enabled: boolean) => {
-    updateMapPreference('showRGBSatellite', enabled)
-    // NDVI and RGB are mutually exclusive - turn off NDVI when RGB is enabled
-    if (enabled) {
-      setLayers(prev => ({ ...prev, ndviHeat: false }))
-    }
-  }, [updateMapPreference])
 
   // Fetch available satellite dates for RGB imagery badge
   const { dates: availableDates } = useAvailableDates(activeFarmId ?? undefined)
@@ -344,6 +336,15 @@ function GISRoute() {
       nextEstimate,
     }
   }, [ndviTileDates])
+
+  // Derive current satellite layer from state
+  const satelliteLayer = showRGBSatellite ? 'rgb' : layers.ndviHeat ? 'ndvi' : null
+
+  // Handle satellite layer change (mutually exclusive)
+  const handleSatelliteLayerChange = useCallback((layer: 'ndvi' | 'rgb' | null) => {
+    setLayers(prev => ({ ...prev, ndviHeat: layer === 'ndvi' }))
+    updateMapPreference('showRGBSatellite', layer === 'rgb')
+  }, [updateMapPreference])
 
   // Historical satellite view state
   const [satelliteViewOpen, setSatelliteViewOpen] = useState(false)
@@ -404,14 +405,7 @@ function GISRoute() {
   }, [todaysSection, sectionPaddock, sectionHasPendingDelete])
 
   const toggleLayer = (layer: keyof typeof layers) => {
-    setLayers((prev) => {
-      const newValue = !prev[layer]
-      // NDVI and RGB are mutually exclusive - turn off RGB when NDVI is enabled
-      if (layer === 'ndviHeat' && newValue) {
-        updateMapPreference('showRGBSatellite', false)
-      }
-      return { ...prev, [layer]: newValue }
-    })
+    setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }))
   }
 
   const handleEditRequest = useCallback((request: {
@@ -766,27 +760,12 @@ function GISRoute() {
         />
       )}
 
-      {/* Layer toggles - bottom left */}
-      <div className="absolute bottom-2 left-2 z-10">
-        <LayerToggles
-          layers={{ ...layers, rgbSatellite: showRGBSatellite }}
-          onToggle={toggleLayer}
-          onToggleRGB={handleToggleRGB}
-          showEditToggle={false}
-        />
-      </div>
-
-      {/* Historical Satellite button - bottom left, above layer toggles */}
-      <div className="absolute bottom-14 left-2 z-10 flex gap-1">
-        <Button
-          variant={satelliteViewOpen ? 'default' : 'outline'}
-          size="sm"
+      {/* Historical Satellite button and Livestock - bottom left */}
+      <div className="absolute bottom-2 left-2 z-10 flex gap-1">
+        <HistoricalPanelButton
           onClick={() => setSatelliteViewOpen(!satelliteViewOpen)}
-          className={cn('gap-1 h-7 text-xs shadow-lg', !satelliteViewOpen && 'bg-white')}
-        >
-          <Satellite className="h-3.5 w-3.5" />
-          Historical
-        </Button>
+          active={satelliteViewOpen}
+        />
         <Button
           variant="outline"
           size="sm"
@@ -927,9 +906,19 @@ function GISRoute() {
         />
       </FloatingPanel>
 
-      {/* Toggle button when panel is closed */}
+      {/* Layer selector - top left */}
+      <div className="absolute top-2 left-2 z-10">
+        <LayerSelector
+          satelliteLayer={satelliteLayer}
+          onSatelliteLayerChange={handleSatelliteLayerChange}
+          layers={layers}
+          onToggleLayer={toggleLayer}
+        />
+      </div>
+
+      {/* Toggle button when panel is closed - below layer selector */}
       {!briefOpen && (
-        <div className="absolute top-2 left-2 z-10">
+        <div className="absolute top-12 left-2 z-10">
           {plan?.status === 'approved' || plan?.status === 'modified' ? (
             <Button
               variant="default"

@@ -6,7 +6,7 @@ import { PaddockPanel } from './PaddockPanel'
 import { PaddockEditPanel } from './PaddockEditPanel'
 import { NoGrazeEditPanel } from './NoGrazeEditPanel'
 import { WaterSourceEditPanel } from './WaterSourceEditPanel'
-import { LayerToggles } from './LayerToggles'
+import { LayerSelector } from './LayerSelector'
 import { MapAddMenu } from './MapAddMenu'
 import { Button } from '@/components/ui/button'
 import { useGeometry, clipPolygonToPolygon } from '@/lib/geometry'
@@ -63,8 +63,13 @@ export function MapView() {
   // RGB satellite toggle is persisted in settings
   const showRGBSatellite = settings.mapPreferences?.showRGBSatellite ?? false
 
-  const handleToggleRGB = useCallback((enabled: boolean) => {
-    updateMapPreference('showRGBSatellite', enabled)
+  // Derive current satellite layer from state
+  const satelliteLayer = showRGBSatellite ? 'rgb' : layers.ndviHeat ? 'ndvi' : null
+
+  // Handle satellite layer change (mutually exclusive)
+  const handleSatelliteLayerChange = useCallback((layer: 'ndvi' | 'rgb' | null) => {
+    setLayers(prev => ({ ...prev, ndviHeat: layer === 'ndvi' }))
+    updateMapPreference('showRGBSatellite', layer === 'rgb')
   }, [updateMapPreference])
 
   // Extract today's section from plan or fallback to most recent section
@@ -358,7 +363,9 @@ export function MapView() {
   }, [])
 
   const handleNoGrazeZoneClick = useCallback((zoneId: string) => {
+    console.log('[MapView] handleNoGrazeZoneClick:', { zoneId })
     const zone = getNoGrazeZoneById(zoneId)
+    console.log('[MapView] handleNoGrazeZoneClick - zone found:', { found: !!zone, zoneName: zone?.name })
     if (zone) {
       setSelectedNoGrazeZone(zone)
       setSelectedPaddock(null)
@@ -380,7 +387,10 @@ export function MapView() {
   }, [getWaterSourceById])
 
   const handleNoGrazeZoneDelete = useCallback((id: string) => {
+    console.log('[MapView] handleNoGrazeZoneDelete:', { id })
+    console.log('[MapView] handleNoGrazeZoneDelete - calling deleteNoGrazeZone')
     deleteNoGrazeZone(id)
+    console.log('[MapView] handleNoGrazeZoneDelete - clearing selectedNoGrazeZone')
     setSelectedNoGrazeZone(null)
   }, [deleteNoGrazeZone])
 
@@ -475,12 +485,13 @@ export function MapView() {
           />
         )}
         
-        {/* Layer toggles */}
-        <div className="absolute bottom-2 left-2 z-10">
-          <LayerToggles
-            layers={{ ...layers, rgbSatellite: showRGBSatellite }}
-            onToggle={toggleLayer}
-            onToggleRGB={handleToggleRGB}
+        {/* Layer selector - top left */}
+        <div className="absolute top-2 left-2 z-10">
+          <LayerSelector
+            satelliteLayer={satelliteLayer}
+            onSatelliteLayerChange={handleSatelliteLayerChange}
+            layers={layers}
+            onToggleLayer={toggleLayer}
           />
         </div>
       </div>
