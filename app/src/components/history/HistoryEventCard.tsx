@@ -1,7 +1,10 @@
-import { Check, Edit, Clock, ChevronDown, ChevronRight, MessageSquare } from 'lucide-react'
+import { useState } from 'react'
+import { Check, Edit, Clock, ChevronDown, ChevronRight, Pencil } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
+import { FeedbackEditDialog } from './FeedbackEditDialog'
 
 export interface PlanData {
   _id: string
@@ -14,9 +17,19 @@ export interface PlanData {
   reasoning: string[]
 }
 
+export interface SectionModification {
+  _id: string
+  planId: string
+  rationale?: string
+  quickReasons?: string[]
+  originalAreaHectares: number
+  modifiedAreaHectares: number
+}
+
 interface HistoryEventCardProps {
   plan: PlanData
   paddockName: string
+  modification?: SectionModification
   isLast?: boolean
   isExpanded?: boolean
   onToggleExpand?: () => void
@@ -58,13 +71,19 @@ const statusConfig = {
 export function HistoryEventCard({
   plan,
   paddockName,
+  modification,
   isLast,
   isExpanded,
   onToggleExpand
 }: HistoryEventCardProps) {
   const { format } = useAreaUnit()
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
   const config = statusConfig[plan.status]
   const StatusIcon = config.icon
+
+  // Determine if we have structured feedback from modification record
+  const hasModificationFeedback = modification &&
+    ((modification.quickReasons && modification.quickReasons.length > 0) || modification.rationale)
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
@@ -112,10 +131,60 @@ export function HistoryEventCard({
           <span>{Math.round(plan.confidenceScore)}% confidence</span>
         </div>
 
-        {/* User feedback for modified plans */}
-        {plan.status === 'modified' && plan.feedback && (
-          <div className="mt-2 rounded-md bg-muted p-2 text-sm flex items-start gap-2">
-            <MessageSquare className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+        {/* Structured feedback for modified plans with section modification data */}
+        {plan.status === 'modified' && modification && (
+          <div className="mt-3 rounded-md border border-border bg-muted/30 p-3">
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-xs font-medium text-muted-foreground">Your feedback</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => setEditDialogOpen(true)}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                <span className="sr-only">Edit feedback</span>
+              </Button>
+            </div>
+            {hasModificationFeedback ? (
+              <div className="mt-2 space-y-2">
+                {modification.quickReasons && modification.quickReasons.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {modification.quickReasons.map((reason) => (
+                      <Badge
+                        key={reason}
+                        variant="secondary"
+                        className="text-xs"
+                      >
+                        {reason}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                {modification.rationale && (
+                  <p className="text-sm text-muted-foreground italic">
+                    "{modification.rationale}"
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="mt-1 text-sm text-muted-foreground">
+                No feedback provided yet.{' '}
+                <button
+                  onClick={() => setEditDialogOpen(true)}
+                  className="text-primary hover:underline"
+                >
+                  Add feedback
+                </button>
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Legacy feedback for older modified plans without structured data */}
+        {plan.status === 'modified' && !modification && plan.feedback && (
+          <div className="mt-2 rounded-md bg-muted p-2 text-sm">
+            <span className="text-xs font-medium text-muted-foreground block mb-1">Feedback</span>
             <span>{plan.feedback}</span>
           </div>
         )}
@@ -143,6 +212,17 @@ export function HistoryEventCard({
           </ul>
         )}
       </div>
+
+      {/* Edit feedback dialog */}
+      {modification && (
+        <FeedbackEditDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          modificationId={modification._id}
+          initialRationale={modification.rationale}
+          initialQuickReasons={modification.quickReasons}
+        />
+      )}
     </div>
   )
 }

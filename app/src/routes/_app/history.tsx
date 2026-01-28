@@ -11,6 +11,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/ui/loading'
 import { ErrorState } from '@/components/ui/error'
+import type { Id } from '../../../convex/_generated/dataModel'
 
 export const Route = createFileRoute('/_app/history')({
   component: HistoryPage,
@@ -43,6 +44,24 @@ function HistoryPage() {
     if (!paddocks) return new Map<string, string>()
     return new Map(paddocks.map(p => [p.externalId, p.name]))
   }, [paddocks])
+
+  // Get plan IDs for fetching modifications
+  const planIds = useMemo(() => {
+    if (!plans) return []
+    return plans.map(p => p._id as Id<'plans'>)
+  }, [plans])
+
+  // Fetch section modifications for all plans
+  const modifications = useQuery(
+    api.intelligence.getSectionModificationsByPlanIds,
+    planIds.length > 0 ? { planIds } : 'skip'
+  )
+
+  // Build modification lookup map by planId
+  const modificationsMap = useMemo(() => {
+    if (!modifications) return new Map()
+    return new Map(modifications.map(m => [m.planId, m]))
+  }, [modifications])
 
   // Simple stats from real data
   const stats = useMemo(() => {
@@ -120,6 +139,7 @@ function HistoryPage() {
       <HistoryTimeline
         plans={plans}
         paddockNameMap={paddockNameMap}
+        modificationsMap={modificationsMap}
       />
     </div>
     </div>

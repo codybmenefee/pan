@@ -715,6 +715,109 @@ export const getRestPeriodDistribution = query({
 })
 
 /**
+ * Record a section modification with rationale for AI training.
+ * Called when user modifies today's AI-suggested section and provides feedback.
+ */
+export const recordSectionModification = mutation({
+  args: {
+    planId: v.id('plans'),
+    originalGeometry: v.object({
+      type: v.literal('Polygon'),
+      coordinates: v.array(v.array(v.array(v.number()))),
+    }),
+    modifiedGeometry: v.object({
+      type: v.literal('Polygon'),
+      coordinates: v.array(v.array(v.array(v.number()))),
+    }),
+    originalAreaHectares: v.number(),
+    modifiedAreaHectares: v.number(),
+    rationale: v.optional(v.string()),
+    quickReasons: v.optional(v.array(v.string())),
+    modifiedBy: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const plan = await ctx.db.get(args.planId)
+    if (!plan) {
+      throw new Error('Plan not found')
+    }
+
+    await ctx.db.insert('sectionModifications', {
+      planId: args.planId,
+      farmExternalId: plan.farmExternalId,
+      paddockExternalId: plan.primaryPaddockExternalId ?? '',
+      originalGeometry: args.originalGeometry,
+      modifiedGeometry: args.modifiedGeometry,
+      originalAreaHectares: args.originalAreaHectares,
+      modifiedAreaHectares: args.modifiedAreaHectares,
+      rationale: args.rationale,
+      quickReasons: args.quickReasons,
+      modifiedAt: new Date().toISOString(),
+      modifiedBy: args.modifiedBy,
+    })
+
+    log.debug('Recorded section modification', {
+      planId: args.planId.toString(),
+      originalArea: args.originalAreaHectares,
+      modifiedArea: args.modifiedAreaHectares,
+      hasRationale: !!args.rationale,
+      quickReasonsCount: args.quickReasons?.length ?? 0,
+    })
+
+    return { success: true }
+  },
+})
+
+/**
+ * Get section modifications for multiple plans.
+ * Used by the History page to display feedback for modified plans.
+ */
+export const getSectionModificationsByPlanIds = query({
+  args: { planIds: v.array(v.id('plans')) },
+  handler: async (ctx, args) => {
+    const modifications = []
+    for (const planId of args.planIds) {
+      const mod = await ctx.db
+        .query('sectionModifications')
+        .withIndex('by_plan', (q: any) => q.eq('planId', planId))
+        .first()
+      if (mod) modifications.push(mod)
+    }
+    return modifications
+  },
+})
+
+/**
+ * Update feedback on an existing section modification.
+ * Allows farmers to edit their rationale/quick reasons after the fact.
+ */
+export const updateSectionModificationFeedback = mutation({
+  args: {
+    modificationId: v.id('sectionModifications'),
+    rationale: v.optional(v.string()),
+    quickReasons: v.optional(v.array(v.string())),
+  },
+  handler: async (ctx, args) => {
+    const modification = await ctx.db.get(args.modificationId)
+    if (!modification) {
+      throw new Error('Section modification not found')
+    }
+
+    await ctx.db.patch(args.modificationId, {
+      rationale: args.rationale,
+      quickReasons: args.quickReasons,
+    })
+
+    log.debug('Updated section modification feedback', {
+      modificationId: args.modificationId.toString(),
+      hasRationale: !!args.rationale,
+      quickReasonsCount: args.quickReasons?.length ?? 0,
+    })
+
+    return { success: true }
+  },
+})
+
+/**
  * Get plan approval statistics for AI partnership insights.
  */
 export const getPlanApprovalStats = query({

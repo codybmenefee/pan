@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { HistoryEventCard, type PlanData } from './HistoryEventCard'
+import { HistoryEventCard, type PlanData, type SectionModification } from './HistoryEventCard'
 
 interface HistoryTimelineProps {
   plans: PlanData[]
   paddockNameMap: Map<string, string>
+  modificationsMap?: Map<string, SectionModification>
   title?: string
 }
 
-export function HistoryTimeline({ plans, paddockNameMap, title = 'Timeline' }: HistoryTimelineProps) {
+export function HistoryTimeline({ plans, paddockNameMap, modificationsMap, title = 'Timeline' }: HistoryTimelineProps) {
   const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null)
 
   const handleToggleExpand = (planId: string) => {
@@ -32,6 +33,7 @@ export function HistoryTimeline({ plans, paddockNameMap, title = 'Timeline' }: H
                 key={plan._id}
                 plan={plan}
                 paddockName={paddockNameMap.get(plan.primaryPaddockExternalId ?? '') ?? 'Unknown'}
+                modification={modificationsMap?.get(plan._id)}
                 isLast={index === plans.length - 1}
                 isExpanded={expandedPlanId === plan._id}
                 onToggleExpand={() => handleToggleExpand(plan._id)}
