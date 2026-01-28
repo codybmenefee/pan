@@ -760,9 +760,9 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       }
     },
     focusOnFarmBoundary: () => {
-      if (!mapInstance || !farmGeometry || !hasValidBoundary()) return
+      if (!mapInstance || !farmGeometry) return
       userHasInteractedRef.current = false  // Reset so focus works
-      fitPolygonBounds(farmGeometry, 50)    // Use 50px padding like initial load
+      fitPolygonBounds(farmGeometry, 50)
     },
     createPaddockAtCenter: () => {
       if (!mapInstance) return null
@@ -840,7 +840,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     resetUserInteraction: () => {
       userHasInteractedRef.current = false
     },
-  }), [mapInstance, draw, setMode, deleteSelected, cancelDrawing, getPaddockById, fitPolygonBounds, createDraftSquare, addPaddock, addNoGrazeZone, addWaterSource, farmGeometry, hasValidBoundary])
+  }), [mapInstance, draw, setMode, deleteSelected, cancelDrawing, getPaddockById, fitPolygonBounds, createDraftSquare, addPaddock, addNoGrazeZone, addWaterSource, farmGeometry])
 
   // Handle paddock click wrapper
   const handlePaddockClick = useCallback((paddock: Paddock) => {
