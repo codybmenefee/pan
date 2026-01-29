@@ -14,6 +14,7 @@ export interface GeometryChange {
   entityType: EntityType
   changeType: GeometryChangeType
   geometry?: Feature<Polygon>
+  originalGeometry?: Feature<Polygon> // Original geometry before modification (for section updates)
   parentId?: string // paddockId for sections
   timestamp: string
   metadata?: Partial<PaddockMetadata | SectionMetadata | NoGrazeZoneMetadata | WaterSourceMetadata>

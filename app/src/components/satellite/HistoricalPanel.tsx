@@ -220,9 +220,6 @@ export function HistoricalPanelButton({
     >
       <Satellite className="h-3.5 w-3.5" />
       Historical
-      {isComingSoon && (
-        <span className="ml-1 text-[10px] font-normal opacity-75">(Coming soon)</span>
-      )}
     </Button>
   )
 
