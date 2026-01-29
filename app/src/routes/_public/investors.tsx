@@ -9,7 +9,7 @@ import {
 
 function InvestorsPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-[#233038] text-[#FDF6E3]">
+    <div className="min-h-screen flex flex-col bg-[#1a2429] text-[#FDF6E3]">
       <MarketingHeader />
 
       {/* Hero: The Thesis */}
@@ -44,7 +44,7 @@ function InvestorsPage() {
       </section>
 
       {/* Section 2: The Problem */}
-      <section className="py-10 bg-[#1a2429]">
+      <section className="py-10 bg-[#111719]">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto">
             <h2 className="text-2xl md:text-3xl font-bold text-center mb-2 text-[#FDF6E3]">
@@ -69,7 +69,7 @@ function InvestorsPage() {
       </section>
 
       {/* Section 3: Why Now - The AI Breakthrough */}
-      <section className="py-10 bg-[#233038]">
+      <section className="py-10 bg-[#1a2429]">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto">
             <h2 className="text-2xl md:text-3xl font-bold text-center mb-2 text-[#FDF6E3]">
@@ -79,7 +79,7 @@ function InvestorsPage() {
               Why this wasn't possible before—and why it is now.
             </p>
 
-            <div className="bg-[#1a2429]/50 border border-[#075056]/30 rounded-lg p-5 mb-6">
+            <div className="bg-[#111719]/60 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-5 mb-6">
               <p className="text-sm text-[#FDF6E3]/90 mb-4">
                 Before large language models, automating grazing decisions required building
                 a custom mathematical model for every farm—capturing every variable, every
@@ -145,7 +145,7 @@ function InvestorsPage() {
       </section>
 
       {/* Section 4: The System */}
-      <section className="py-10 bg-[#1a2429]">
+      <section className="py-10 bg-[#111719]">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto">
             <h2 className="text-2xl md:text-3xl font-bold text-center mb-2 text-[#FDF6E3]">
@@ -161,7 +161,7 @@ function InvestorsPage() {
       </section>
 
       {/* Section 5: Industrial Scale, Biological Methods */}
-      <section className="py-10 bg-[#233038]">
+      <section className="py-10 bg-[#1a2429]">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-2xl md:text-3xl font-bold mb-2 text-[#FDF6E3]">
@@ -172,7 +172,7 @@ function InvestorsPage() {
             </p>
 
             <div className="grid md:grid-cols-2 gap-4 max-w-2xl mx-auto">
-              <div className="bg-[#1a2429] border border-[#075056]/30 rounded-lg p-4 text-left">
+              <div className="bg-[#111719]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-4 text-left">
                 <div className="flex items-center gap-2 mb-2">
                   <Factory className="h-4 w-4 text-[#D3DBDD]" />
                   <h3 className="text-sm font-semibold text-[#FDF6E3]">Feedlots</h3>
@@ -185,7 +185,7 @@ function InvestorsPage() {
                 </ul>
               </div>
 
-              <div className="bg-gradient-to-br from-[#1a2429] to-[#075056]/20 border border-[#075056]/50 rounded-lg p-4 text-left">
+              <div className="bg-gradient-to-br from-[#111719] to-[#075056]/20 border border-[#075056]/50 rounded-lg p-4 text-left">
                 <div className="flex items-center gap-2 mb-2">
                   <Leaf className="h-4 w-4 text-[#075056]" />
                   <h3 className="text-sm font-semibold text-[#FDF6E3]">This System</h3>
@@ -207,7 +207,7 @@ function InvestorsPage() {
       </section>
 
       {/* Section 6: The Market */}
-      <section className="py-10 bg-[#1a2429]">
+      <section className="py-10 bg-[#111719]">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto">
             <div className="flex items-center gap-3 mb-4 justify-center">
@@ -221,19 +221,19 @@ function InvestorsPage() {
             </p>
 
             <div className="grid md:grid-cols-3 gap-4 mb-6">
-              <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-4 text-center">
+              <div className="bg-[#1a2429]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-4 text-center">
                 <div className="text-2xl font-bold text-[#FF5B04] mb-1">654M</div>
                 <p className="text-xs text-[#D3DBDD]">
                   Acres of US grazing land
                 </p>
               </div>
-              <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-4 text-center">
+              <div className="bg-[#1a2429]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-4 text-center">
                 <div className="text-2xl font-bold text-[#FF5B04] mb-1">~880K</div>
                 <p className="text-xs text-[#D3DBDD]">
                   Beef cattle operations in the US
                 </p>
               </div>
-              <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-4 text-center">
+              <div className="bg-[#1a2429]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-4 text-center">
                 <div className="text-2xl font-bold text-[#FF5B04] mb-1">$9.4B</div>
                 <p className="text-xs text-[#D3DBDD]">
                   Global precision livestock market by 2027
@@ -241,7 +241,7 @@ function InvestorsPage() {
               </div>
             </div>
 
-            <div className="bg-[#233038]/50 border border-[#075056]/20 rounded-lg p-5">
+            <div className="bg-[#1a2429]/50 border border-[#075056]/20 rounded-lg p-5">
               <p className="text-sm text-[#D3DBDD] mb-3">
                 The shift toward regenerative practices is accelerating—driven by consumer demand,
                 carbon credit markets, and recognition that industrial methods have hidden costs.
@@ -261,7 +261,7 @@ function InvestorsPage() {
       </section>
 
       {/* Section 7: The Platform Vision */}
-      <section className="py-10 bg-[#233038]">
+      <section className="py-10 bg-[#1a2429]">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto">
             <div className="flex items-center gap-3 mb-4 justify-center">
@@ -274,7 +274,7 @@ function InvestorsPage() {
               Not just software. An integrated stack for regenerative livestock at scale.
             </p>
 
-            <div className="bg-[#1a2429] border border-[#075056]/30 rounded-lg p-5 mb-4">
+            <div className="bg-[#111719]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-5 mb-4">
               <p className="text-sm text-[#FDF6E3] font-medium mb-4">
                 We're building what John Deere built for industrial farming—but for rotational grazing.
               </p>
@@ -313,7 +313,7 @@ function InvestorsPage() {
       </section>
 
       {/* Section 8: The Moat */}
-      <section className="py-10 bg-[#1a2429]">
+      <section className="py-10 bg-[#111719]">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto">
             <div className="flex items-center gap-3 mb-4 justify-center">
@@ -327,7 +327,7 @@ function InvestorsPage() {
             </p>
 
             <div className="space-y-4">
-              <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-5">
+              <div className="bg-[#1a2429]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-5">
                 <div className="flex items-start gap-3">
                   <RefreshCw className="h-5 w-5 text-[#F4D47C] mt-0.5 flex-shrink-0" />
                   <div>
@@ -344,7 +344,7 @@ function InvestorsPage() {
                 </div>
               </div>
 
-              <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-5">
+              <div className="bg-[#1a2429]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-5">
                 <div className="flex items-start gap-3">
                   <Users className="h-5 w-5 text-[#075056] mt-0.5 flex-shrink-0" />
                   <div>
@@ -366,7 +366,7 @@ function InvestorsPage() {
       </section>
 
       {/* Section 9: Get Involved */}
-      <section className="py-10 bg-gradient-to-b from-[#233038] to-[#075056]/20">
+      <section className="py-10 bg-gradient-to-b from-[#1a2429] to-[#075056]/20">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-2xl md:text-3xl font-bold mb-2 text-[#FDF6E3]">
@@ -379,7 +379,7 @@ function InvestorsPage() {
             <div className="grid md:grid-cols-3 gap-3 mb-6">
               <Link
                 to="/technology"
-                className="bg-[#233038] border border-[#075056]/30 rounded-lg p-4 hover:border-[#075056] transition-colors block"
+                className="bg-[#1a2429]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-4 hover:border-[#075056] transition-colors block"
               >
                 <h3 className="text-sm font-semibold text-[#FDF6E3] mb-1">Technology Deep Dive</h3>
                 <p className="text-xs text-[#D3DBDD]">
@@ -389,7 +389,7 @@ function InvestorsPage() {
 
               <Link
                 to="/research"
-                className="bg-[#233038] border border-[#075056]/30 rounded-lg p-4 hover:border-[#075056] transition-colors block"
+                className="bg-[#1a2429]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-4 hover:border-[#075056] transition-colors block"
               >
                 <h3 className="text-sm font-semibold text-[#FDF6E3] mb-1">Research Partnerships</h3>
                 <p className="text-xs text-[#D3DBDD]">
@@ -399,7 +399,7 @@ function InvestorsPage() {
 
               <Link
                 to="/onboarding"
-                className="bg-[#233038] border border-[#075056]/30 rounded-lg p-4 hover:border-[#075056] transition-colors block"
+                className="bg-[#1a2429]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-4 hover:border-[#075056] transition-colors block"
               >
                 <h3 className="text-sm font-semibold text-[#FDF6E3] mb-1">Try It Free</h3>
                 <p className="text-xs text-[#D3DBDD]">

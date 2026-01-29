@@ -4,7 +4,7 @@ import { ScreenshotDisplay } from './ScreenshotDisplay'
 
 export function HeroSection() {
   return (
-    <section className="relative bg-gradient-to-b from-[#233038] via-[#1a2429] to-[#233038]">
+    <section className="relative bg-gradient-to-b from-[#1a2429] via-[#111719] to-[#1a2429]">
       {/* Subtle gradient accent */}
       <div
         className="absolute inset-0 bg-gradient-to-br from-[#075056]/20 via-transparent to-[#075056]/20 pointer-events-none"
@@ -28,7 +28,7 @@ export function HeroSection() {
           <div className="flex flex-col sm:flex-row gap-3 justify-center items-center pt-2">
             <Link
               to="/onboarding"
-              className="inline-flex items-center justify-center text-sm px-5 py-2.5 rounded-md bg-[#075056] hover:bg-[#FF5B04] text-[#FDF6E3] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#233038]"
+              className="inline-flex items-center justify-center text-sm px-5 py-2.5 rounded-md bg-[#075056] hover:bg-[#FF5B04] text-[#FDF6E3] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1a2429]"
             >
               Join the Waitlist
               <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
@@ -36,7 +36,7 @@ export function HeroSection() {
 
             <a
               href="#how-it-works"
-              className="inline-flex items-center justify-center text-sm px-5 py-2.5 rounded-md border border-[#075056]/30 text-[#D3DBDD] hover:bg-[#075056]/20 hover:text-[#FDF6E3] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#233038]"
+              className="inline-flex items-center justify-center text-sm px-5 py-2.5 rounded-md border border-[#075056]/30 text-[#D3DBDD] hover:bg-[#075056]/20 hover:text-[#FDF6E3] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1a2429]"
             >
               <Play className="mr-2 h-4 w-4" aria-hidden="true" />
               See How It Works

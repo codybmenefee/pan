@@ -1,9 +1,9 @@
 export function EconomicProof() {
   return (
-    <section className="py-12 bg-[#233038]" aria-labelledby="economic-proof-heading">
+    <section className="py-12 bg-[#1a2429]" aria-labelledby="economic-proof-heading">
       <div className="container mx-auto px-4">
         <div className="max-w-3xl mx-auto">
-          <div className="bg-gradient-to-br from-[#1a2429] to-[#1a2429]/50 border border-[#075056]/30 rounded-xl p-6 md:p-8">
+          <div className="bg-gradient-to-br from-[#111719] to-[#111719]/50 border border-[#075056]/30 rounded-xl p-6 md:p-8">
             <div className="text-center space-y-5">
               <h2
                 id="economic-proof-heading"
@@ -30,7 +30,7 @@ export function EconomicProof() {
                     <span className="text-[#D3DBDD]">Continuous Grazing (Industrial)</span>
                     <span className="text-red-400">Baseline</span>
                   </div>
-                  <div className="h-3 bg-[#233038] rounded-full overflow-hidden">
+                  <div className="h-3 bg-[#1a2429] rounded-full overflow-hidden">
                     <div
                       className="h-full w-[30%] bg-gradient-to-r from-red-500/60 to-red-600/60 rounded-full transition-all duration-500"
                       aria-hidden="true"
@@ -43,7 +43,7 @@ export function EconomicProof() {
                     <span className="text-[#D3DBDD]">Manual Rotational</span>
                     <span className="text-[#F4D47C]">+$400/acre</span>
                   </div>
-                  <div className="h-3 bg-[#233038] rounded-full overflow-hidden">
+                  <div className="h-3 bg-[#1a2429] rounded-full overflow-hidden">
                     <div
                       className="h-full w-[55%] bg-gradient-to-r from-[#F4D47C]/60 to-[#F4D47C]/80 rounded-full transition-all duration-500"
                       aria-hidden="true"
@@ -56,7 +56,7 @@ export function EconomicProof() {
                     <span className="text-[#D3DBDD]">AI-Optimized Rotational</span>
                     <span className="text-[#FF5B04]">+$1,000+/acre</span>
                   </div>
-                  <div className="h-3 bg-[#233038] rounded-full overflow-hidden">
+                  <div className="h-3 bg-[#1a2429] rounded-full overflow-hidden">
                     <div
                       className="h-full w-[90%] bg-gradient-to-r from-[#075056] to-[#FF5B04] rounded-full transition-all duration-500"
                       aria-hidden="true"

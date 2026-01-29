@@ -1,11 +1,11 @@
 import { Link } from '@tanstack/react-router'
 
 const focusRing =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1a2429] rounded'
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111719] rounded'
 
 export function Footer() {
   return (
-    <footer className="bg-[#1a2429] border-t border-[#075056]/30" role="contentinfo">
+    <footer className="bg-[#111719] border-t border-[#075056]/30" role="contentinfo">
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm">
           {/* Product */}

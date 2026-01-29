@@ -26,7 +26,7 @@ const stages = [
 
 export function VisionRoadmap() {
   return (
-    <section className="py-16 md:py-20 bg-[#1a2429]" aria-labelledby="vision-heading">
+    <section className="py-16 md:py-20 bg-[#111719]" aria-labelledby="vision-heading">
       <div className="container mx-auto px-4">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10">
@@ -71,8 +71,8 @@ export function VisionRoadmap() {
                         ${isActive
                           ? 'bg-[#075056] border-[#075056] text-[#FDF6E3]'
                           : isFuture
-                            ? 'bg-[#233038] border-[#075056]/30 text-[#D3DBDD]/50'
-                            : 'bg-[#233038] border-[#075056]/50 text-[#D3DBDD]'
+                            ? 'bg-[#1a2429] border-[#075056]/30 text-[#D3DBDD]/50'
+                            : 'bg-[#1a2429] border-[#075056]/50 text-[#D3DBDD]'
                         }
                       `}>
                         <Icon className="h-6 w-6" aria-hidden="true" />
@@ -105,7 +105,7 @@ export function VisionRoadmap() {
           </div>
 
           {/* Platform Vision */}
-          <div className="mt-12 bg-gradient-to-br from-[#233038] to-[#075056]/20 border border-[#075056]/30 rounded-lg p-6 text-center">
+          <div className="mt-12 bg-gradient-to-br from-[#1a2429] to-[#075056]/20 border border-[#075056]/30 rounded-lg p-6 text-center">
             <p className="text-lg text-[#FDF6E3] font-medium mb-2">
               Software. Sensors. Tools.
             </p>

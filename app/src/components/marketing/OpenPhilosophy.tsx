@@ -25,7 +25,7 @@ const principles = [
 
 export function OpenPhilosophy() {
   return (
-    <section className="py-16 md:py-20 bg-[#233038]" aria-labelledby="open-philosophy-heading">
+    <section className="py-16 md:py-20 bg-[#1a2429]" aria-labelledby="open-philosophy-heading">
       <div className="container mx-auto px-4">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10">
@@ -47,7 +47,7 @@ export function OpenPhilosophy() {
               return (
                 <div
                   key={index}
-                  className="bg-[#1a2429] border border-[#075056]/30 rounded-lg p-5 flex items-start gap-4"
+                  className="bg-[#111719]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-5 flex items-start gap-4"
                 >
                   <div className="rounded-lg bg-[#075056]/20 p-2.5 flex-shrink-0">
                     <Icon className="h-5 w-5 text-[#075056]" aria-hidden="true" />

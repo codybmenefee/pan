@@ -14,7 +14,7 @@ export function ScreenshotDisplay({ src, alt, className = '' }: ScreenshotDispla
       />
 
       {/* Screenshot frame */}
-      <div className="relative bg-[#1a2429] border border-[#075056]/30 rounded-lg shadow-2xl shadow-[#075056]/10 overflow-hidden">
+      <div className="relative bg-[#111719]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-2xl shadow-[#075056]/20 overflow-hidden">
         {/* Screenshot content */}
         <img
           src={src}

@@ -24,7 +24,7 @@ const stats = [
 
 export function SocialProof() {
   return (
-    <section className="py-16 md:py-24 bg-[#1a2429]" aria-labelledby="social-proof-heading">
+    <section className="py-16 md:py-24 bg-[#111719]" aria-labelledby="social-proof-heading">
       <div className="container mx-auto px-4">
         <div className="max-w-5xl mx-auto">
           <div className="text-center space-y-4 mb-12">
@@ -54,7 +54,7 @@ export function SocialProof() {
             {testimonials.map((testimonial, index) => (
               <figure
                 key={index}
-                className="bg-[#233038] border border-[#075056]/30 rounded-lg p-6 hover:border-[#075056]/50 transition-colors"
+                className="bg-[#1a2429]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-6 hover:border-[#075056]/50 transition-colors"
               >
                 <blockquote>
                   <p className="text-base italic text-[#FDF6E3]/90 mb-4">

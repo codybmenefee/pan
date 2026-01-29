@@ -14,7 +14,7 @@ import {
 
 function MarketingPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-[#233038] text-[#FDF6E3]">
+    <div className="min-h-screen flex flex-col bg-[#1a2429] text-[#FDF6E3]">
       <MarketingHeader />
       <HeroSection />
       <BetaValueProp />

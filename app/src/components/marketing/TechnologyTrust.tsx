@@ -22,7 +22,7 @@ const trustPoints = [
 
 export function TechnologyTrust() {
   return (
-    <section className="py-12 bg-[#233038]" aria-labelledby="technology-heading">
+    <section className="py-12 bg-[#1a2429]" aria-labelledby="technology-heading">
       <div className="container mx-auto px-4">
         <div className="max-w-3xl mx-auto text-center space-y-6">
           <div>
@@ -60,7 +60,7 @@ export function TechnologyTrust() {
                 href="https://planetarycomputer.microsoft.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[#075056] hover:text-[#FF5B04] hover:underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#233038] rounded"
+                className="text-[#075056] hover:text-[#FF5B04] hover:underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1a2429] rounded"
               >
                 Microsoft Planetary Computer
               </a>
@@ -69,14 +69,14 @@ export function TechnologyTrust() {
                 href="https://sentinels.copernicus.eu"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[#075056] hover:text-[#FF5B04] hover:underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#233038] rounded"
+                className="text-[#075056] hover:text-[#FF5B04] hover:underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1a2429] rounded"
               >
                 Copernicus Sentinel-2
               </a>
             </p>
             <Link
               to="/technology"
-              className="text-xs text-[#075056] hover:text-[#FF5B04] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#233038] rounded"
+              className="text-xs text-[#075056] hover:text-[#FF5B04] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1a2429] rounded"
             >
               Learn more about our technology →
             </Link>

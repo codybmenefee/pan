@@ -30,7 +30,7 @@ const technologies = [
 export function TechnologyConvergence() {
   return (
     <div className="w-full max-w-2xl mx-auto">
-      <div className="bg-[#1a2429]/50 border border-[#075056]/30 rounded-lg p-4">
+      <div className="bg-[#111719]/60 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-4">
         <h3 className="text-sm font-semibold text-[#FDF6E3] mb-4 text-center">
           Technology Convergence
         </h3>
@@ -49,7 +49,7 @@ export function TechnologyConvergence() {
                   <div className={`absolute left-2.5 w-3.5 h-3.5 rounded-full flex items-center justify-center ${
                     tech.highlight
                       ? 'bg-[#FF5B04] border-2 border-[#FF5B04]'
-                      : 'bg-[#233038] border-2 border-[#075056]'
+                      : 'bg-[#1a2429] border-2 border-[#075056]'
                   }`}>
                     {tech.highlight ? (
                       <Sparkles className="h-2 w-2 text-white" />
@@ -62,7 +62,7 @@ export function TechnologyConvergence() {
                   <div className={`flex-1 flex items-center justify-between rounded-md p-2.5 ${
                     tech.highlight
                       ? 'bg-[#FF5B04]/10 border border-[#FF5B04]/30'
-                      : 'bg-[#233038]/50'
+                      : 'bg-[#1a2429]/50'
                   }`}>
                     <div className="flex items-center gap-2">
                       <Icon className={`h-3.5 w-3.5 ${tech.highlight ? 'text-[#FF5B04]' : 'text-[#075056]'}`} />

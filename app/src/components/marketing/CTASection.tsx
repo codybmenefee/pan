@@ -3,7 +3,7 @@ import { ArrowRight, Users, Gift, Clock } from 'lucide-react'
 
 export function CTASection() {
   return (
-    <section className="py-12 bg-gradient-to-b from-[#233038] to-[#075056]/20" aria-labelledby="cta-heading">
+    <section className="py-12 bg-gradient-to-b from-[#1a2429] to-[#075056]/20" aria-labelledby="cta-heading">
       <div className="container mx-auto px-4">
         <div className="max-w-2xl mx-auto text-center space-y-6">
           <div>
@@ -24,7 +24,7 @@ export function CTASection() {
           <div className="flex flex-col sm:flex-row gap-3 justify-center items-center pt-2">
             <Link
               to="/onboarding"
-              className="inline-flex items-center justify-center text-base px-6 py-3 rounded-md bg-[#075056] hover:bg-[#FF5B04] text-[#FDF6E3] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#233038]"
+              className="inline-flex items-center justify-center text-base px-6 py-3 rounded-md bg-[#075056] hover:bg-[#FF5B04] text-[#FDF6E3] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1a2429]"
             >
               Request Early Access
               <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />

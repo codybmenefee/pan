@@ -20,7 +20,7 @@ export function ProductShowcase({
   badge,
 }: ProductShowcaseProps) {
   return (
-    <section className="py-16 md:py-24 bg-[#233038] relative overflow-hidden">
+    <section className="py-16 md:py-24 bg-[#1a2429] relative overflow-hidden">
       {/* Subtle gradient accent */}
       <div
         className={`absolute inset-0 bg-gradient-to-br ${

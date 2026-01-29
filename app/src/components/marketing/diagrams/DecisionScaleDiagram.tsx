@@ -1,20 +1,20 @@
 export function DecisionScaleDiagram() {
   return (
     <div className="w-full max-w-lg mx-auto">
-      <div className="bg-[#1a2429]/50 border border-[#075056]/30 rounded-lg p-4">
+      <div className="bg-[#111719]/60 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-4">
         <h3 className="text-sm font-semibold text-[#FDF6E3]/90 mb-3 text-center">
           Decision Complexity vs. Herd Size
         </h3>
 
         {/* Chart area */}
-        <div className="relative h-40">
+        <div className="relative h-40 ml-4">
           {/* Y-axis label */}
-          <div className="absolute -left-1 top-1/2 -translate-y-1/2 -rotate-90 text-[10px] text-[#D3DBDD]/70 whitespace-nowrap">
+          <div className="absolute -left-9 top-1/2 -translate-y-1/2 -rotate-90 text-[10px] text-[#D3DBDD] whitespace-nowrap origin-center">
             Decision Complexity
           </div>
 
           {/* Chart grid */}
-          <div className="ml-6 h-full relative border-l border-b border-[#075056]/30">
+          <div className="ml-2 h-full relative border-l border-b border-[#075056]/30">
             {/* Grid lines */}
             <div className="absolute inset-0 flex flex-col justify-between">
               {[...Array(4)].map((_, i) => (
@@ -50,26 +50,26 @@ export function DecisionScaleDiagram() {
             </svg>
 
             {/* Threshold label */}
-            <div className="absolute right-1 top-[28%] text-[10px] text-[#F4D47C]">
+            <div className="absolute right-1 top-[25%] text-[10px] text-[#F4D47C]">
               Human capacity
             </div>
 
             {/* Zone labels */}
-            <div className="absolute left-2 bottom-2 text-[10px] text-[#075056]">
+            <div className="absolute left-5 bottom-8 text-[10px] text-[#075056] bg-[#111719]/90 px-1.5 py-0.5 rounded">
               Manageable
             </div>
-            <div className="absolute right-2 top-2 text-[10px] text-red-400">
+            <div className="absolute right-[21%] top-2 text-[10px] text-red-400 bg-[#111719]/90 px-1.5 py-0.5 rounded">
               Execution collapse
             </div>
           </div>
 
           {/* X-axis label */}
-          <div className="text-center text-[10px] text-[#D3DBDD]/70 mt-1 ml-6">
+          <div className="text-center text-[10px] text-[#D3DBDD] mt-2 ml-2">
             Herd Size / Paddock Count
           </div>
         </div>
 
-        <p className="text-center text-xs text-[#D3DBDD] mt-3">
+        <p className="text-center text-xs text-[#D3DBDD] mt-5">
           The biology can go further. Execution collapses first.
         </p>
       </div>

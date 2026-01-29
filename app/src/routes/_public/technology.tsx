@@ -5,11 +5,11 @@ import { SystemArchitectureDiagram } from '@/components/marketing/diagrams'
 
 function TechnologyPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-[#233038] text-[#FDF6E3]">
+    <div className="min-h-screen flex flex-col bg-[#1a2429] text-[#FDF6E3]">
       <MarketingHeader />
 
       {/* Hero */}
-      <section className="py-16 md:py-24 bg-gradient-to-b from-[#233038] via-[#1a2429] to-[#233038]">
+      <section className="py-16 md:py-24 bg-gradient-to-b from-[#1a2429] via-[#111719] to-[#1a2429]">
         <div className="absolute inset-0 bg-gradient-to-br from-[#075056]/20 via-transparent to-[#075056]/20 pointer-events-none" />
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-4xl mx-auto">
@@ -37,7 +37,7 @@ function TechnologyPage() {
       </section>
 
       {/* Data Sources */}
-      <section className="py-16 md:py-24 bg-[#1a2429]">
+      <section className="py-16 md:py-24 bg-[#111719]">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-[#FDF6E3]">Data Sources</h2>
@@ -46,7 +46,7 @@ function TechnologyPage() {
             </p>
 
             <div className="grid md:grid-cols-2 gap-4">
-              <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-5">
+              <div className="bg-[#1a2429]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-5">
                 <div className="flex items-center gap-3 mb-3">
                   <Satellite className="h-5 w-5 text-[#075056]" />
                   <h3 className="text-base font-semibold text-[#FDF6E3]">Satellite Imagery</h3>
@@ -61,7 +61,7 @@ function TechnologyPage() {
                 </ul>
               </div>
 
-              <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-5">
+              <div className="bg-[#1a2429]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-5">
                 <div className="flex items-center gap-3 mb-3">
                   <Cloud className="h-5 w-5 text-[#075056]" />
                   <h3 className="text-base font-semibold text-[#FDF6E3]">Weather Integration</h3>
@@ -73,7 +73,7 @@ function TechnologyPage() {
                 </ul>
               </div>
 
-              <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-5">
+              <div className="bg-[#1a2429]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-5">
                 <div className="flex items-center gap-3 mb-3">
                   <MapPin className="h-5 w-5 text-[#075056]" />
                   <h3 className="text-base font-semibold text-[#FDF6E3]">Paddock Boundaries</h3>
@@ -85,7 +85,7 @@ function TechnologyPage() {
                 </ul>
               </div>
 
-              <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-5">
+              <div className="bg-[#1a2429]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-5">
                 <div className="flex items-center gap-3 mb-3">
                   <FileText className="h-5 w-5 text-[#075056]" />
                   <h3 className="text-base font-semibold text-[#FDF6E3]">Farmer Input</h3>
@@ -102,7 +102,7 @@ function TechnologyPage() {
       </section>
 
       {/* Our Core Bet: LLMs as Agricultural Reasoning Engines */}
-      <section className="py-16 md:py-24 bg-[#233038]">
+      <section className="py-16 md:py-24 bg-[#1a2429]">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <div className="flex items-center gap-3 mb-4">
@@ -113,7 +113,7 @@ function TechnologyPage() {
               LLMs as Agricultural Reasoning Engines
             </p>
 
-            <div className="bg-[#1a2429] border border-[#075056]/30 rounded-lg p-6 md:p-8 mb-6">
+            <div className="bg-[#111719]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-6 md:p-8 mb-6">
               <p className="text-[#D3DBDD] mb-5">
                 Traditional agricultural software required expensive custom models for every
                 decision type. We took a different approach.
@@ -130,19 +130,19 @@ function TechnologyPage() {
               </p>
 
               <div className="grid md:grid-cols-3 gap-3 mb-5">
-                <div className="bg-[#233038]/80 rounded-lg p-4 border border-[#075056]/20">
+                <div className="bg-[#1a2429]/80 rounded-lg p-4 border border-[#075056]/20">
                   <div className="text-[#075056] font-bold text-sm mb-2">1. The Facts</div>
                   <p className="text-[#D3DBDD] text-sm">
                     Vegetation health, grazing history, weather patterns
                   </p>
                 </div>
-                <div className="bg-[#233038]/80 rounded-lg p-4 border border-[#075056]/20">
+                <div className="bg-[#1a2429]/80 rounded-lg p-4 border border-[#075056]/20">
                   <div className="text-[#075056] font-bold text-sm mb-2">2. The Wisdom</div>
                   <p className="text-[#D3DBDD] text-sm">
                     Rotational grazing principles and how to apply them
                   </p>
                 </div>
-                <div className="bg-[#233038]/80 rounded-lg p-4 border border-[#075056]/20">
+                <div className="bg-[#1a2429]/80 rounded-lg p-4 border border-[#075056]/20">
                   <div className="text-[#075056] font-bold text-sm mb-2">3. The Output Format</div>
                   <p className="text-[#D3DBDD] text-sm">
                     Exactly what shape to draw and why
@@ -175,7 +175,7 @@ function TechnologyPage() {
       </section>
 
       {/* System Architecture */}
-      <section className="py-16 md:py-24 bg-[#1a2429]">
+      <section className="py-16 md:py-24 bg-[#111719]">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-[#FDF6E3]">System Architecture</h2>
@@ -213,7 +213,7 @@ function TechnologyPage() {
       </section>
 
       {/* Building the Training Data - Feedback Flywheel */}
-      <section className="py-16 md:py-24 bg-[#233038]">
+      <section className="py-16 md:py-24 bg-[#1a2429]">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <div className="flex items-center gap-3 mb-4">
@@ -224,7 +224,7 @@ function TechnologyPage() {
               That Doesn't Exist Anywhere Else
             </p>
 
-            <div className="bg-[#1a2429] border border-[#075056]/30 rounded-lg p-6 md:p-8 mb-6">
+            <div className="bg-[#111719]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-6 md:p-8 mb-6">
               <p className="text-[#F4D47C] font-semibold text-lg mb-5">
                 The question the AI answers daily: "What would an experienced farmer do?"
               </p>
@@ -234,13 +234,13 @@ function TechnologyPage() {
               </p>
 
               <div className="grid md:grid-cols-2 gap-3 mb-5">
-                <div className="bg-[#233038]/80 rounded-lg p-4 border-l-2 border-[#F4D47C]">
+                <div className="bg-[#1a2429]/80 rounded-lg p-4 border-l-2 border-[#F4D47C]">
                   <div className="text-[#FDF6E3] font-medium mb-2">The Question</div>
                   <p className="text-[#D3DBDD] text-sm">
                     Farm state on that day (vegetation health, weather, history)
                   </p>
                 </div>
-                <div className="bg-[#233038]/80 rounded-lg p-4 border-l-2 border-[#075056]">
+                <div className="bg-[#1a2429]/80 rounded-lg p-4 border-l-2 border-[#075056]">
                   <div className="text-[#FDF6E3] font-medium mb-2">The Answer</div>
                   <p className="text-[#D3DBDD] text-sm">
                     What the experienced farmer actually chose
@@ -278,7 +278,7 @@ function TechnologyPage() {
       </section>
 
       {/* The Foundation */}
-      <section className="py-16 md:py-24 bg-[#1a2429]">
+      <section className="py-16 md:py-24 bg-[#111719]">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <div className="flex items-center gap-3 mb-4">
@@ -291,7 +291,7 @@ function TechnologyPage() {
 
             <div className="grid md:grid-cols-2 gap-4">
               {/* Today */}
-              <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-5">
+              <div className="bg-[#1a2429]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-5">
                 <div className="text-[#075056] font-bold text-xs uppercase tracking-wide mb-3">Today</div>
                 <h3 className="text-lg font-semibold text-[#FDF6E3] mb-3">
                   Satellite-Based Intelligence
@@ -316,7 +316,7 @@ function TechnologyPage() {
               </div>
 
               {/* Growing Smarter */}
-              <div className="bg-gradient-to-br from-[#233038] to-[#075056]/20 border border-[#075056]/50 rounded-lg p-5">
+              <div className="bg-gradient-to-br from-[#1a2429] to-[#075056]/20 border border-[#075056]/50 rounded-lg p-5">
                 <div className="text-[#FF5B04] font-bold text-xs uppercase tracking-wide mb-3">Growing Smarter</div>
                 <h3 className="text-lg font-semibold text-[#FDF6E3] mb-3">
                   Each Data Layer Improves Decisions
@@ -360,7 +360,7 @@ function TechnologyPage() {
       </section>
 
       {/* Integration Points */}
-      <section className="py-16 md:py-24 bg-[#233038]">
+      <section className="py-16 md:py-24 bg-[#1a2429]">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-[#FDF6E3]">Integration Points</h2>
@@ -369,21 +369,21 @@ function TechnologyPage() {
             </p>
 
             <div className="space-y-4">
-              <div className="bg-[#1a2429] border border-[#075056]/30 rounded-lg p-5">
+              <div className="bg-[#111719]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-5">
                 <h3 className="text-base font-semibold text-[#FDF6E3] mb-2">Virtual Fencing Systems</h3>
                 <p className="text-[#D3DBDD] text-sm">
                   Export fence geometry and grazing schedules in formats compatible with major virtual fencing providers. Instructions can be pushed directly to collars.
                 </p>
               </div>
 
-              <div className="bg-[#1a2429] border border-[#075056]/30 rounded-lg p-5">
+              <div className="bg-[#111719]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-5">
                 <h3 className="text-base font-semibold text-[#FDF6E3] mb-2">Data Export</h3>
                 <p className="text-[#D3DBDD] text-sm">
                   GeoJSON for paddock boundaries, CSV for time-series data, PDF for reports. API access for custom integrations.
                 </p>
               </div>
 
-              <div className="bg-[#1a2429] border border-[#075056]/30 rounded-lg p-5">
+              <div className="bg-[#111719]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-5">
                 <h3 className="text-base font-semibold text-[#FDF6E3] mb-2">Farm Management Software</h3>
                 <p className="text-[#D3DBDD] text-sm">
                   Webhook notifications and API endpoints for integration with existing farm management platforms.
@@ -395,7 +395,7 @@ function TechnologyPage() {
       </section>
 
       {/* The Data Advantage */}
-      <section className="py-16 md:py-24 bg-[#1a2429]">
+      <section className="py-16 md:py-24 bg-[#111719]">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-[#FDF6E3]">The Data Advantage</h2>
@@ -403,7 +403,7 @@ function TechnologyPage() {
               Why this compounds over time.
             </p>
 
-            <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-6 md:p-8 mb-6">
+            <div className="bg-[#1a2429]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-6 md:p-8 mb-6">
               <div className="mb-4 pb-4 border-b border-[#075056]/20">
                 <span className="inline-block px-2.5 py-1 text-xs font-semibold uppercase tracking-wide bg-[#FF5B04]/20 text-[#FF5B04] rounded-full">
                   Beta Users Drive This
@@ -437,7 +437,7 @@ function TechnologyPage() {
       </section>
 
       {/* Built Open */}
-      <section className="py-16 md:py-24 bg-[#233038]">
+      <section className="py-16 md:py-24 bg-[#1a2429]">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center">
             <Globe className="h-10 w-10 text-[#075056] mx-auto mb-5" />
@@ -447,28 +447,28 @@ function TechnologyPage() {
             </p>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-[#1a2429] border border-[#075056]/30 rounded-lg p-5">
+              <div className="bg-[#111719]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-5">
                 <h3 className="font-semibold text-[#FDF6E3] mb-2">Open Source Software</h3>
                 <p className="text-sm text-[#D3DBDD]">
                   Our code is public. Inspect it, fork it, contribute to it.
                 </p>
               </div>
 
-              <div className="bg-[#1a2429] border border-[#075056]/30 rounded-lg p-5">
+              <div className="bg-[#111719]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-5">
                 <h3 className="font-semibold text-[#FDF6E3] mb-2">Open Satellite Data</h3>
                 <p className="text-sm text-[#D3DBDD]">
                   Free tier powered by ESA Copernicus—no vendor lock-in.
                 </p>
               </div>
 
-              <div className="bg-[#1a2429] border border-[#075056]/30 rounded-lg p-5">
+              <div className="bg-[#111719]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-5">
                 <h3 className="font-semibold text-[#FDF6E3] mb-2">Open Hardware Specs</h3>
                 <p className="text-sm text-[#D3DBDD]">
                   Right to repair. Build, modify, and fix your own equipment.
                 </p>
               </div>
 
-              <div className="bg-[#1a2429] border border-[#075056]/30 rounded-lg p-5">
+              <div className="bg-[#111719]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-5">
                 <h3 className="font-semibold text-[#FDF6E3] mb-2">Your Data</h3>
                 <p className="text-sm text-[#D3DBDD]">
                   Export everything. Your farm data belongs to you.
