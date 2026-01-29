@@ -24,6 +24,9 @@ interface AppAuthContextValue {
   isLoaded: boolean
   isSignedIn: boolean
   isDevAuth: boolean
+  // Demo mode fields
+  isDemoMode: boolean
+  demoSessionId: string | null
   // Organization fields
   organizationId: string | null
   organizationList: OrganizationInfo[]
@@ -92,6 +95,8 @@ function ClerkAuthBridge({ children }: { children: ReactNode }) {
       isLoaded,
       isSignedIn: !!isSignedIn,
       isDevAuth: false,
+      isDemoMode: false,
+      demoSessionId: null,
       organizationId: organization?.id ?? null,
       organizationList,
       isOrgLoaded,
@@ -112,6 +117,8 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
           isLoaded: true,
           isSignedIn: true,
           isDevAuth: true,
+          isDemoMode: false,
+          demoSessionId: null,
           organizationId: DEV_DEFAULT_ORG_ID,
           organizationList: DEV_ORGS.map(org => ({ id: org.id, name: org.name })),
           isOrgLoaded: true,

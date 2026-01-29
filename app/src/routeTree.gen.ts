@@ -10,9 +10,12 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as DemoRouteImport } from './routes/demo'
 import { Route as PublicRouteImport } from './routes/_public'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as DemoIndexRouteImport } from './routes/demo/index'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as DemoSettingsRouteImport } from './routes/demo/settings'
 import { Route as PublicTechnologyRouteImport } from './routes/_public/technology'
 import { Route as PublicResearchRouteImport } from './routes/_public/research'
 import { Route as PublicMarketingRouteImport } from './routes/_public/marketing'
@@ -33,6 +36,11 @@ const SignInRoute = SignInRouteImport.update({
   path: '/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PublicRoute = PublicRouteImport.update({
   id: '/_public',
   getParentRoute: () => rootRouteImport,
@@ -41,10 +49,20 @@ const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DemoIndexRoute = DemoIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DemoRoute,
+} as any)
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppRoute,
+} as any)
+const DemoSettingsRoute = DemoSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => DemoRoute,
 } as any)
 const PublicTechnologyRoute = PublicTechnologyRouteImport.update({
   id: '/technology',
@@ -119,6 +137,7 @@ const PublicDocsCategoryArticleRoute =
   } as any)
 
 export interface FileRoutesByFullPath {
+  '/demo': typeof DemoRouteWithChildren
   '/sign-in': typeof SignInRoute
   '/analytics': typeof AppAnalyticsRoute
   '/history': typeof AppHistoryRoute
@@ -131,7 +150,9 @@ export interface FileRoutesByFullPath {
   '/marketing': typeof PublicMarketingRoute
   '/research': typeof PublicResearchRoute
   '/technology': typeof PublicTechnologyRoute
+  '/demo/settings': typeof DemoSettingsRoute
   '/': typeof AppIndexRoute
+  '/demo/': typeof DemoIndexRoute
   '/paddocks/$id': typeof AppPaddocksIdRoute
   '/docs/': typeof PublicDocsIndexRoute
   '/docs/$category/$article': typeof PublicDocsCategoryArticleRoute
@@ -148,7 +169,9 @@ export interface FileRoutesByTo {
   '/marketing': typeof PublicMarketingRoute
   '/research': typeof PublicResearchRoute
   '/technology': typeof PublicTechnologyRoute
+  '/demo/settings': typeof DemoSettingsRoute
   '/': typeof AppIndexRoute
+  '/demo': typeof DemoIndexRoute
   '/paddocks/$id': typeof AppPaddocksIdRoute
   '/docs': typeof PublicDocsIndexRoute
   '/docs/$category/$article': typeof PublicDocsCategoryArticleRoute
@@ -157,6 +180,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/_public': typeof PublicRouteWithChildren
+  '/demo': typeof DemoRouteWithChildren
   '/sign-in': typeof SignInRoute
   '/_app/analytics': typeof AppAnalyticsRoute
   '/_app/history': typeof AppHistoryRoute
@@ -169,7 +193,9 @@ export interface FileRoutesById {
   '/_public/marketing': typeof PublicMarketingRoute
   '/_public/research': typeof PublicResearchRoute
   '/_public/technology': typeof PublicTechnologyRoute
+  '/demo/settings': typeof DemoSettingsRoute
   '/_app/': typeof AppIndexRoute
+  '/demo/': typeof DemoIndexRoute
   '/_app/paddocks/$id': typeof AppPaddocksIdRoute
   '/_public/docs/': typeof PublicDocsIndexRoute
   '/_public/docs/$category/$article': typeof PublicDocsCategoryArticleRoute
@@ -177,6 +203,7 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/demo'
     | '/sign-in'
     | '/analytics'
     | '/history'
@@ -189,7 +216,9 @@ export interface FileRouteTypes {
     | '/marketing'
     | '/research'
     | '/technology'
+    | '/demo/settings'
     | '/'
+    | '/demo/'
     | '/paddocks/$id'
     | '/docs/'
     | '/docs/$category/$article'
@@ -206,7 +235,9 @@ export interface FileRouteTypes {
     | '/marketing'
     | '/research'
     | '/technology'
+    | '/demo/settings'
     | '/'
+    | '/demo'
     | '/paddocks/$id'
     | '/docs'
     | '/docs/$category/$article'
@@ -214,6 +245,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/_public'
+    | '/demo'
     | '/sign-in'
     | '/_app/analytics'
     | '/_app/history'
@@ -226,7 +258,9 @@ export interface FileRouteTypes {
     | '/_public/marketing'
     | '/_public/research'
     | '/_public/technology'
+    | '/demo/settings'
     | '/_app/'
+    | '/demo/'
     | '/_app/paddocks/$id'
     | '/_public/docs/'
     | '/_public/docs/$category/$article'
@@ -235,6 +269,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   PublicRoute: typeof PublicRouteWithChildren
+  DemoRoute: typeof DemoRouteWithChildren
   SignInRoute: typeof SignInRoute
 }
 
@@ -245,6 +280,13 @@ declare module '@tanstack/react-router' {
       path: '/sign-in'
       fullPath: '/sign-in'
       preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_public': {
@@ -261,12 +303,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/demo/': {
+      id: '/demo/'
+      path: '/'
+      fullPath: '/demo/'
+      preLoaderRoute: typeof DemoIndexRouteImport
+      parentRoute: typeof DemoRoute
+    }
     '/_app/': {
       id: '/_app/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/demo/settings': {
+      id: '/demo/settings'
+      path: '/settings'
+      fullPath: '/demo/settings'
+      preLoaderRoute: typeof DemoSettingsRouteImport
+      parentRoute: typeof DemoRoute
     }
     '/_public/technology': {
       id: '/_public/technology'
@@ -426,9 +482,22 @@ const PublicRouteChildren: PublicRouteChildren = {
 const PublicRouteWithChildren =
   PublicRoute._addFileChildren(PublicRouteChildren)
 
+interface DemoRouteChildren {
+  DemoSettingsRoute: typeof DemoSettingsRoute
+  DemoIndexRoute: typeof DemoIndexRoute
+}
+
+const DemoRouteChildren: DemoRouteChildren = {
+  DemoSettingsRoute: DemoSettingsRoute,
+  DemoIndexRoute: DemoIndexRoute,
+}
+
+const DemoRouteWithChildren = DemoRoute._addFileChildren(DemoRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   PublicRoute: PublicRouteWithChildren,
+  DemoRoute: DemoRouteWithChildren,
   SignInRoute: SignInRoute,
 }
 export const routeTree = rootRouteImport

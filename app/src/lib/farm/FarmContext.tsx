@@ -18,7 +18,7 @@ interface FarmContextValue {
   switchFarm: (farmId: string) => Promise<void>
 }
 
-const FarmContext = createContext<FarmContextValue | null>(null)
+export const FarmContext = createContext<FarmContextValue | null>(null)
 
 export function FarmProvider({ children }: { children: ReactNode }) {
   const {

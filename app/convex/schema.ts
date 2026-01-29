@@ -72,10 +72,14 @@ export default defineSchema({
     paddockCount: v.number(),
     coordinates: v.array(v.number()),
     geometry: polygonFeature,
+    // Demo farm tracking
+    isDemoFarm: v.optional(v.boolean()),
+    demoCreatedAt: v.optional(v.string()),  // ISO timestamp for cleanup
     createdAt: v.string(),
     updatedAt: v.string(),
   }).index('by_externalId', ['externalId'])
-    .index('by_legacyExternalId', ['legacyExternalId']),
+    .index('by_legacyExternalId', ['legacyExternalId'])
+    .index('by_isDemoFarm', ['isDemoFarm']),
   paddocks: defineTable({
     farmId: v.id('farms'),
     externalId: v.string(),
@@ -365,4 +369,21 @@ export default defineSchema({
     .index('by_farm', ['farmExternalId'])
     .index('by_farm_status', ['farmExternalId', 'status'])
     .index('by_status', ['status']),
+
+  // Track section modifications with rationale for AI training/RAG retrieval
+  sectionModifications: defineTable({
+    planId: v.id('plans'),
+    farmExternalId: v.string(),
+    paddockExternalId: v.string(),
+    originalGeometry: rawPolygon,
+    modifiedGeometry: rawPolygon,
+    originalAreaHectares: v.number(),
+    modifiedAreaHectares: v.number(),
+    rationale: v.optional(v.string()),           // Free-form explanation
+    quickReasons: v.optional(v.array(v.string())), // Selected preset reasons
+    modifiedAt: v.string(),
+    modifiedBy: v.optional(v.string()),
+  })
+    .index('by_farm', ['farmExternalId'])
+    .index('by_plan', ['planId']),
 })

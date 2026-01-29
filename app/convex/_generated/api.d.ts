@@ -8,6 +8,8 @@
  * @module
  */
 
+import type * as crons from "../crons.js";
+import type * as demo from "../demo.js";
 import type * as farmerObservations from "../farmerObservations.js";
 import type * as farms from "../farms.js";
 import type * as geocoding from "../geocoding.js";
@@ -45,6 +47,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  crons: typeof crons;
+  demo: typeof demo;
   farmerObservations: typeof farmerObservations;
   farms: typeof farms;
   geocoding: typeof geocoding;
