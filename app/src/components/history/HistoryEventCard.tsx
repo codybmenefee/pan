@@ -1,12 +1,38 @@
-import { Check, Edit, Clock, ArrowRight, Grid3X3 } from 'lucide-react'
+import { useState } from 'react'
+import { Check, Edit, Clock, ChevronDown, ChevronRight, Pencil } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import type { HistoryEntry } from '@/lib/types'
+import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
+import { FeedbackEditDialog } from './FeedbackEditDialog'
+
+export interface PlanData {
+  _id: string
+  date: string
+  primaryPaddockExternalId?: string
+  sectionAreaHectares?: number
+  confidenceScore: number
+  status: 'pending' | 'approved' | 'modified' | 'rejected' | 'executed'
+  feedback?: string
+  reasoning: string[]
+}
+
+export interface SectionModification {
+  _id: string
+  planId: string
+  rationale?: string
+  quickReasons?: string[]
+  originalAreaHectares: number
+  modifiedAreaHectares: number
+}
 
 interface HistoryEventCardProps {
-  entry: HistoryEntry
+  plan: PlanData
+  paddockName: string
+  modification?: SectionModification
   isLast?: boolean
-  onClick?: (entry: HistoryEntry) => void
+  isExpanded?: boolean
+  onToggleExpand?: () => void
 }
 
 const statusConfig = {
@@ -42,117 +68,161 @@ const statusConfig = {
   },
 }
 
-export function HistoryEventCard({ entry, isLast, onClick }: HistoryEventCardProps) {
-  const config = statusConfig[entry.planStatus]
+export function HistoryEventCard({
+  plan,
+  paddockName,
+  modification,
+  isLast,
+  isExpanded,
+  onToggleExpand
+}: HistoryEventCardProps) {
+  const { format } = useAreaUnit()
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const config = statusConfig[plan.status]
   const StatusIcon = config.icon
-  
-  // Determine if this is a paddock transition or section rotation
-  const isTransition = entry.eventType === 'paddock_transition'
-  const EventIcon = isTransition ? ArrowRight : Grid3X3
+
+  // Determine if we have structured feedback from modification record
+  const hasModificationFeedback = modification &&
+    ((modification.quickReasons && modification.quickReasons.length > 0) || modification.rationale)
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
+      year: 'numeric',
     })
   }
 
+  const hasReasoning = plan.reasoning && plan.reasoning.length > 0
+
   return (
-    <div 
-      className={cn(
-        "relative flex gap-4 pb-8",
-        onClick && "cursor-pointer group"
-      )}
-      onClick={() => onClick?.(entry)}
-      role={onClick ? "button" : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onKeyDown={(e) => {
-        if (onClick && (e.key === 'Enter' || e.key === ' ')) {
-          e.preventDefault()
-          onClick(entry)
-        }
-      }}
-    >
+    <div className="relative flex gap-4 pb-8">
       {/* Timeline line */}
       {!isLast && (
         <div className="absolute left-[15px] top-8 h-[calc(100%-16px)] w-0.5 bg-border" />
       )}
-      
-      {/* Timeline dot - different styling for transitions vs sections */}
+
+      {/* Timeline dot */}
       <div className={cn(
         'relative z-10 flex h-8 w-8 items-center justify-center rounded-full',
-        isTransition ? 'bg-primary' : config.color
+        config.color
       )}>
-        {isTransition ? (
-          <ArrowRight className="h-4 w-4 text-white" />
-        ) : (
-          <StatusIcon className="h-4 w-4 text-white" />
-        )}
+        <StatusIcon className="h-4 w-4 text-white" />
       </div>
-      
+
       {/* Content */}
-      <div className={cn(
-        "flex-1 min-w-0 rounded-md p-2 -m-2 transition-colors",
-        onClick && "group-hover:bg-muted/50"
-      )}>
+      <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <div className="flex items-center gap-2">
-              <p className="font-medium text-sm">{formatDate(entry.date)}</p>
-              {/* Event type badge */}
-              <Badge 
-                variant="outline" 
-                className={cn(
-                  'text-xs',
-                  isTransition 
-                    ? 'bg-primary/10 text-primary border-primary/20' 
-                    : 'bg-muted text-muted-foreground border-muted-foreground/20'
-                )}
-              >
-                <EventIcon className="h-3 w-3 mr-1" />
-                {isTransition ? 'Transition' : 'Section'}
-              </Badge>
-            </div>
-            {/* Title - different for transitions vs sections */}
-            {isTransition ? (
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-muted-foreground">{entry.fromPaddockName}</span>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                <span className="text-base font-semibold">{entry.paddockName}</span>
-              </div>
-            ) : (
-              <div className="mt-0.5">
-                <span className="text-base font-semibold">{entry.paddockName}</span>
-                {entry.dayInPaddock && entry.totalDaysInPaddock && (
-                  <span className="ml-2 text-sm text-muted-foreground">
-                    (Day {entry.dayInPaddock} of {entry.totalDaysInPaddock})
-                  </span>
-                )}
-              </div>
-            )}
+            <p className="font-medium text-sm">{formatDate(plan.date)}</p>
+            <p className="text-base font-semibold mt-0.5">{paddockName}</p>
           </div>
           <Badge variant="outline" className={cn('flex-shrink-0', config.badge)}>
             {config.label}
           </Badge>
         </div>
-        
-        <div className="mt-2 text-sm text-muted-foreground">
-          <p>{entry.reasoning}</p>
-          <div className="flex gap-4 mt-1">
-            <span>Confidence: {entry.confidence}%</span>
-            {entry.sectionArea && (
-              <span>Section: {entry.sectionArea.toFixed(1)} ha</span>
+
+        {/* Details row */}
+        <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+          {plan.sectionAreaHectares !== undefined && plan.sectionAreaHectares > 0 && (
+            <span>{format(plan.sectionAreaHectares)} section</span>
+          )}
+          <span>{Math.round(plan.confidenceScore)}% confidence</span>
+        </div>
+
+        {/* Structured feedback for modified plans with section modification data */}
+        {plan.status === 'modified' && modification && (
+          <div className="mt-3 rounded-md border border-border bg-muted/30 p-3">
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-xs font-medium text-muted-foreground">Your feedback</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => setEditDialogOpen(true)}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                <span className="sr-only">Edit feedback</span>
+              </Button>
+            </div>
+            {hasModificationFeedback ? (
+              <div className="mt-2 space-y-2">
+                {modification.quickReasons && modification.quickReasons.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {modification.quickReasons.map((reason) => (
+                      <Badge
+                        key={reason}
+                        variant="secondary"
+                        className="text-xs"
+                      >
+                        {reason}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                {modification.rationale && (
+                  <p className="text-sm text-muted-foreground italic">
+                    "{modification.rationale}"
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="mt-1 text-sm text-muted-foreground">
+                No feedback provided yet.{' '}
+                <button
+                  onClick={() => setEditDialogOpen(true)}
+                  className="text-primary hover:underline"
+                >
+                  Add feedback
+                </button>
+              </p>
             )}
           </div>
-        </div>
-        
-        {entry.wasModified && entry.userFeedback && (
+        )}
+
+        {/* Legacy feedback for older modified plans without structured data */}
+        {plan.status === 'modified' && !modification && plan.feedback && (
           <div className="mt-2 rounded-md bg-muted p-2 text-sm">
-            <span className="font-medium">User feedback:</span> {entry.userFeedback}
+            <span className="text-xs font-medium text-muted-foreground block mb-1">Feedback</span>
+            <span>{plan.feedback}</span>
           </div>
         )}
+
+        {/* Expandable AI reasoning */}
+        {hasReasoning && (
+          <button
+            onClick={onToggleExpand}
+            className="mt-2 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {isExpanded ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+            <span>AI Reasoning</span>
+          </button>
+        )}
+
+        {isExpanded && hasReasoning && (
+          <ul className="mt-2 space-y-1 text-sm text-muted-foreground pl-5">
+            {plan.reasoning.map((reason, idx) => (
+              <li key={idx} className="list-disc">{reason}</li>
+            ))}
+          </ul>
+        )}
       </div>
+
+      {/* Edit feedback dialog */}
+      {modification && (
+        <FeedbackEditDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          modificationId={modification._id}
+          initialRationale={modification.rationale}
+          initialQuickReasons={modification.quickReasons}
+        />
+      )}
     </div>
   )
 }

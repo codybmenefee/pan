@@ -1,62 +1,139 @@
-import { Search, HelpCircle, RotateCcw } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { useFarm } from '@/lib/convex/useFarm'
-import { useTodayPlan } from '@/lib/convex/usePlan'
-import { useState } from 'react'
+import { BookOpen, HelpCircle, LogOut } from 'lucide-react'
+import { useUser, useClerk } from '@clerk/clerk-react'
+import { FarmSelector } from './FarmSelector'
+import { DailyPlanButton } from './DailyPlanButton'
+import { NotificationBell } from './NotificationBell'
+import { DevToolsDropdown } from './DevToolsDropdown'
+import { SatelliteStatusIcon } from './SatelliteStatusIcon'
+import { Link } from '@tanstack/react-router'
+import { useAppAuth } from '@/lib/auth'
+import { useTutorial } from '@/components/onboarding/tutorial'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
-export function Header() {
-  const { farm } = useFarm()
-  const farmExternalId = farm?.id
-  const { deleteTodayPlan } = useTodayPlan(farmExternalId ?? 'farm-1')
-  const [isResetting, setIsResetting] = useState(false)
+function AvatarFallback({ initial = 'U' }: { initial?: string }) {
+  return (
+    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-medium">
+      {initial}
+    </div>
+  )
+}
 
-  const handleResetPlan = async () => {
-    setIsResetting(true)
-    await deleteTodayPlan()
-    setIsResetting(false)
+function ClerkProfileAvatar() {
+  const { user } = useUser()
+
+  if (!user?.imageUrl) {
+    const initial = user?.firstName?.charAt(0) || user?.emailAddresses?.[0]?.emailAddress?.charAt(0)?.toUpperCase() || 'U'
+    return <AvatarFallback initial={initial} />
   }
 
   return (
-    <header className="flex h-10 items-center justify-between border-b border-border bg-background px-4">
-      {/* Search placeholder */}
-      <button className="flex h-7 w-56 items-center gap-2 rounded-md border border-input bg-background px-2 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
-        <Search className="h-3.5 w-3.5" />
-        <span>Search or jump to...</span>
-        <kbd className="ml-auto pointer-events-none inline-flex h-4 select-none items-center gap-0.5 rounded border border-border bg-muted px-1 font-mono text-[9px] font-medium text-muted-foreground">
-          <span className="text-[9px]">Cmd</span>K
-        </kbd>
-      </button>
+    <img
+      src={user.imageUrl}
+      alt={user.fullName || 'Profile'}
+      className="h-5 w-5 rounded-full object-cover"
+    />
+  )
+}
 
-      {/* Right section */}
-      <div className="flex items-center gap-3">
-        <span className="text-xs text-muted-foreground">
-          {farm?.name ?? 'Loading farm...'}
-        </span>
+function ClerkProfileDropdown() {
+  const { signOut } = useClerk()
 
-        <span className="px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 rounded">
-          demo
-        </span>
+  const handleLogout = () => {
+    signOut()
+  }
 
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 gap-1.5"
-          onClick={handleResetPlan}
-          disabled={isResetting}
-          title="Reset daily plan"
-        >
-          <RotateCcw className={`h-3.5 w-3.5 ${isResetting ? 'animate-spin' : ''}`} />
-          <span className="text-xs">reset</span>
-        </Button>
-
-        <Button variant="ghost" size="icon" className="h-7 w-7">
-          <HelpCircle className="h-3.5 w-3.5" />
-        </Button>
-
-        {/* Avatar placeholder */}
-        <button className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-medium">
-          C
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="rounded-full hover:ring-2 hover:ring-accent focus:outline-none focus:ring-2 focus:ring-accent">
+          <ClerkProfileAvatar />
         </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-32">
+        <DropdownMenuItem onClick={handleLogout}>
+          <LogOut className="h-3.5 w-3.5 mr-2" />
+          Log out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+function DevProfileDropdown() {
+  const handleLogout = () => {
+    // In dev mode, just reload the page to simulate logout
+    window.location.reload()
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="rounded-full hover:ring-2 hover:ring-accent focus:outline-none focus:ring-2 focus:ring-accent">
+          <AvatarFallback initial="D" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-32">
+        <DropdownMenuItem onClick={handleLogout}>
+          <LogOut className="h-3.5 w-3.5 mr-2" />
+          Log out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+function ProfileDropdown() {
+  const { isDevAuth } = useAppAuth()
+
+  // In dev auth mode, ClerkProvider isn't mounted, so we can't use useClerk()
+  if (isDevAuth) {
+    return <DevProfileDropdown />
+  }
+
+  return <ClerkProfileDropdown />
+}
+
+export function Header() {
+  const { startTutorial, resetTutorial } = useTutorial()
+
+  const handleHelpClick = () => {
+    resetTutorial()
+    startTutorial()
+  }
+
+  return (
+    <header className="flex h-10 items-center border-b border-border bg-background pl-1 pr-3 py-2 gap-2">
+      <FarmSelector />
+      <DailyPlanButton />
+      <div className="flex-1 flex justify-center">
+        <span className="text-sm font-semibold tracking-tight">OpenPasture</span>
+        <span className="ml-1.5 text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">beta</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <DevToolsDropdown />
+
+        <SatelliteStatusIcon />
+
+        <button
+          onClick={handleHelpClick}
+          className="flex h-5 w-5 items-center justify-center rounded hover:bg-accent"
+          title="Take a tour"
+        >
+          <HelpCircle className="h-3 w-3" />
+        </button>
+
+        <Link to="/docs" className="flex h-5 w-5 items-center justify-center rounded hover:bg-accent" title="Documentation">
+          <BookOpen className="h-3 w-3" />
+        </Link>
+
+        <NotificationBell />
+
+        <ProfileDropdown />
       </div>
     </header>
   )

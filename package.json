@@ -1,4 +1,16 @@
 {
+  "name": "openpasture",
+  "description": "AI-powered adaptive grazing management platform",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/codybmenefee/pan"
+  },
+  "homepage": "https://github.com/codybmenefee/pan#readme",
+  "bugs": {
+    "url": "https://github.com/codybmenefee/pan/issues"
+  },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.18",
     "ai": "^6.0.44"

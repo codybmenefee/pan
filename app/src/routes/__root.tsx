@@ -1,21 +1,25 @@
-import { createRootRoute, Outlet } from '@tanstack/react-router'
-import { Sidebar } from '@/components/layout/Sidebar'
-import { Header } from '@/components/layout/Header'
+import { createRootRouteWithContext, Outlet, useRouterState } from '@tanstack/react-router'
 
-export const Route = createRootRoute({
-  component: RootLayout,
-})
-
-function RootLayout() {
-  return (
-    <div className="flex h-screen bg-background text-foreground">
-      <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Header />
-        <main className="flex-1 overflow-auto">
-          <Outlet />
-        </main>
-      </div>
-    </div>
-  )
+interface RouterContext {
+  auth: {
+    userId: string | null
+    isLoaded: boolean
+    isSignedIn: boolean
+    isDevAuth: boolean
+  }
 }
+
+function RootComponent() {
+  const routerState = useRouterState()
+  console.log('[__root] Rendering, router state:', {
+    location: routerState.location.pathname,
+    status: routerState.status,
+    isLoading: routerState.isLoading,
+    matches: routerState.matches.map(m => m.routeId),
+  })
+  return <Outlet />
+}
+
+export const Route = createRootRouteWithContext<RouterContext>()({
+  component: RootComponent,
+})

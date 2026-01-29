@@ -64,6 +64,8 @@ def load_env_config() -> PipelineConfig:
     - ENABLE_PLANET_SCOPE: Enable PlanetScope integration (default: false)
     - OUTPUT_DIR: Output directory (default: output)
     - WRITE_TO_CONVEX: Write results to Convex (default: true)
+    - CONVEX_DEPLOYMENT_URL: Convex deployment URL (required for writing)
+    - CONVEX_API_KEY: Convex API key (required for writing)
     - LOG_LEVEL: Logging level (default: INFO)
     """
     def get_int(key: str, default: int) -> int:

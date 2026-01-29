@@ -51,6 +51,7 @@ interface SatelliteMiniMapProps {
   editable?: boolean
   editMode?: boolean
   onSectionUpdate?: (section: Section) => void
+  showEditButton?: boolean
 }
 
 // Draw styles for section editing
@@ -142,6 +143,7 @@ export function SatelliteMiniMap({
   editable = false,
   editMode = false,
   onSectionUpdate,
+  showEditButton = true,
 }: SatelliteMiniMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
@@ -576,7 +578,7 @@ export function SatelliteMiniMap({
       />
       
       {/* Edit button - links to map page with edit mode */}
-      {!isEditActive && isMapLoaded && (
+      {!isEditActive && isMapLoaded && showEditButton && (
         <Link
           to="/map"
           search={{

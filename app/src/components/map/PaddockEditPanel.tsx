@@ -1,9 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
-import { X } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Separator } from '@/components/ui/separator'
+import { FloatingPanel } from '@/components/ui/floating-panel'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   Select,
   SelectContent,
@@ -13,9 +21,11 @@ import {
 } from '@/components/ui/select'
 import type { Paddock, PaddockStatus } from '@/lib/types'
 import { useGeometry } from '@/lib/geometry'
+import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 
 interface PaddockEditPanelProps {
   paddock: Paddock
+  open: boolean
   onClose: () => void
 }
 
@@ -48,9 +58,11 @@ function buildFormState(paddock: Paddock): PaddockFormState {
   }
 }
 
-export function PaddockEditPanel({ paddock, onClose }: PaddockEditPanelProps) {
-  const { updatePaddockMetadata } = useGeometry()
+export function PaddockEditPanel({ paddock, open, onClose }: PaddockEditPanelProps) {
+  const { deletePaddock } = useGeometry()
+  const { label } = useAreaUnit()
   const [form, setForm] = useState<PaddockFormState>(() => buildFormState(paddock))
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   useEffect(() => {
     setForm(buildFormState(paddock))
@@ -61,37 +73,26 @@ export function PaddockEditPanel({ paddock, onClose }: PaddockEditPanelProps) {
     [form.status]
   )
 
-  const handleSave = () => {
-    updatePaddockMetadata(paddock.id, {
-      name: form.name.trim() || paddock.name,
-      status: form.status,
-      ndvi: form.ndvi,
-      restDays: form.restDays,
-      area: form.area,
-      waterAccess: form.waterAccess,
-      lastGrazed: form.lastGrazed,
-    })
-  }
-
-  const handleReset = () => {
-    setForm(buildFormState(paddock))
+  const handleDelete = () => {
+    deletePaddock(paddock.id)
+    setDeleteDialogOpen(false)
+    onClose()
   }
 
   return (
-    <aside className="w-80 border-l border-border bg-card p-4 overflow-y-auto">
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <h2 className="font-semibold text-lg">Edit {paddock.name}</h2>
-          <p className="text-sm text-muted-foreground">Paddock {paddock.id.replace('p', '')}</p>
-        </div>
-        <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-
-      <Separator className="my-4" />
-
-      <div className="space-y-4">
+    <FloatingPanel
+      open={open}
+      onOpenChange={(isOpen) => !isOpen && onClose()}
+      title={`Edit ${paddock.name}`}
+      subtitle={`Paddock ${paddock.id.replace('p', '')}`}
+      defaultWidth={340}
+      defaultHeight={480}
+      minWidth={300}
+      maxWidth={450}
+      minHeight={400}
+      initialPosition={{ x: typeof window !== 'undefined' ? window.innerWidth - 360 : 800, y: 64 }}
+    >
+      <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-4">
         <div className="space-y-2">
           <label className="text-xs text-muted-foreground uppercase tracking-wide">Name</label>
           <Input
@@ -155,7 +156,7 @@ export function PaddockEditPanel({ paddock, onClose }: PaddockEditPanelProps) {
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
-            <label className="text-xs text-muted-foreground uppercase tracking-wide">Area (ha)</label>
+            <label className="text-xs text-muted-foreground uppercase tracking-wide">Area ({label})</label>
             <Input
               type="number"
               min={0}
@@ -187,18 +188,42 @@ export function PaddockEditPanel({ paddock, onClose }: PaddockEditPanelProps) {
             onChange={(event) => setForm((prev) => ({ ...prev, waterAccess: event.target.value }))}
           />
         </div>
+
       </div>
 
-      <Separator className="my-4" />
-
-      <div className="flex gap-2">
-        <Button className="flex-1" onClick={handleSave}>
-          Save Changes
-        </Button>
-        <Button variant="outline" className="flex-1" onClick={handleReset}>
-          Reset
+      {/* Fixed footer */}
+      <div className="border-t p-4">
+        <Button
+          variant="destructive"
+          size="sm"
+          className="w-full gap-2"
+          onClick={() => setDeleteDialogOpen(true)}
+        >
+          <Trash2 className="h-4 w-4" />
+          Delete Paddock
         </Button>
       </div>
-    </aside>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Paddock</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{paddock.name}"? This action cannot be undone.
+              All sections within this paddock will also be deleted.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </FloatingPanel>
   )
 }

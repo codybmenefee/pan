@@ -1,8 +1,10 @@
 import { useQuery, useMutation, useAction } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
+import { useAppAuth } from '../auth'
 
 
 export function useTodayPlan(farmExternalId: string) {
+  const { userId } = useAppAuth()
   const shouldSkip = !farmExternalId
   const plan = useQuery(
     api.intelligence.getTodayPlan,
@@ -29,7 +31,7 @@ export function useTodayPlan(farmExternalId: string) {
       if (!farmExternalId) {
         throw new Error('Farm ID is unavailable.')
       }
-      const result = await generatePlan({ farmExternalId })
+      const result = await generatePlan({ farmExternalId, userId: userId || undefined })
       if (!result) {
         throw new Error('Plan generation did not produce a plan.')
       }

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import type { Paddock, PaddockStatus } from '@/lib/types'
+import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 
 interface PaddockPanelProps {
   paddock: Paddock
@@ -24,6 +25,8 @@ const statusColors: Record<PaddockStatus, string> = {
 }
 
 export function PaddockPanel({ paddock, onClose }: PaddockPanelProps) {
+  const { format } = useAreaUnit()
+
   return (
     <aside className="w-80 border-l border-border bg-card p-4 overflow-y-auto">
       {/* Header */}
@@ -62,7 +65,7 @@ export function PaddockPanel({ paddock, onClose }: PaddockPanelProps) {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-wide">Area</p>
-            <p className="text-sm font-medium">{paddock.area} ha</p>
+            <p className="text-sm font-medium">{format(paddock.area)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-wide">Last Grazed</p>

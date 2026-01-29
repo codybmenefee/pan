@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { PaddockStay } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 
 interface SectionHistoryProps {
   stays: PaddockStay[]
@@ -8,6 +9,8 @@ interface SectionHistoryProps {
 }
 
 export function SectionHistory({ stays, title = 'Rotation History' }: SectionHistoryProps) {
+  const { format } = useAreaUnit()
+
   if (stays.length === 0) {
     return (
       <Card>
@@ -57,7 +60,7 @@ export function SectionHistory({ stays, title = 'Rotation History' }: SectionHis
                   )}
                 </div>
                 <span className="text-xs text-muted-foreground">
-                  {duration} day{duration !== 1 ? 's' : ''} - {stay.totalArea.toFixed(1)} ha
+                  {duration} day{duration !== 1 ? 's' : ''} - {format(stay.totalArea)}
                 </span>
               </div>
               
@@ -74,7 +77,7 @@ export function SectionHistory({ stays, title = 'Rotation History' }: SectionHis
                           ? 'bg-green-500 animate-pulse' 
                           : 'bg-muted-foreground/40'
                       )}
-                      title={`Day ${sectionIndex + 1}: ${section.targetArea.toFixed(1)} ha`}
+                      title={`Day ${sectionIndex + 1}: ${format(section.targetArea)}`}
                     />
                   )
                 })}
@@ -93,7 +96,7 @@ export function SectionHistory({ stays, title = 'Rotation History' }: SectionHis
                 {stay.sections.length} section{stay.sections.length !== 1 ? 's' : ''} grazed
                 {stay.sections.length > 0 && (
                   <span className="ml-2">
-                    (avg {(stay.totalArea / stay.sections.length).toFixed(1)} ha/section)
+                    (avg {format(stay.totalArea / stay.sections.length)}/section)
                   </span>
                 )}
               </div>

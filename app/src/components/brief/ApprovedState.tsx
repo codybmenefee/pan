@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { SatelliteMiniMap } from './SatelliteMiniMap'
 import { PaddockMiniMap } from './PaddockMiniMap'
 import type { Paddock, Section } from '@/lib/types'
+import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 
 interface ApprovedStateProps {
   paddock: Paddock
@@ -38,23 +39,24 @@ export function ApprovedState({
   sectionJustification,
   paddockGrazedPercentage,
 }: ApprovedStateProps) {
+  const { format } = useAreaUnit()
   const daysRemaining = totalDaysPlanned - daysInCurrentPaddock
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="h-full overflow-y-auto p-2 space-y-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       {/* Success banner */}
-      <div className="flex items-center gap-2 rounded-md border border-green-500/20 bg-green-500/10 p-2.5">
-        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-500">
-          <Check className="h-3.5 w-3.5 text-white" />
+      <div className="flex items-center gap-1.5 rounded-md border border-green-500/20 bg-green-500/10 p-2">
+        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-green-500">
+          <Check className="h-3 w-3 text-white" />
         </div>
         <div>
-          <p className="text-sm font-medium text-green-600 dark:text-green-400">
-            {isPaddockTransition 
+          <p className="text-xs font-medium text-green-600 dark:text-green-400">
+            {isPaddockTransition
               ? `Transition ${wasModified ? 'modified' : 'approved'}`
               : `Section ${wasModified ? 'modified' : 'approved'}`
             }
           </p>
-          <p className="text-xs text-muted-foreground">at {approvedAt}</p>
+          <p className="text-[10px] text-muted-foreground">at {approvedAt}</p>
         </div>
       </div>
 
@@ -77,48 +79,49 @@ export function ApprovedState({
                 paddockId={paddock.id}
                 section={section}
                 previousSections={previousSections}
+                showEditButton={false}
               />
             )}
           </div>
           {/* Overlapping header */}
-          <div className="absolute inset-x-0 top-0 p-3">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          <div className="absolute inset-x-0 top-0 p-2">
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
               Today's Execution
             </p>
           </div>
         </div>
-        
-        <CardContent className="space-y-4 py-4">
+
+        <CardContent className="space-y-2 py-2">
           {/* Current paddock with section info */}
           <div>
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-[10px] text-muted-foreground">
                     {isPaddockTransition ? 'Transitioning To' : 'Current Paddock'}
                   </p>
-                  <p className="text-base font-semibold mt-0.5">{paddock.name}</p>
+                  <p className="text-sm font-semibold mt-0.5">{paddock.name}</p>
                   {!isPaddockTransition && (
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-[10px] text-muted-foreground">
                       Day {daysInCurrentPaddock}/{totalDaysPlanned} - {daysRemaining} left
                     </p>
                   )}
                 </div>
-                <Badge variant="outline" className="text-xs bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
                   {confidence}%
                 </Badge>
               </div>
-              
+
               {/* Section info */}
               {section && (
-                <div className="mt-2 p-2 rounded-md bg-muted/50">
-                  <div className="flex items-center gap-1.5 text-xs font-medium mb-1">
-                    <Grid3X3 className="h-3 w-3" />
+                <div className="mt-1.5 p-1.5 rounded-md bg-muted/50">
+                  <div className="flex items-center gap-1 text-[10px] font-medium mb-0.5">
+                    <Grid3X3 className="h-2.5 w-2.5" />
                     <span>Today's Section</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-1.5 text-xs">
+                  <div className="grid grid-cols-2 gap-1 text-[10px]">
                     <div>
                       <span className="text-muted-foreground">Area:</span>{' '}
-                      <span className="font-medium">{section.targetArea.toFixed(1)} ha</span>
+                      <span className="font-medium">{format(section.targetArea)}</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Coverage:</span>{' '}
@@ -130,9 +133,9 @@ export function ApprovedState({
 
               {/* Agent Justification */}
               {sectionJustification && (
-                <div className="mt-2 p-2 rounded-md bg-muted/30 border-l-2 border-green-500">
-                  <p className="text-[10px] font-medium mb-0.5 text-muted-foreground">Agent Recommendation</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
+                <div className="mt-1.5 p-1.5 rounded-md bg-muted/30 border-l-2 border-green-500">
+                  <p className="text-[9px] font-medium mb-0.5 text-muted-foreground">Agent Recommendation</p>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
                     {sectionJustification}
                   </p>
                 </div>
@@ -140,7 +143,7 @@ export function ApprovedState({
 
               {/* Grazed Percentage */}
               {paddockGrazedPercentage !== undefined && (
-                <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                <div className="mt-1.5 flex items-center justify-between text-[10px] text-muted-foreground">
                   <span>Paddock grazed</span>
                   <span className="font-medium">{paddockGrazedPercentage}%</span>
                 </div>
@@ -151,50 +154,50 @@ export function ApprovedState({
 
           {/* Fencing instructions - updated for sections */}
           <div>
-            <p className="text-xs font-medium mb-2">
+            <p className="text-[10px] font-medium mb-1">
               {isPaddockTransition ? 'Transition instructions' : 'Section fencing'}
             </p>
-            <ol className="space-y-1 text-xs text-muted-foreground">
+            <ol className="space-y-0.5 text-[10px] text-muted-foreground">
               {isPaddockTransition ? (
                 <>
-                  <li className="flex gap-2">
+                  <li className="flex gap-1.5">
                     <span className="text-foreground font-medium">1.</span>
                     Open gate between current paddock and {paddock.name}
                   </li>
-                  <li className="flex gap-2">
+                  <li className="flex gap-1.5">
                     <span className="text-foreground font-medium">2.</span>
                     Close gate to previous paddock
                   </li>
-                  <li className="flex gap-2">
+                  <li className="flex gap-1.5">
                     <span className="text-foreground font-medium">3.</span>
                     Verify water access at {paddock.waterAccess}
                   </li>
                 </>
               ) : (
                 <>
-                  <li className="flex gap-2">
+                  <li className="flex gap-1.5">
                     <span className="text-foreground font-medium">1.</span>
                     Set virtual fence to today's section boundary (see map)
                   </li>
-                  <li className="flex gap-2">
+                  <li className="flex gap-1.5">
                     <span className="text-foreground font-medium">2.</span>
                     Ensure section includes access to {paddock.waterAccess}
                   </li>
-                  <li className="flex gap-2">
+                  <li className="flex gap-1.5">
                     <span className="text-foreground font-medium">3.</span>
                     Previous section ({previousSections.length > 0 ? 'grazed' : 'none'}) will begin recovery
                   </li>
                 </>
               )}
             </ol>
-            <p className="mt-2 text-xs">
+            <p className="mt-1 text-[10px]">
               <span className="text-muted-foreground">
                 {isPaddockTransition ? 'Rotation:' : 'Allocation:'}
               </span>{' '}
               <span className="font-medium">
-                {isPaddockTransition 
+                {isPaddockTransition
                   ? `${totalDaysPlanned}d in ${paddock.name}`
-                  : `${section?.targetArea.toFixed(1) || '~3.5'} ha today`
+                  : `${section ? format(section.targetArea) : '~3.5 ha'} today`
                 }
               </span>
             </p>
@@ -204,19 +207,19 @@ export function ApprovedState({
 
           {/* Virtual fencing exports */}
           <div>
-            <p className="text-xs font-medium mb-2">Virtual fencing</p>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" className="h-7 text-xs">
-                <Copy className="h-3 w-3 mr-1.5" />
+            <p className="text-[10px] font-medium mb-1">Virtual fencing</p>
+            <div className="flex flex-wrap gap-1">
+              <Button variant="outline" size="sm" className="h-5 text-[10px] px-1.5">
+                <Copy className="h-2.5 w-2.5 mr-1" />
                 Copy Coords
               </Button>
-              <Button variant="outline" size="sm" className="h-7 text-xs">
-                <Download className="h-3 w-3 mr-1.5" />
+              <Button variant="outline" size="sm" className="h-5 text-[10px] px-1.5">
+                <Download className="h-2.5 w-2.5 mr-1" />
                 GeoJSON
               </Button>
-              <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
+              <Button variant="outline" size="sm" className="h-5 text-[10px] px-1.5" asChild>
                 <Link to="/map">
-                  <Map className="h-3 w-3 mr-1.5" />
+                  <Map className="h-2.5 w-2.5 mr-1" />
                   Map
                 </Link>
               </Button>
@@ -227,14 +230,14 @@ export function ApprovedState({
 
       {/* Paddock details */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Paddock Details</CardTitle>
+        <CardHeader className="pb-1.5">
+          <CardTitle className="text-xs">Paddock Details</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-2 text-xs">
+          <div className="grid grid-cols-3 gap-1.5 text-[10px]">
             <div>
               <p className="text-muted-foreground">Area</p>
-              <p className="font-medium">{paddock.area} ha</p>
+              <p className="font-medium">{format(paddock.area)}</p>
             </div>
             <div>
               <p className="text-muted-foreground">NDVI</p>

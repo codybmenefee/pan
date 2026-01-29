@@ -1,9 +1,11 @@
-import type { Feature, Polygon } from 'geojson'
-import type { Farm, FarmSettings, Paddock, Section } from '@/lib/types'
+import type { Feature, Point, Polygon } from 'geojson'
+import type { Farm, FarmSettings, MapPreferences, Paddock, Section, NoGrazeZone, WaterSource, WaterSourceType } from '@/lib/types'
 
 export interface FarmDoc {
   _id: string
   externalId: string
+  legacyExternalId?: string  // For migration: maps old farm-1 style IDs
+  clerkOrgSlug?: string  // Clerk org slug
   name: string
   location: string
   totalArea: number
@@ -29,6 +31,7 @@ export interface UserDoc {
   _id: string
   externalId: string
   farmExternalId: string
+  activeFarmExternalId?: string  // Currently selected farm (Clerk org ID)
   name?: string
   email?: string
 }
@@ -44,6 +47,7 @@ export interface FarmSettingsDoc {
   pushNotifications: boolean
   virtualFenceProvider?: string
   apiKey?: string
+  mapPreferences?: MapPreferences
 }
 
 export function mapFarmDoc(doc: FarmDoc): Farm {
@@ -82,6 +86,8 @@ export function mapFarmSettingsDoc(doc: FarmSettingsDoc): FarmSettings {
     pushNotifications: doc.pushNotifications,
     virtualFenceProvider: doc.virtualFenceProvider,
     apiKey: doc.apiKey,
+    mapPreferences: doc.mapPreferences ?? { showRGBSatellite: false },
+    areaUnit: (doc as any).areaUnit ?? 'hectares',
   }
 }
 
@@ -108,5 +114,61 @@ export function mapSectionDoc(doc: SectionDoc): Section {
     },
     targetArea: doc.targetArea,
     reasoning: doc.reasoning,
+  }
+}
+
+export interface NoGrazeZoneDoc {
+  _id: string
+  farmId: string
+  name: string
+  type?: NoGrazeZone['type']
+  area?: number
+  description?: string
+  geometry: Feature<Polygon>
+  createdAt: string
+  updatedAt: string
+}
+
+export function mapNoGrazeZoneDoc(doc: NoGrazeZoneDoc): NoGrazeZone {
+  return {
+    id: doc._id,
+    farmId: doc.farmId,
+    name: doc.name,
+    type: doc.type ?? 'other',
+    area: doc.area ?? 0,
+    description: doc.description,
+    geometry: doc.geometry,
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+  }
+}
+
+export interface WaterSourceDoc {
+  _id: string
+  farmId: string
+  name: string
+  type: WaterSourceType
+  geometryType: 'point' | 'polygon'
+  geometry: Feature<Point | Polygon>
+  area?: number
+  description?: string
+  status?: WaterSource['status']
+  createdAt: string
+  updatedAt: string
+}
+
+export function mapWaterSourceDoc(doc: WaterSourceDoc): WaterSource {
+  return {
+    id: doc._id,
+    farmId: doc.farmId,
+    name: doc.name,
+    type: doc.type,
+    geometryType: doc.geometryType,
+    geometry: doc.geometry,
+    area: doc.area,
+    description: doc.description,
+    status: doc.status,
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
   }
 }

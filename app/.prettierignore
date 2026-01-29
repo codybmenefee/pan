@@ -1,0 +1,4 @@
+node_modules/
+dist/
+convex/_generated/
+src/routeTree.gen.ts

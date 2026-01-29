@@ -22,3 +22,7 @@ Thumbs.db
 # Cache directories
 /tmp/
 *.log
+src/ingestion/output/
+
+# Playwright MCP screenshots
+.playwright-mcp/

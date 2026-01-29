@@ -1,13 +1,20 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import { useSearch, useNavigate } from '@tanstack/react-router'
+import { useSearch } from '@tanstack/react-router'
+import { Crosshair } from 'lucide-react'
 import { FarmMap, type FarmMapHandle } from './FarmMap'
 import { PaddockPanel } from './PaddockPanel'
 import { PaddockEditPanel } from './PaddockEditPanel'
-import { LayerToggles } from './LayerToggles'
+import { NoGrazeEditPanel } from './NoGrazeEditPanel'
+import { WaterSourceEditPanel } from './WaterSourceEditPanel'
+import { LayerSelector } from './LayerSelector'
+import { MapAddMenu } from './MapAddMenu'
+import { Button } from '@/components/ui/button'
 import { useGeometry, clipPolygonToPolygon } from '@/lib/geometry'
 import { useTodayPlan } from '@/lib/convex/usePlan'
 import { useCurrentUser } from '@/lib/convex/useCurrentUser'
-import type { Paddock, Section, SectionAlternative } from '@/lib/types'
+import { useFarmSettings } from '@/lib/convex/useFarmSettings'
+import { useFarmBoundary } from '@/lib/hooks/useFarmBoundary'
+import type { Paddock, Section, SectionAlternative, NoGrazeZone, WaterSource } from '@/lib/types'
 import type { Feature, Polygon } from 'geojson'
 
 interface MapSearchParams {
@@ -18,29 +25,52 @@ interface MapSearchParams {
 }
 
 export function MapView() {
-  const search = useSearch({ from: '/map' }) as MapSearchParams
-  const navigate = useNavigate({ from: '/map' })
-  
+  const search = useSearch({ strict: false }) as MapSearchParams
+
   const { farmId } = useCurrentUser()
   const { plan } = useTodayPlan(farmId || '')
-  
+  const { settings, updateMapPreference } = useFarmSettings()
+  const { hasBoundary: hasFarmBoundary } = useFarmBoundary()
+
   const [selectedPaddock, setSelectedPaddock] = useState<Paddock | null>(null)
+  const [selectedNoGrazeZone, setSelectedNoGrazeZone] = useState<NoGrazeZone | null>(null)
+  const [selectedWaterSource, setSelectedWaterSource] = useState<WaterSource | null>(null)
   const [editMode, setEditMode] = useState(false)
-  const [entityType, setEntityType] = useState<'paddock' | 'section'>('paddock')
+  const [entityType, setEntityType] = useState<'paddock' | 'section' | 'noGrazeZone' | 'waterPoint' | 'waterPolygon'>('paddock')
   const [focusPaddockId, setFocusPaddockId] = useState<string | undefined>(undefined)
   const [editSectionFeature, setEditSectionFeature] = useState<Feature<Polygon> | null>(null)
   const [editSectionId, setEditSectionId] = useState<string | undefined>(undefined)
   const [initialPaddockId, setInitialPaddockId] = useState<string | undefined>(undefined)
   const mapRef = useRef<FarmMapHandle>(null)
-  const { getSectionById, getPaddockById, addPaddock, sections } = useGeometry()
+  const {
+    getSectionById,
+    getPaddockById,
+    addPaddock,
+    sections,
+    deleteNoGrazeZone,
+    deleteWaterSource,
+    getNoGrazeZoneById,
+    getWaterSourceById,
+  } = useGeometry()
   
   const [layers, setLayers] = useState({
-    satellite: false,
     ndviHeat: false,
     paddocks: true,
     labels: true,
     sections: true,
   })
+
+  // RGB satellite toggle is persisted in settings
+  const showRGBSatellite = settings.mapPreferences?.showRGBSatellite ?? false
+
+  // Derive current satellite layer from state
+  const satelliteLayer = showRGBSatellite ? 'rgb' : layers.ndviHeat ? 'ndvi' : null
+
+  // Handle satellite layer change (mutually exclusive)
+  const handleSatelliteLayerChange = useCallback((layer: 'ndvi' | 'rgb' | null) => {
+    setLayers(prev => ({ ...prev, ndviHeat: layer === 'ndvi' }))
+    updateMapPreference('showRGBSatellite', layer === 'rgb')
+  }, [updateMapPreference])
 
   // Extract today's section from plan or fallback to most recent section
   const todaysSection = useMemo<Section | null>(() => {
@@ -71,26 +101,11 @@ export function MapView() {
 
   // Initialize from URL search params on mount
   useEffect(() => {
-    // If no search params but we have a plan with a section, redirect to edit mode
-    if (!search.edit && !search.entityType && plan?.sectionGeometry) {
-      navigate({
-        search: {
-          edit: true,
-          entityType: 'section',
-          paddockId: plan.primaryPaddockExternalId || '',
-          sectionId: plan._id,
-        },
-        replace: true,
-      })
-      return
-    }
-
+    // Only enter edit mode if explicitly requested via URL params
     if (search.edit) {
       setEditMode(true)
-      // When editing sections, show satellite imagery
       if (search.entityType === 'section') {
         setEntityType('section')
-        setLayers(prev => ({ ...prev, satellite: true }))
       }
       if (search.paddockId) {
         setFocusPaddockId(search.paddockId)
@@ -136,6 +151,7 @@ export function MapView() {
 
   // Focus map on section bounds when available
   useEffect(() => {
+    if (editMode) return
     if (!effectiveSectionGeometry) return
 
     const tryFocus = () => {
@@ -156,13 +172,14 @@ export function MapView() {
     return () => {
       timers.forEach(clearTimeout)
     }
-  }, [effectiveSectionGeometry])
+  }, [editMode, effectiveSectionGeometry])
 
   // Focus map on paddock when editing sections
   // Use a retry mechanism since the map ref might not be ready immediately
   useEffect(() => {
+    if (editMode) return
     if (!focusPaddockId || effectiveSectionGeometry) return
-    
+
     const tryFocus = () => {
       if (mapRef.current) {
         mapRef.current.focusOnPaddock(focusPaddockId)
@@ -183,10 +200,11 @@ export function MapView() {
     return () => {
       timers.forEach(clearTimeout)
     }
-  }, [focusPaddockId, effectiveSectionGeometry])
+  }, [editMode, focusPaddockId, effectiveSectionGeometry])
 
   // Focus map on today's section by default when navigating via sidebar
   useEffect(() => {
+    if (editMode) return
     console.log('[MapView] Focus effect running, todaysSection:', todaysSection?.id, 'search:', search)
     if (search.edit || search.sectionId) {
       console.log('[MapView] Skipping focus - edit mode or specific section requested')
@@ -223,33 +241,21 @@ export function MapView() {
     return () => {
       timers.forEach(clearTimeout)
     }
-  }, [search.edit, search.sectionId, todaysSection, effectiveSectionGeometry])
+  }, [editMode, search.edit, search.sectionId, todaysSection, effectiveSectionGeometry])
 
   const toggleLayer = (layer: keyof typeof layers) => {
     setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }))
   }
 
-  const toggleEditMode = () => {
-    setEditMode((prev) => !prev)
-    // Clear selection when entering edit mode
-    if (!editMode) {
-      setSelectedPaddock(null)
-    } else {
-      // Reset entity type when exiting edit mode
-      setEntityType('paddock')
-      setFocusPaddockId(undefined)
-      setEditSectionFeature(null)
-      setEditSectionId(undefined)
-      setInitialPaddockId(undefined)
-    }
-  }
-
   const handleEditRequest = useCallback((request: {
-    entityType: 'paddock' | 'section'
+    entityType: 'paddock' | 'section' | 'noGrazeZone' | 'waterPolygon'
     paddockId?: string
     sectionId?: string
+    noGrazeZoneId?: string
+    waterSourceId?: string
     geometry?: Feature<Polygon>
   }) => {
+    console.log('[MapView] handleEditRequest called:', request)
     const isDuplicateSection =
       editMode &&
       request.entityType === 'section' &&
@@ -267,13 +273,14 @@ export function MapView() {
     }
     setEditMode(true)
     setEntityType(request.entityType)
-    setSelectedPaddock(null)
     let nextFocusPaddockId: string | undefined
     let nextInitialPaddockId: string | undefined
     let nextEditSectionId: string | undefined
 
     if (request.entityType === 'section') {
-      setLayers(prev => ({ ...prev, satellite: true }))
+      setSelectedPaddock(null)
+      setSelectedNoGrazeZone(null)
+      setSelectedWaterSource(null)
       nextFocusPaddockId = request.paddockId
       nextEditSectionId = request.sectionId
       nextInitialPaddockId = undefined
@@ -281,7 +288,48 @@ export function MapView() {
       setEditSectionFeature(request.geometry ?? null)
       setEditSectionId(nextEditSectionId)
       setInitialPaddockId(nextInitialPaddockId)
+    } else if (request.entityType === 'noGrazeZone') {
+      // For no-graze zones, enter edit mode and select the zone to show the edit panel
+      console.log('[MapView] handleEditRequest noGrazeZone:', { noGrazeZoneId: request.noGrazeZoneId })
+      setSelectedPaddock(null)
+      setSelectedWaterSource(null)
+      setEditSectionFeature(null)
+      setEditSectionId(undefined)
+      setFocusPaddockId(undefined)
+      setInitialPaddockId(undefined)
+      // Look up and select the zone to show the edit panel
+      if (request.noGrazeZoneId) {
+        const zone = getNoGrazeZoneById(request.noGrazeZoneId)
+        console.log('[MapView] getNoGrazeZoneById result:', { zoneId: request.noGrazeZoneId, found: !!zone, zone })
+        if (zone) {
+          setSelectedNoGrazeZone(zone)
+        }
+      } else {
+        setSelectedNoGrazeZone(null)
+      }
+    } else if (request.entityType === 'waterPolygon') {
+      // For water sources, enter edit mode and select the source to show the edit panel
+      console.log('[MapView] handleEditRequest waterPolygon:', { waterSourceId: request.waterSourceId })
+      setSelectedPaddock(null)
+      setSelectedNoGrazeZone(null)
+      setEditSectionFeature(null)
+      setEditSectionId(undefined)
+      setFocusPaddockId(undefined)
+      setInitialPaddockId(undefined)
+      // Look up and select the source to show the edit panel
+      if (request.waterSourceId) {
+        const source = getWaterSourceById(request.waterSourceId)
+        console.log('[MapView] getWaterSourceById result:', { sourceId: request.waterSourceId, found: !!source, source })
+        if (source) {
+          setSelectedWaterSource(source)
+        }
+      } else {
+        setSelectedWaterSource(null)
+      }
     } else {
+      // For paddocks, enter edit mode and select the paddock to show the edit panel
+      setSelectedNoGrazeZone(null)
+      setSelectedWaterSource(null)
       setEditSectionFeature(null)
       setEditSectionId(undefined)
       nextEditSectionId = undefined
@@ -291,18 +339,65 @@ export function MapView() {
         nextInitialPaddockId = newId
         setFocusPaddockId(nextFocusPaddockId)
         setInitialPaddockId(nextInitialPaddockId)
-      } else {
+        setSelectedPaddock(null) // New paddock, no selection yet
+      } else if (request.paddockId) {
+        // Look up and select the paddock to show the edit panel
+        const paddock = getPaddockById(request.paddockId)
+        if (paddock) {
+          setSelectedPaddock(paddock)
+        } else {
+          setSelectedPaddock(null)
+        }
         nextFocusPaddockId = request.paddockId
         nextInitialPaddockId = request.paddockId
         setFocusPaddockId(nextFocusPaddockId)
         setInitialPaddockId(nextInitialPaddockId)
+      } else {
+        setSelectedPaddock(null)
       }
     }
-  }, [addPaddock, editMode, entityType, editSectionId, effectiveSectionId])
+  }, [addPaddock, editMode, entityType, editSectionId, effectiveSectionId, getNoGrazeZoneById, getWaterSourceById, getPaddockById])
 
   const handleEditPaddockSelect = useCallback((paddock: Paddock | null) => {
     setSelectedPaddock(paddock)
   }, [])
+
+  const handleNoGrazeZoneClick = useCallback((zoneId: string) => {
+    console.log('[MapView] handleNoGrazeZoneClick:', { zoneId })
+    const zone = getNoGrazeZoneById(zoneId)
+    console.log('[MapView] handleNoGrazeZoneClick - zone found:', { found: !!zone, zoneName: zone?.name })
+    if (zone) {
+      setSelectedNoGrazeZone(zone)
+      setSelectedPaddock(null)
+      setSelectedWaterSource(null)
+      setEditMode(true)
+      setEntityType('noGrazeZone')
+    }
+  }, [getNoGrazeZoneById])
+
+  const handleWaterSourceClick = useCallback((sourceId: string) => {
+    const source = getWaterSourceById(sourceId)
+    if (source) {
+      setSelectedWaterSource(source)
+      setSelectedPaddock(null)
+      setSelectedNoGrazeZone(null)
+      setEditMode(true)
+      setEntityType('waterPolygon')
+    }
+  }, [getWaterSourceById])
+
+  const handleNoGrazeZoneDelete = useCallback((id: string) => {
+    console.log('[MapView] handleNoGrazeZoneDelete:', { id })
+    console.log('[MapView] handleNoGrazeZoneDelete - calling deleteNoGrazeZone')
+    deleteNoGrazeZone(id)
+    console.log('[MapView] handleNoGrazeZoneDelete - clearing selectedNoGrazeZone')
+    setSelectedNoGrazeZone(null)
+  }, [deleteNoGrazeZone])
+
+  const handleWaterSourceDelete = useCallback((id: string) => {
+    deleteWaterSource(id)
+    setSelectedWaterSource(null)
+  }, [deleteWaterSource])
 
   return (
     <div className="flex h-full">
@@ -310,15 +405,22 @@ export function MapView() {
       <div className="relative flex-1">
         <FarmMap
           ref={mapRef}
-          onPaddockClick={setSelectedPaddock}
+          onPaddockClick={(paddock) => {
+            setSelectedPaddock(paddock)
+            setEditMode(true)
+            setEntityType('paddock')
+            setInitialPaddockId(paddock.id)
+          }}
           onEditPaddockSelect={handleEditPaddockSelect}
           onEditRequest={handleEditRequest}
+          onNoGrazeZoneClick={handleNoGrazeZoneClick}
+          onWaterSourceClick={handleWaterSourceClick}
           selectedPaddockId={selectedPaddock?.id}
-          showSatellite={layers.satellite}
           showNdviHeat={layers.ndviHeat}
           showPaddocks={layers.paddocks}
           showLabels={layers.labels}
           showSections={layers.sections}
+          showRGBSatellite={showRGBSatellite}
           editable={true}
           editMode={editMode}
           entityType={entityType}
@@ -326,26 +428,70 @@ export function MapView() {
           initialSectionFeature={effectiveSectionGeometry ?? undefined}
           initialSectionId={effectiveSectionId}
           initialPaddockId={initialPaddockId}
+          initialNoGrazeZoneId={selectedNoGrazeZone?.id}
+          initialWaterSourceId={selectedWaterSource?.id}
           toolbarPosition="top-left"
         />
         
         {/* Edit mode indicator */}
         {editMode && (
-          <div className="absolute top-3 right-3 z-10">
-            <div className="rounded-lg border border-primary bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
-              Editing {entityType === 'section' ? 'Sections' : 'Paddocks'}
+          <div className="absolute top-2 right-2 z-10">
+            <div className="rounded-lg border border-primary bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary">
+              Editing {entityType === 'section' ? 'Sections' : entityType === 'noGrazeZone' ? 'No-graze Zone' : entityType === 'waterPoint' || entityType === 'waterPolygon' ? 'Water Source' : 'Paddocks'}
             </div>
           </div>
         )}
+
+        {/* Target button - center on farm boundary */}
+        {hasFarmBoundary && (
+          <Button
+            size="icon"
+            variant="outline"
+            className="absolute top-2 right-10 z-20 h-8 w-8 rounded-full shadow-lg bg-background"
+            onClick={() => mapRef.current?.focusOnFarmBoundary()}
+            title="Center on farm boundary"
+          >
+            <Crosshair className="h-4 w-4" />
+          </Button>
+        )}
+
+        {/* Add menu (visible when not in edit mode) */}
+        {!editMode && (
+          <MapAddMenu
+            onAddPaddock={() => {
+              // Create a new paddock at the center of the map
+              const paddockId = mapRef.current?.createPaddockAtCenter()
+              if (paddockId) {
+                // Enter edit mode with the new paddock selected
+                // FarmMap will handle selecting the paddock via onEditPaddockSelect
+                setEditMode(true)
+                setEntityType('paddock')
+                setEditSectionFeature(null)
+                setEditSectionId(undefined)
+                setFocusPaddockId(paddockId)
+                setInitialPaddockId(paddockId)
+              }
+            }}
+            onAddNoGrazeZone={() => {
+              setEditMode(true)
+              setEntityType('noGrazeZone')
+              setSelectedPaddock(null)
+            }}
+            onAddWaterSource={(geometryType) => {
+              setEditMode(true)
+              setEntityType(geometryType === 'point' ? 'waterPoint' : 'waterPolygon')
+              setSelectedPaddock(null)
+            }}
+          />
+        )}
         
-        {/* Layer toggles */}
-        <div className="absolute bottom-4 left-4 z-10">
-          <LayerToggles 
-            layers={layers} 
-            onToggle={toggleLayer}
-            editMode={editMode}
-            onEditModeToggle={toggleEditMode}
-            showEditToggle={true}
+        {/* Layer selector - top left */}
+        <div className="absolute top-2 left-2 z-10">
+          <LayerSelector
+            satelliteLayer={satelliteLayer}
+            onSatelliteLayerChange={handleSatelliteLayerChange}
+            layers={layers}
+            onToggleLayer={toggleLayer}
           />
         </div>
       </div>
@@ -361,10 +507,29 @@ export function MapView() {
       {selectedPaddock && editMode && entityType === 'paddock' && (
         <PaddockEditPanel
           paddock={selectedPaddock}
+          open={true}
           onClose={() => {
             setSelectedPaddock(null)
             mapRef.current?.setDrawMode('simple_select')
           }}
+        />
+      )}
+
+      {selectedNoGrazeZone && (
+        <NoGrazeEditPanel
+          zone={selectedNoGrazeZone}
+          open={true}
+          onDelete={handleNoGrazeZoneDelete}
+          onClose={() => setSelectedNoGrazeZone(null)}
+        />
+      )}
+
+      {selectedWaterSource && (
+        <WaterSourceEditPanel
+          source={selectedWaterSource}
+          open={true}
+          onDelete={handleWaterSourceDelete}
+          onClose={() => setSelectedWaterSource(null)}
         />
       )}
     </div>

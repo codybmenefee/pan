@@ -1,6 +1,36 @@
-import type { Feature, Polygon } from 'geojson'
+import type { Feature, Point, Polygon } from 'geojson'
 
 export type PaddockStatus = 'ready' | 'almost_ready' | 'recovering' | 'grazed'
+
+// Livestock types
+export type AnimalType = 'cow' | 'sheep'
+
+export interface LivestockEntry {
+  id: string
+  farmId: string
+  animalType: AnimalType
+  adultCount: number
+  offspringCount: number
+  notes?: string
+}
+
+export interface LivestockSettings {
+  cowAU: number
+  calfAU: number
+  sheepAU: number
+  lambAU: number
+  dailyDMPerAU: number
+}
+
+export interface LivestockSummary {
+  cows: number
+  calves: number
+  sheep: number
+  lambs: number
+  totalAnimalUnits: number
+  dailyConsumptionKg: number
+  auFactors: LivestockSettings
+}
 
 export type PlanStatus = 'pending' | 'approved' | 'rejected' | 'executed' | 'modified'
 
@@ -158,6 +188,15 @@ export interface PaddockPerformance {
   trend: 'up' | 'down' | 'stable'
 }
 
+// Map preferences for persisting user's map layer settings
+export interface MapPreferences {
+  showRGBSatellite: boolean
+  showNDVIHeatmap?: boolean
+}
+
+// Area unit type
+export type AreaUnit = 'hectares' | 'acres'
+
 // Settings types
 export interface FarmSettings {
   minNDVIThreshold: number
@@ -168,6 +207,8 @@ export interface FarmSettings {
   pushNotifications: boolean
   virtualFenceProvider?: string
   apiKey?: string
+  mapPreferences?: MapPreferences
+  areaUnit?: AreaUnit
 }
 
 // Analytics types
@@ -230,4 +271,41 @@ export interface GrazingStock {
   byPaddock: PaddockGrazingReserve[]
   lastUpdated: string // ISO date
   assumptionNote: string // e.g., "Assumes zero precipitation and growth stall"
+}
+
+// No-graze zone types
+export type NoGrazeZoneType = 'environmental' | 'hazard' | 'infrastructure' | 'protected' | 'other'
+
+// No-graze zones (farm-level exclusion areas)
+export interface NoGrazeZone {
+  id: string
+  farmId: string
+  name: string
+  type: NoGrazeZoneType
+  area: number
+  description?: string
+  geometry: Feature<Polygon>
+  createdAt: string
+  updatedAt: string
+}
+
+// Water source types
+export type WaterSourceType = 'trough' | 'pond' | 'dam' | 'tank' | 'stream' | 'other'
+
+// Water source status
+export type WaterSourceStatus = 'active' | 'seasonal' | 'maintenance' | 'dry'
+
+// Water sources (can be point or polygon)
+export interface WaterSource {
+  id: string
+  farmId: string
+  name: string
+  type: WaterSourceType
+  geometryType: 'point' | 'polygon'
+  geometry: Feature<Point | Polygon>
+  area?: number
+  description?: string
+  status?: WaterSourceStatus
+  createdAt: string
+  updatedAt: string
 }

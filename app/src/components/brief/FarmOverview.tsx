@@ -15,6 +15,7 @@ import {
 import type { Paddock, PaddockStatus } from '@/lib/types'
 import { useGeometry } from '@/lib/geometry'
 import { useFarm } from '@/lib/convex/useFarm'
+import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 
 type StatusGroup = 'ready' | 'recovering' | 'grazed'
 
@@ -69,6 +70,7 @@ function getStatusLabel(status: PaddockStatus): string {
 export function FarmOverview() {
   const { paddocks } = useGeometry()
   const { farm } = useFarm()
+  const { format } = useAreaUnit()
   const counts = paddocks.reduce((acc, paddock) => {
     acc[paddock.status] = (acc[paddock.status] || 0) + 1
     return acc
@@ -87,20 +89,20 @@ export function FarmOverview() {
   return (
     <>
       <Card>
-        <CardHeader className="pb-3 xl:pb-4">
-          <CardTitle className="text-sm xl:text-base font-medium">Farm Overview</CardTitle>
+        <CardHeader className="pb-1.5 xl:pb-2">
+          <CardTitle className="text-xs xl:text-sm font-medium">Farm Overview</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 xl:space-y-3">
+        <CardContent className="space-y-1.5 xl:space-y-2">
           <div>
-            <p className="text-sm xl:text-base font-medium">{farm?.name ?? 'Farm overview'}</p>
-            <p className="text-xs xl:text-sm text-muted-foreground">{farm?.location ?? 'Location unavailable'}</p>
+            <p className="text-xs xl:text-sm font-medium">{farm?.name ?? 'Farm overview'}</p>
+            <p className="text-[10px] xl:text-xs text-muted-foreground">{farm?.location ?? 'Location unavailable'}</p>
           </div>
 
-          <div className="text-xs xl:text-sm text-muted-foreground">
-            {farm?.paddockCount ?? paddocks.length} paddocks / {farm?.totalArea ?? '—'} ha
+          <div className="text-[10px] xl:text-xs text-muted-foreground">
+            {farm?.paddockCount ?? paddocks.length} paddocks / {farm?.totalArea ? format(farm.totalArea) : '—'}
           </div>
 
-          <div className="grid grid-cols-3 gap-1.5 xl:gap-2 text-center">
+          <div className="grid grid-cols-3 gap-1 xl:gap-1.5 text-center">
             {(['ready', 'recovering', 'grazed'] as StatusGroup[]).map((group) => {
               const config = statusGroupConfig[group]
               return (
@@ -108,12 +110,12 @@ export function FarmOverview() {
                   <TooltipTrigger asChild>
                     <button
                       onClick={() => setOpenGroup(group)}
-                      className={`rounded-md ${config.bgClass} py-1.5 xl:py-2 transition-all hover:ring-2 hover:ring-offset-1 hover:ring-current/20 cursor-pointer`}
+                      className={`rounded-md ${config.bgClass} py-1 xl:py-1.5 transition-all hover:ring-2 hover:ring-offset-1 hover:ring-current/20 cursor-pointer`}
                     >
-                      <p className={`text-sm xl:text-base font-semibold ${config.textClass}`}>
+                      <p className={`text-xs xl:text-sm font-semibold ${config.textClass}`}>
                         {groupCounts[group]}
                       </p>
-                      <p className="text-[10px] xl:text-xs text-muted-foreground">
+                      <p className="text-[9px] xl:text-[10px] text-muted-foreground">
                         {group === 'recovering' ? 'Recov.' : group === 'ready' ? 'Ready' : 'Grazed'}
                       </p>
                     </button>
@@ -147,7 +149,7 @@ export function FarmOverview() {
                   <div>
                     <p className="text-sm font-medium">{paddock.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {paddock.area} ha / {paddock.restDays} days rest
+                      {format(paddock.area)} / {paddock.restDays} days rest
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1">

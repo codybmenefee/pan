@@ -25,7 +25,12 @@ class ZonalStatsResult(TypedDict):
     evi_mean: float
     ndwi_mean: float
     pixel_count: int
+    cloud_free_pct: float  # Per-paddock cloud-free percentage (0.0-1.0)
     is_valid: bool
+
+
+# Minimum cloud-free percentage required for valid observation
+MIN_CLOUD_FREE_PCT = 0.5  # 50% minimum clear pixels
 
 
 def get_bbox_from_data(data: xr.DataArray) -> tuple[float, float, float, float]:
@@ -86,7 +91,8 @@ def pixel_centers_to_gdf(data: xr.DataArray) -> gpd.GeoDataFrame:
 def compute_zonal_stats(
     data: xr.DataArray,
     paddocks: list[dict],
-    resolution_meters: int = 10
+    resolution_meters: int = 10,
+    cloud_mask: 'Optional[xr.DataArray]' = None,
 ) -> list[ZonalStatsResult]:
     """
     Compute zonal statistics for multiple paddocks.
@@ -96,6 +102,7 @@ def compute_zonal_stats(
     - EVI: mean
     - NDWI: mean
     - Pixel count
+    - Cloud-free percentage (per-paddock)
 
     Args:
         data: Composite DataArray with band dimension (nir, red, swir, blue)
@@ -103,19 +110,30 @@ def compute_zonal_stats(
             - id: Paddock identifier
             - geometry: GeoJSON polygon or Shapely polygon
         resolution_meters: Resolution of the data in meters
+        cloud_mask: Optional boolean DataArray where True = cloudy pixel
 
     Returns:
         List of ZonalStatsResult dictionaries
     """
     import rioxarray  # Enables .rio accessor
 
-    # Get raster CRS - odc-stac loads data in EPSG:4326 by default
+    # Get raster CRS - try multiple sources
     raster_crs = None
-    if hasattr(data, 'rio') and hasattr(data.rio, 'crs'):
+
+    # Try rioxarray accessor first
+    if hasattr(data, 'rio') and hasattr(data.rio, 'crs') and data.rio.crs is not None:
         raster_crs = data.rio.crs
         print(f"DEBUG: Found raster CRS from rio: {raster_crs}")
-    else:
-        # Set default CRS for data from odc-stac
+
+    # Try attrs
+    if raster_crs is None and "crs" in data.attrs:
+        crs_str = data.attrs["crs"]
+        print(f"DEBUG: Found raster CRS from attrs: {crs_str}")
+        data = data.rio.write_crs(crs_str)
+        raster_crs = data.rio.crs
+
+    # Fallback to EPSG:4326
+    if raster_crs is None:
         raster_crs = "EPSG:4326"
         data = data.rio.write_crs(raster_crs)
         print(f"DEBUG: Set raster CRS to: {raster_crs}")
@@ -260,14 +278,37 @@ def compute_zonal_stats(
             # Pixel count
             pixel_count = len(valid_ndvi)
 
-            # Determine validity based on pixel count
+            # Compute per-paddock cloud-free percentage
+            paddock_cloud_free_pct = 1.0  # Default to fully clear if no cloud mask
+            if cloud_mask is not None:
+                try:
+                    # Ensure cloud mask has CRS for rioxarray clipping
+                    mask_with_crs = cloud_mask
+                    if not hasattr(cloud_mask, 'rio') or cloud_mask.rio.crs is None:
+                        mask_crs = cloud_mask.attrs.get('crs', raster_crs)
+                        mask_with_crs = cloud_mask.rio.write_crs(mask_crs)
+                    # Clip cloud mask to paddock geometry
+                    clipped_mask = mask_with_crs.rio.clip([polygon], all_touched=True)
+                    total_mask_pixels = clipped_mask.size
+                    cloudy_pixels = int(clipped_mask.sum().values)
+                    clear_pixels = total_mask_pixels - cloudy_pixels
+                    paddock_cloud_free_pct = float(clear_pixels) / total_mask_pixels if total_mask_pixels > 0 else 0.0
+                    print(f"DEBUG: {paddock_id}: cloud_free_pct={paddock_cloud_free_pct:.1%} ({clear_pixels}/{total_mask_pixels} clear)")
+                except Exception as e:
+                    print(f"DEBUG: Error computing cloud-free for {paddock_id}: {e}")
+                    paddock_cloud_free_pct = 1.0  # Assume clear on error
+
+            # Determine validity based on pixel count AND cloud coverage
             # For a ~15ha paddock at 10m resolution, we expect ~1500 pixels
             # Use a minimum threshold of 100 pixels (1 hectare equivalent)
             min_pixels = 100
 
-            is_valid = pixel_count >= min_pixels
+            is_valid = (
+                pixel_count >= min_pixels and
+                paddock_cloud_free_pct >= MIN_CLOUD_FREE_PCT
+            )
 
-            print(f"DEBUG: {paddock_id}: ndvi_mean={ndvi_mean:.3f}, pixels={pixel_count}, valid={is_valid}")
+            print(f"DEBUG: {paddock_id}: ndvi_mean={ndvi_mean:.3f}, pixels={pixel_count}, cloud_free={paddock_cloud_free_pct:.1%}, valid={is_valid}")
 
             results.append(ZonalStatsResult(
                 paddock_id=paddock_id,
@@ -278,6 +319,7 @@ def compute_zonal_stats(
                 evi_mean=evi_mean,
                 ndwi_mean=ndwi_mean,
                 pixel_count=pixel_count,
+                cloud_free_pct=paddock_cloud_free_pct,
                 is_valid=is_valid,
             ))
 
@@ -352,7 +394,7 @@ def compute_ndwi_from_bands(data: xr.DataArray, band_names: list) -> np.ndarray:
         return np.where(np.isfinite(ndwi), ndwi, np.nan)
 
 
-def create_invalid_result(paddock_id: str) -> ZonalStatsResult:
+def create_invalid_result(paddock_id: str, cloud_free_pct: float = 0.0) -> ZonalStatsResult:
     """Create an invalid result for failed computations."""
     return ZonalStatsResult(
         paddock_id=paddock_id,
@@ -363,6 +405,7 @@ def create_invalid_result(paddock_id: str) -> ZonalStatsResult:
         evi_mean=np.nan,
         ndwi_mean=np.nan,
         pixel_count=0,
+        cloud_free_pct=cloud_free_pct,
         is_valid=False,
     )
 

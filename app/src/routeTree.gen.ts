@@ -9,180 +9,496 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as MapRouteImport } from './routes/map'
-import { Route as HistoryRouteImport } from './routes/history'
-import { Route as AnalyticsRouteImport } from './routes/analytics'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as PaddocksIdRouteImport } from './routes/paddocks/$id'
+import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as DemoRouteImport } from './routes/demo'
+import { Route as PublicRouteImport } from './routes/_public'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as DemoIndexRouteImport } from './routes/demo/index'
+import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as DemoSettingsRouteImport } from './routes/demo/settings'
+import { Route as PublicTechnologyRouteImport } from './routes/_public/technology'
+import { Route as PublicResearchRouteImport } from './routes/_public/research'
+import { Route as PublicMarketingRouteImport } from './routes/_public/marketing'
+import { Route as PublicInvestorsRouteImport } from './routes/_public/investors'
+import { Route as PublicDocsRouteImport } from './routes/_public/docs'
+import { Route as AppUpgradeRouteImport } from './routes/_app/upgrade'
+import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppOnboardingRouteImport } from './routes/_app/onboarding'
+import { Route as AppMapRouteImport } from './routes/_app/map'
+import { Route as AppHistoryRouteImport } from './routes/_app/history'
+import { Route as AppAnalyticsRouteImport } from './routes/_app/analytics'
+import { Route as PublicDocsIndexRouteImport } from './routes/_public/docs/index'
+import { Route as AppPaddocksIdRouteImport } from './routes/_app/paddocks/$id'
+import { Route as PublicDocsCategoryArticleRouteImport } from './routes/_public/docs/$category.$article'
 
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
+const SignInRoute = SignInRouteImport.update({
+  id: '/sign-in',
+  path: '/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MapRoute = MapRouteImport.update({
-  id: '/map',
-  path: '/map',
+const PublicRoute = PublicRouteImport.update({
+  id: '/_public',
   getParentRoute: () => rootRouteImport,
 } as any)
-const HistoryRoute = HistoryRouteImport.update({
-  id: '/history',
-  path: '/history',
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AnalyticsRoute = AnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const IndexRoute = IndexRouteImport.update({
+const DemoIndexRoute = DemoIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => DemoRoute,
 } as any)
-const PaddocksIdRoute = PaddocksIdRouteImport.update({
+const AppIndexRoute = AppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const DemoSettingsRoute = DemoSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => DemoRoute,
+} as any)
+const PublicTechnologyRoute = PublicTechnologyRouteImport.update({
+  id: '/technology',
+  path: '/technology',
+  getParentRoute: () => PublicRoute,
+} as any)
+const PublicResearchRoute = PublicResearchRouteImport.update({
+  id: '/research',
+  path: '/research',
+  getParentRoute: () => PublicRoute,
+} as any)
+const PublicMarketingRoute = PublicMarketingRouteImport.update({
+  id: '/marketing',
+  path: '/marketing',
+  getParentRoute: () => PublicRoute,
+} as any)
+const PublicInvestorsRoute = PublicInvestorsRouteImport.update({
+  id: '/investors',
+  path: '/investors',
+  getParentRoute: () => PublicRoute,
+} as any)
+const PublicDocsRoute = PublicDocsRouteImport.update({
+  id: '/docs',
+  path: '/docs',
+  getParentRoute: () => PublicRoute,
+} as any)
+const AppUpgradeRoute = AppUpgradeRouteImport.update({
+  id: '/upgrade',
+  path: '/upgrade',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOnboardingRoute = AppOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMapRoute = AppMapRouteImport.update({
+  id: '/map',
+  path: '/map',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppHistoryRoute = AppHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => AppRoute,
+} as any)
+const PublicDocsIndexRoute = PublicDocsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PublicDocsRoute,
+} as any)
+const AppPaddocksIdRoute = AppPaddocksIdRouteImport.update({
   id: '/paddocks/$id',
   path: '/paddocks/$id',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
 } as any)
+const PublicDocsCategoryArticleRoute =
+  PublicDocsCategoryArticleRouteImport.update({
+    id: '/$category/$article',
+    path: '/$category/$article',
+    getParentRoute: () => PublicDocsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/analytics': typeof AnalyticsRoute
-  '/history': typeof HistoryRoute
-  '/map': typeof MapRoute
-  '/onboarding': typeof OnboardingRoute
-  '/settings': typeof SettingsRoute
-  '/paddocks/$id': typeof PaddocksIdRoute
+  '/demo': typeof DemoRouteWithChildren
+  '/sign-in': typeof SignInRoute
+  '/analytics': typeof AppAnalyticsRoute
+  '/history': typeof AppHistoryRoute
+  '/map': typeof AppMapRoute
+  '/onboarding': typeof AppOnboardingRoute
+  '/settings': typeof AppSettingsRoute
+  '/upgrade': typeof AppUpgradeRoute
+  '/docs': typeof PublicDocsRouteWithChildren
+  '/investors': typeof PublicInvestorsRoute
+  '/marketing': typeof PublicMarketingRoute
+  '/research': typeof PublicResearchRoute
+  '/technology': typeof PublicTechnologyRoute
+  '/demo/settings': typeof DemoSettingsRoute
+  '/': typeof AppIndexRoute
+  '/demo/': typeof DemoIndexRoute
+  '/paddocks/$id': typeof AppPaddocksIdRoute
+  '/docs/': typeof PublicDocsIndexRoute
+  '/docs/$category/$article': typeof PublicDocsCategoryArticleRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/analytics': typeof AnalyticsRoute
-  '/history': typeof HistoryRoute
-  '/map': typeof MapRoute
-  '/onboarding': typeof OnboardingRoute
-  '/settings': typeof SettingsRoute
-  '/paddocks/$id': typeof PaddocksIdRoute
+  '/sign-in': typeof SignInRoute
+  '/analytics': typeof AppAnalyticsRoute
+  '/history': typeof AppHistoryRoute
+  '/map': typeof AppMapRoute
+  '/onboarding': typeof AppOnboardingRoute
+  '/settings': typeof AppSettingsRoute
+  '/upgrade': typeof AppUpgradeRoute
+  '/investors': typeof PublicInvestorsRoute
+  '/marketing': typeof PublicMarketingRoute
+  '/research': typeof PublicResearchRoute
+  '/technology': typeof PublicTechnologyRoute
+  '/demo/settings': typeof DemoSettingsRoute
+  '/': typeof AppIndexRoute
+  '/demo': typeof DemoIndexRoute
+  '/paddocks/$id': typeof AppPaddocksIdRoute
+  '/docs': typeof PublicDocsIndexRoute
+  '/docs/$category/$article': typeof PublicDocsCategoryArticleRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/analytics': typeof AnalyticsRoute
-  '/history': typeof HistoryRoute
-  '/map': typeof MapRoute
-  '/onboarding': typeof OnboardingRoute
-  '/settings': typeof SettingsRoute
-  '/paddocks/$id': typeof PaddocksIdRoute
+  '/_app': typeof AppRouteWithChildren
+  '/_public': typeof PublicRouteWithChildren
+  '/demo': typeof DemoRouteWithChildren
+  '/sign-in': typeof SignInRoute
+  '/_app/analytics': typeof AppAnalyticsRoute
+  '/_app/history': typeof AppHistoryRoute
+  '/_app/map': typeof AppMapRoute
+  '/_app/onboarding': typeof AppOnboardingRoute
+  '/_app/settings': typeof AppSettingsRoute
+  '/_app/upgrade': typeof AppUpgradeRoute
+  '/_public/docs': typeof PublicDocsRouteWithChildren
+  '/_public/investors': typeof PublicInvestorsRoute
+  '/_public/marketing': typeof PublicMarketingRoute
+  '/_public/research': typeof PublicResearchRoute
+  '/_public/technology': typeof PublicTechnologyRoute
+  '/demo/settings': typeof DemoSettingsRoute
+  '/_app/': typeof AppIndexRoute
+  '/demo/': typeof DemoIndexRoute
+  '/_app/paddocks/$id': typeof AppPaddocksIdRoute
+  '/_public/docs/': typeof PublicDocsIndexRoute
+  '/_public/docs/$category/$article': typeof PublicDocsCategoryArticleRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
+    | '/demo'
+    | '/sign-in'
     | '/analytics'
     | '/history'
     | '/map'
     | '/onboarding'
     | '/settings'
+    | '/upgrade'
+    | '/docs'
+    | '/investors'
+    | '/marketing'
+    | '/research'
+    | '/technology'
+    | '/demo/settings'
+    | '/'
+    | '/demo/'
     | '/paddocks/$id'
+    | '/docs/'
+    | '/docs/$category/$article'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
+    | '/sign-in'
     | '/analytics'
     | '/history'
     | '/map'
     | '/onboarding'
     | '/settings'
+    | '/upgrade'
+    | '/investors'
+    | '/marketing'
+    | '/research'
+    | '/technology'
+    | '/demo/settings'
+    | '/'
+    | '/demo'
     | '/paddocks/$id'
+    | '/docs'
+    | '/docs/$category/$article'
   id:
     | '__root__'
-    | '/'
-    | '/analytics'
-    | '/history'
-    | '/map'
-    | '/onboarding'
-    | '/settings'
-    | '/paddocks/$id'
+    | '/_app'
+    | '/_public'
+    | '/demo'
+    | '/sign-in'
+    | '/_app/analytics'
+    | '/_app/history'
+    | '/_app/map'
+    | '/_app/onboarding'
+    | '/_app/settings'
+    | '/_app/upgrade'
+    | '/_public/docs'
+    | '/_public/investors'
+    | '/_public/marketing'
+    | '/_public/research'
+    | '/_public/technology'
+    | '/demo/settings'
+    | '/_app/'
+    | '/demo/'
+    | '/_app/paddocks/$id'
+    | '/_public/docs/'
+    | '/_public/docs/$category/$article'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AnalyticsRoute: typeof AnalyticsRoute
-  HistoryRoute: typeof HistoryRoute
-  MapRoute: typeof MapRoute
-  OnboardingRoute: typeof OnboardingRoute
-  SettingsRoute: typeof SettingsRoute
-  PaddocksIdRoute: typeof PaddocksIdRoute
+  AppRoute: typeof AppRouteWithChildren
+  PublicRoute: typeof PublicRouteWithChildren
+  DemoRoute: typeof DemoRouteWithChildren
+  SignInRoute: typeof SignInRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
+    '/sign-in': {
+      id: '/sign-in'
+      path: '/sign-in'
+      fullPath: '/sign-in'
+      preLoaderRoute: typeof SignInRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/map': {
-      id: '/map'
-      path: '/map'
-      fullPath: '/map'
-      preLoaderRoute: typeof MapRouteImport
+    '/_public': {
+      id: '/_public'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof PublicRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/history': {
-      id: '/history'
-      path: '/history'
-      fullPath: '/history'
-      preLoaderRoute: typeof HistoryRouteImport
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/analytics': {
-      id: '/analytics'
-      path: '/analytics'
-      fullPath: '/analytics'
-      preLoaderRoute: typeof AnalyticsRouteImport
-      parentRoute: typeof rootRouteImport
+    '/demo/': {
+      id: '/demo/'
+      path: '/'
+      fullPath: '/demo/'
+      preLoaderRoute: typeof DemoIndexRouteImport
+      parentRoute: typeof DemoRoute
     }
-    '/': {
-      id: '/'
+    '/_app/': {
+      id: '/_app/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/paddocks/$id': {
-      id: '/paddocks/$id'
+    '/demo/settings': {
+      id: '/demo/settings'
+      path: '/settings'
+      fullPath: '/demo/settings'
+      preLoaderRoute: typeof DemoSettingsRouteImport
+      parentRoute: typeof DemoRoute
+    }
+    '/_public/technology': {
+      id: '/_public/technology'
+      path: '/technology'
+      fullPath: '/technology'
+      preLoaderRoute: typeof PublicTechnologyRouteImport
+      parentRoute: typeof PublicRoute
+    }
+    '/_public/research': {
+      id: '/_public/research'
+      path: '/research'
+      fullPath: '/research'
+      preLoaderRoute: typeof PublicResearchRouteImport
+      parentRoute: typeof PublicRoute
+    }
+    '/_public/marketing': {
+      id: '/_public/marketing'
+      path: '/marketing'
+      fullPath: '/marketing'
+      preLoaderRoute: typeof PublicMarketingRouteImport
+      parentRoute: typeof PublicRoute
+    }
+    '/_public/investors': {
+      id: '/_public/investors'
+      path: '/investors'
+      fullPath: '/investors'
+      preLoaderRoute: typeof PublicInvestorsRouteImport
+      parentRoute: typeof PublicRoute
+    }
+    '/_public/docs': {
+      id: '/_public/docs'
+      path: '/docs'
+      fullPath: '/docs'
+      preLoaderRoute: typeof PublicDocsRouteImport
+      parentRoute: typeof PublicRoute
+    }
+    '/_app/upgrade': {
+      id: '/_app/upgrade'
+      path: '/upgrade'
+      fullPath: '/upgrade'
+      preLoaderRoute: typeof AppUpgradeRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/onboarding': {
+      id: '/_app/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof AppOnboardingRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/map': {
+      id: '/_app/map'
+      path: '/map'
+      fullPath: '/map'
+      preLoaderRoute: typeof AppMapRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/history': {
+      id: '/_app/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof AppHistoryRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/analytics': {
+      id: '/_app/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AppAnalyticsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_public/docs/': {
+      id: '/_public/docs/'
+      path: '/'
+      fullPath: '/docs/'
+      preLoaderRoute: typeof PublicDocsIndexRouteImport
+      parentRoute: typeof PublicDocsRoute
+    }
+    '/_app/paddocks/$id': {
+      id: '/_app/paddocks/$id'
       path: '/paddocks/$id'
       fullPath: '/paddocks/$id'
-      preLoaderRoute: typeof PaddocksIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppPaddocksIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_public/docs/$category/$article': {
+      id: '/_public/docs/$category/$article'
+      path: '/$category/$article'
+      fullPath: '/docs/$category/$article'
+      preLoaderRoute: typeof PublicDocsCategoryArticleRouteImport
+      parentRoute: typeof PublicDocsRoute
     }
   }
 }
 
+interface AppRouteChildren {
+  AppAnalyticsRoute: typeof AppAnalyticsRoute
+  AppHistoryRoute: typeof AppHistoryRoute
+  AppMapRoute: typeof AppMapRoute
+  AppOnboardingRoute: typeof AppOnboardingRoute
+  AppSettingsRoute: typeof AppSettingsRoute
+  AppUpgradeRoute: typeof AppUpgradeRoute
+  AppIndexRoute: typeof AppIndexRoute
+  AppPaddocksIdRoute: typeof AppPaddocksIdRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppAnalyticsRoute: AppAnalyticsRoute,
+  AppHistoryRoute: AppHistoryRoute,
+  AppMapRoute: AppMapRoute,
+  AppOnboardingRoute: AppOnboardingRoute,
+  AppSettingsRoute: AppSettingsRoute,
+  AppUpgradeRoute: AppUpgradeRoute,
+  AppIndexRoute: AppIndexRoute,
+  AppPaddocksIdRoute: AppPaddocksIdRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
+interface PublicDocsRouteChildren {
+  PublicDocsIndexRoute: typeof PublicDocsIndexRoute
+  PublicDocsCategoryArticleRoute: typeof PublicDocsCategoryArticleRoute
+}
+
+const PublicDocsRouteChildren: PublicDocsRouteChildren = {
+  PublicDocsIndexRoute: PublicDocsIndexRoute,
+  PublicDocsCategoryArticleRoute: PublicDocsCategoryArticleRoute,
+}
+
+const PublicDocsRouteWithChildren = PublicDocsRoute._addFileChildren(
+  PublicDocsRouteChildren,
+)
+
+interface PublicRouteChildren {
+  PublicDocsRoute: typeof PublicDocsRouteWithChildren
+  PublicInvestorsRoute: typeof PublicInvestorsRoute
+  PublicMarketingRoute: typeof PublicMarketingRoute
+  PublicResearchRoute: typeof PublicResearchRoute
+  PublicTechnologyRoute: typeof PublicTechnologyRoute
+}
+
+const PublicRouteChildren: PublicRouteChildren = {
+  PublicDocsRoute: PublicDocsRouteWithChildren,
+  PublicInvestorsRoute: PublicInvestorsRoute,
+  PublicMarketingRoute: PublicMarketingRoute,
+  PublicResearchRoute: PublicResearchRoute,
+  PublicTechnologyRoute: PublicTechnologyRoute,
+}
+
+const PublicRouteWithChildren =
+  PublicRoute._addFileChildren(PublicRouteChildren)
+
+interface DemoRouteChildren {
+  DemoSettingsRoute: typeof DemoSettingsRoute
+  DemoIndexRoute: typeof DemoIndexRoute
+}
+
+const DemoRouteChildren: DemoRouteChildren = {
+  DemoSettingsRoute: DemoSettingsRoute,
+  DemoIndexRoute: DemoIndexRoute,
+}
+
+const DemoRouteWithChildren = DemoRoute._addFileChildren(DemoRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AnalyticsRoute: AnalyticsRoute,
-  HistoryRoute: HistoryRoute,
-  MapRoute: MapRoute,
-  OnboardingRoute: OnboardingRoute,
-  SettingsRoute: SettingsRoute,
-  PaddocksIdRoute: PaddocksIdRoute,
+  AppRoute: AppRouteWithChildren,
+  PublicRoute: PublicRouteWithChildren,
+  DemoRoute: DemoRouteWithChildren,
+  SignInRoute: SignInRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

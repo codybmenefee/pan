@@ -1,4 +1,4 @@
-# Grazing Intelligence Demo App
+# OpenPasture App
 
 Frontend for the Morning Farm Brief experience. Built with Vite, React, and TypeScript.
 

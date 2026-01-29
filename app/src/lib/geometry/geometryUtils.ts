@@ -2,9 +2,10 @@ import type { Feature, MultiPolygon, Polygon, Position } from 'geojson'
 import area from '@turf/area'
 import intersect from '@turf/intersect'
 import { featureCollection, polygon } from '@turf/helpers'
+import type { Map as MapLibreMap } from 'maplibre-gl'
+import { HECTARES_PER_SQUARE_METER } from '@/lib/areaUnits'
 
 const DEFAULT_TOLERANCE = 1e-8
-const HECTARES_PER_SQUARE_METER = 1 / 10000
 const AREA_DECIMALS = 1
 
 export function calculateAreaHectares(feature: Feature<Polygon | MultiPolygon>, decimals = AREA_DECIMALS): number {
@@ -113,4 +114,62 @@ export function clipPolygonToPolygon(
 
   console.log('[Sections] clipPolygonToPolygon: unexpected geometry type:', result.geometry.type)
   return null
+}
+
+/**
+ * Creates a square polygon from an anchor corner and a target corner.
+ * The square is computed in screen space to ensure visual squareness
+ * regardless of latitude, then converted back to geographic coordinates.
+ *
+ * @param map - The MapLibre map instance for coordinate conversion
+ * @param anchor - The fixed corner [lng, lat] that stays in place
+ * @param target - The cursor/target position [lng, lat]
+ * @returns A GeoJSON Feature<Polygon> representing the square
+ */
+export function createSquareFromCorners(
+  map: MapLibreMap,
+  anchor: [number, number],
+  target: [number, number]
+): Feature<Polygon> {
+  // Convert to screen coordinates
+  const anchorScreen = map.project(anchor)
+  const targetScreen = map.project(target)
+
+  // Calculate deltas in screen space
+  const dx = targetScreen.x - anchorScreen.x
+  const dy = targetScreen.y - anchorScreen.y
+
+  // Use max of |dx| or |dy| as the square's side length
+  const side = Math.max(Math.abs(dx), Math.abs(dy))
+
+  // Determine direction signs (which quadrant the target is in)
+  const signX = dx >= 0 ? 1 : -1
+  const signY = dy >= 0 ? 1 : -1
+
+  // Compute the 4 corners in screen space
+  // anchor is one corner, compute the other 3 to form a square
+  const corners = [
+    { x: anchorScreen.x, y: anchorScreen.y },
+    { x: anchorScreen.x + side * signX, y: anchorScreen.y },
+    { x: anchorScreen.x + side * signX, y: anchorScreen.y + side * signY },
+    { x: anchorScreen.x, y: anchorScreen.y + side * signY },
+  ]
+
+  // Convert back to geographic coordinates
+  const geoCorners: Position[] = corners.map((pt) => {
+    const lngLat = map.unproject([pt.x, pt.y])
+    return [lngLat.lng, lngLat.lat]
+  })
+
+  // Close the polygon
+  geoCorners.push(geoCorners[0])
+
+  return {
+    type: 'Feature',
+    properties: {},
+    geometry: {
+      type: 'Polygon',
+      coordinates: [geoCorners],
+    },
+  }
 }

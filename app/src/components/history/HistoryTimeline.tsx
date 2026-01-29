@@ -1,67 +1,47 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { HistoryEventCard } from './HistoryEventCard'
-import { HistoryFeedbackModal } from './HistoryFeedbackModal'
-import type { HistoryEntry } from '@/lib/types'
+import { HistoryEventCard, type PlanData, type SectionModification } from './HistoryEventCard'
 
 interface HistoryTimelineProps {
-  entries: HistoryEntry[]
+  plans: PlanData[]
+  paddockNameMap: Map<string, string>
+  modificationsMap?: Map<string, SectionModification>
   title?: string
 }
 
-export function HistoryTimeline({ entries, title = 'Timeline' }: HistoryTimelineProps) {
-  const [selectedEntry, setSelectedEntry] = useState<HistoryEntry | null>(null)
-  const [modalOpen, setModalOpen] = useState(false)
+export function HistoryTimeline({ plans, paddockNameMap, modificationsMap, title = 'Timeline' }: HistoryTimelineProps) {
+  const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null)
 
-  const handleEntryClick = (entry: HistoryEntry) => {
-    setSelectedEntry(entry)
-    setModalOpen(true)
-  }
-
-  const handleFeedbackSubmit = (
-    entryId: string, 
-    feedback: { rating: 'positive' | 'negative' | null; category: string | null; comment: string }
-  ) => {
-    // For demo purposes, log the feedback
-    // In production, this would send to the backend
-    console.log('Feedback submitted for entry:', entryId, feedback)
-    
-    // Could also update local state to show feedback was submitted
-    // For now, just close the modal (handled by the modal component)
+  const handleToggleExpand = (planId: string) => {
+    setExpandedPlanId(prev => prev === planId ? null : planId)
   }
 
   return (
-    <>
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-medium">{title}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {entries.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              No history entries for the selected period
-            </p>
-          ) : (
-            <div className="space-y-0">
-              {entries.map((entry, index) => (
-                <HistoryEventCard 
-                  key={entry.id} 
-                  entry={entry}
-                  isLast={index === entries.length - 1}
-                  onClick={handleEntryClick}
-                />
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <HistoryFeedbackModal
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        entry={selectedEntry}
-        onSubmit={handleFeedbackSubmit}
-      />
-    </>
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base font-medium">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {plans.length === 0 ? (
+          <p className="text-center text-muted-foreground py-8">
+            No plans found for the selected period
+          </p>
+        ) : (
+          <div className="space-y-0">
+            {plans.map((plan, index) => (
+              <HistoryEventCard
+                key={plan._id}
+                plan={plan}
+                paddockName={paddockNameMap.get(plan.primaryPaddockExternalId ?? '') ?? 'Unknown'}
+                modification={modificationsMap?.get(plan._id)}
+                isLast={index === plans.length - 1}
+                isExpanded={expandedPlanId === plan._id}
+                onToggleExpand={() => handleToggleExpand(plan._id)}
+              />
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }

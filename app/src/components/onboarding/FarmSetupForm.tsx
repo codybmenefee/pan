@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Loader2 } from 'lucide-react'
+import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 
 interface FarmData {
   name: string
@@ -10,12 +12,21 @@ interface FarmData {
 }
 
 interface FarmSetupFormProps {
-  onNext: (data: FarmData) => void
+  onComplete: (data: FarmData) => Promise<void>
   onBack: () => void
   initialData?: FarmData
+  isSubmitting?: boolean
+  error?: string | null
 }
 
-export function FarmSetupForm({ onNext, onBack, initialData }: FarmSetupFormProps) {
+export function FarmSetupForm({
+  onComplete,
+  onBack,
+  initialData,
+  isSubmitting = false,
+  error,
+}: FarmSetupFormProps) {
+  const { unitName } = useAreaUnit()
   const [formData, setFormData] = useState<FarmData>(initialData || {
     name: '',
     location: '',
@@ -26,8 +37,8 @@ export function FarmSetupForm({ onNext, onBack, initialData }: FarmSetupFormProp
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (isValid) {
-      onNext(formData)
+    if (isValid && !isSubmitting) {
+      onComplete(formData)
     }
   }
 
@@ -47,9 +58,10 @@ export function FarmSetupForm({ onNext, onBack, initialData }: FarmSetupFormProp
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="e.g., Clearview Farm"
+              disabled={isSubmitting}
             />
           </div>
-          
+
           <div className="space-y-2">
             <label htmlFor="location" className="text-sm font-medium">
               Location
@@ -59,9 +71,13 @@ export function FarmSetupForm({ onNext, onBack, initialData }: FarmSetupFormProp
               value={formData.location}
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
               placeholder="e.g., 943 Riverview Ln, Columbia, TN 38401"
+              disabled={isSubmitting}
             />
+            <p className="text-xs text-muted-foreground">
+              Enter your farm address to center the map on your location
+            </p>
           </div>
-          
+
           <div className="space-y-2">
             <label htmlFor="area" className="text-sm font-medium">
               Total Area (approximate)
@@ -74,17 +90,36 @@ export function FarmSetupForm({ onNext, onBack, initialData }: FarmSetupFormProp
                 onChange={(e) => setFormData({ ...formData, area: e.target.value })}
                 placeholder="450"
                 className="w-32"
+                disabled={isSubmitting}
               />
-              <span className="text-sm text-muted-foreground">hectares</span>
+              <span className="text-sm text-muted-foreground">{unitName}</span>
             </div>
           </div>
-          
+
+          {error && (
+            <div className="text-sm text-destructive bg-destructive/10 rounded-md px-3 py-2">
+              {error}
+            </div>
+          )}
+
           <div className="flex justify-between pt-4">
-            <Button type="button" variant="outline" onClick={onBack}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onBack}
+              disabled={isSubmitting}
+            >
               Back
             </Button>
-            <Button type="submit" disabled={!isValid}>
-              Continue
+            <Button type="submit" disabled={!isValid || isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Setting up...
+                </>
+              ) : (
+                'Complete Setup'
+              )}
             </Button>
           </div>
         </form>

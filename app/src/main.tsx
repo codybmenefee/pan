@@ -2,22 +2,41 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { ConvexProvider, ConvexReactClient } from 'convex/react'
+import { Toaster } from 'sonner'
 import { ThemeProvider } from '@/lib/theme'
-import { AppAuthProvider, AuthGate } from '@/lib/auth'
+import { AppAuthProvider, useAppAuth } from '@/lib/auth'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { GeometryProviderWithConvex } from '@/lib/geometry/GeometryProviderWithConvex'
 import { ErrorState } from '@/components/ui/error/ErrorState'
 import { routeTree } from './routeTree.gen'
 import './index.css'
 
-const router = createRouter({ routeTree })
 const convexUrl = import.meta.env.VITE_CONVEX_URL
 const convexClient = convexUrl ? new ConvexReactClient(convexUrl) : null
+
+// Create router with context placeholder
+const router = createRouter({
+  routeTree,
+  context: {
+    auth: undefined!,
+  },
+})
 
 declare module '@tanstack/react-router' {
   interface Register {
     router: typeof router
   }
+}
+
+// Inner component that has access to auth context
+function InnerApp() {
+  const auth = useAppAuth()
+  console.log('[InnerApp] Auth context:', auth)
+  return (
+    <TooltipProvider delayDuration={300}>
+      <RouterProvider router={router} context={{ auth }} />
+      <Toaster position="bottom-right" richColors />
+    </TooltipProvider>
+  )
 }
 
 createRoot(document.getElementById('root')!).render(
@@ -26,13 +45,7 @@ createRoot(document.getElementById('root')!).render(
       <ConvexProvider client={convexClient}>
         <ThemeProvider>
           <AppAuthProvider>
-            <AuthGate>
-              <GeometryProviderWithConvex>
-                <TooltipProvider delayDuration={300}>
-                  <RouterProvider router={router} />
-                </TooltipProvider>
-              </GeometryProviderWithConvex>
-            </AuthGate>
+            <InnerApp />
           </AppAuthProvider>
         </ThemeProvider>
       </ConvexProvider>

@@ -1,6 +1,6 @@
-# Grazing Intelligence Demo
+# OpenPasture
 
-An intelligence and orchestration layer for adaptive grazing. This system translates satellite-derived land signals into clear daily grazing decisions.
+An open-source intelligence and orchestration layer for adaptive grazing. This system translates satellite-derived land signals into clear daily grazing decisions.
 
 ## Overview
 
@@ -105,6 +105,14 @@ Common scripts:
 - `npm run lint` - run ESLint
 - `npm run preview` - preview the production build
 
+### Environment Variables
+
+The following environment variables are required for full functionality:
+
+- `BRAINTRUST_API_KEY` - API key for Braintrust observability platform. Required for agent behavior tracking and debugging. Get your API key from [Braintrust](https://www.braintrust.dev). Set this in your Convex dashboard environment variables for production, or in `.env.local` for local development.
+
+  Without this key, agent logging will be disabled but the application will continue to function.
+
 ## Tech Stack
 
 - **Satellite Access:** pystac-client, odc-stac
@@ -150,4 +158,4 @@ Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) and [NOTI
 
 ---
 
-*Building the intelligence layer for regenerative grazing.*
+*OpenPasture - Building the intelligence layer for regenerative grazing.*

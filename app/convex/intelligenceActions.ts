@@ -3,7 +3,11 @@ import { v } from 'convex/values'
 import type { Id } from './_generated/dataModel'
 import { api } from './_generated/api'
 import { DEFAULT_FARM_EXTERNAL_ID } from './seedData'
-import { runGrazingAgent } from './grazingAgentDirect'
+import { createLogger } from './lib/logger'
+// NOTE: runGrazingAgent is legacy/internal - only used by agentGateway
+// All external calls should route through api.grazingAgentGateway.agentGateway
+
+const log = createLogger('intelligenceActions')
 
 type PlanGenerationData = {
   existingPlanId: Id<'plans'> | null
@@ -16,10 +20,19 @@ type PlanGenerationData = {
 }
 
 export const generateDailyPlan = action({
-  args: { farmExternalId: v.optional(v.string()) },
+  args: {
+    farmExternalId: v.optional(v.string()),
+    userId: v.optional(v.string()),
+  },
   handler: async (ctx, args): Promise<Id<'plans'> | null> => {
     const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
     const today = new Date().toISOString().split('T')[0]
+
+    // Get user identity from auth context, or use provided userId (for dev mode)
+    const identity = await ctx.auth.getUserIdentity()
+    const userId = args.userId || identity?.subject || identity?.tokenIdentifier || 'anonymous'
+
+    log.debug('generateDailyPlan START', { farmExternalId, today, userId })
 
     const data = await ctx.runQuery(api.intelligence.getPlanGenerationData as any, {
       farmExternalId,
@@ -27,45 +40,66 @@ export const generateDailyPlan = action({
     }) as PlanGenerationData
 
     if (data.existingPlanId) {
+      log.debug('Plan already exists', { planId: data.existingPlanId.toString() })
       return data.existingPlanId
     }
 
     // Check if we have basic data to work with
     if (!data.paddocks || data.paddocks.length === 0) {
-      console.log("No paddocks found for farm:", farmExternalId)
+      log.debug('No paddocks found for farm', { farmExternalId })
       return null
     }
 
-    const activePaddockId = data.mostRecentGrazingEvent?.paddockExternalId || 
-      (data.paddocks && data.paddocks.length > 0 ? data.paddocks[0].externalId : null)
+    log.debug('Plan generation data fetched', {
+      paddocksCount: data.paddocks.length,
+      hasFarm: !!data.farm,
+      hasSettings: !!data.settings,
+      observationsCount: data.observations?.length || 0,
+      grazingEventsCount: data.grazingEvents?.length || 0,
+    })
 
-    const settings = data.settings || {
-      minNDVIThreshold: 0.40,
-      minRestPeriod: 21,
+    // Check if farm exists in the data
+    if (!data.farm) {
+      log.error('Farm not found in planGenerationData', { farmExternalId })
+      return null
     }
 
-    const result = await runGrazingAgent(
-      ctx,
+    log.debug('Preparing context for gateway', {
+      farmId: data.farm._id.toString(),
       farmExternalId,
-      data.farm?.name || farmExternalId,
-      activePaddockId,
-      settings
-    )
+    })
 
-    if (!result.success) {
-      console.error("Agent failed:", result.error)
+    log.debug('Calling agent gateway')
+    // Call agent gateway with event-specific context to avoid duplicate queries
+    // Note: userId is passed as parameter; can be obtained from Convex auth when fully integrated
+    const gatewayResult = await ctx.runAction(api.grazingAgentGateway.agentGateway, {
+      trigger: 'morning_brief',
+      farmId: data.farm._id,
+      farmExternalId: farmExternalId,
+      userId,
+      additionalContext: {
+        planGenerationData: data,
+        farmName: data.farm.name || farmExternalId,
+      },
+    })
+
+    log.debug('Gateway result received', {
+      success: gatewayResult.success,
+      planId: gatewayResult.planId,
+    })
+
+    if (!gatewayResult.success) {
+      log.error('Agent gateway failed', { error: gatewayResult.error })
       return null
     }
 
-    if (!result.planCreated) {
-      console.log("Agent did not create a plan - skipping fallback generation")
+    if (!gatewayResult.planId) {
+      log.debug('Agent gateway did not create a plan')
       return null
     }
 
-    const plans = await ctx.runQuery(api.intelligence.getTodayPlan as any, { farmExternalId })
-    const todayPlan = plans as any
-
-    return todayPlan?._id || null
+    log.debug('generateDailyPlan END - Plan created', { planId: gatewayResult.planId })
+    return gatewayResult.planId as Id<'plans'>
   },
 })
 
@@ -91,44 +125,46 @@ export const runDailyBriefGeneration = action({
 
         // Skip farms without paddocks
         if (!data.paddocks || data.paddocks.length === 0) {
-          console.log("No paddocks found for farm:", farm.externalId)
+          log.debug('No paddocks found for farm', { farmExternalId: farm.externalId })
           results.push({ farmId: farm.externalId, success: true })
           continue
         }
 
-        const activePaddockId = data.mostRecentGrazingEvent?.paddockExternalId || 
-          (data.paddocks && data.paddocks.length > 0 ? data.paddocks[0].externalId : null)
+        // Use agent gateway for plan generation (per architecture plan)
+        // Gateway handles context assembly and delegates to runGrazingAgent internally
+        // Pass event-specific context to avoid duplicate queries
+        log.debug('Calling gateway for farm', { farmExternalId: farm.externalId })
+        const gatewayResult = await ctx.runAction(api.grazingAgentGateway.agentGateway, {
+          trigger: 'morning_brief',
+          farmId: farm._id,
+          farmExternalId: farm.externalId,
+          userId: 'cron-scheduler', // Batch job - no user context
+          additionalContext: {
+            planGenerationData: data,
+            farmName: data.farm?.name || farm.externalId,
+          },
+        })
+        log.debug('Gateway result for farm', {
+          farmExternalId: farm.externalId,
+          success: gatewayResult.success,
+          planId: gatewayResult.planId,
+        })
 
-        const settings = data.settings || {
-          minNDVIThreshold: 0.40,
-          minRestPeriod: 21,
-        }
-
-        const result = await runGrazingAgent(
-          ctx,
-          farm.externalId,
-          data.farm?.name || farm.externalId,
-          activePaddockId,
-          settings
-        )
-
-        if (!result.success) {
-          console.error(`Agent failed for farm ${farm.externalId}:`, result.error)
-          results.push({ farmId: farm.externalId, success: false, error: result.error })
-        } else if (!result.planCreated) {
-          console.log(`Agent did not create plan for farm ${farm.externalId}`)
+        if (!gatewayResult.success) {
+          log.error('Agent gateway failed', { farmExternalId: farm.externalId, error: gatewayResult.error })
+          results.push({ farmId: farm.externalId, success: false, error: gatewayResult.error })
+        } else if (!gatewayResult.planId) {
+          log.debug('Agent gateway did not create plan', { farmExternalId: farm.externalId })
           results.push({ farmId: farm.externalId, success: true })
         } else {
-          const plans = await ctx.runQuery(api.intelligence.getTodayPlan as any, { farmExternalId: farm.externalId })
-          const todayPlan = plans as any
-          results.push({ 
-            farmId: farm.externalId, 
-            success: true, 
-            planId: todayPlan?._id as Id<'plans'> | undefined 
+          results.push({
+            farmId: farm.externalId,
+            success: true,
+            planId: gatewayResult.planId as Id<'plans'> | undefined
           })
         }
       } catch (error: any) {
-        console.error(`Failed to generate plan for farm ${farm.externalId}:`, error.message)
+        log.error('Failed to generate plan for farm', { farmExternalId: farm.externalId, error: error.message })
         results.push({ farmId: farm.externalId, success: false, error: error.message })
       }
     }

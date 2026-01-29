@@ -138,7 +138,7 @@ export function DrawingToolbar({
 
   if (compact) {
     return (
-      <div className={cn('flex gap-1 rounded-lg border border-border bg-background/95 backdrop-blur p-1', className)}>
+      <div className={cn('flex gap-0.5 rounded-lg border border-border bg-background/95 backdrop-blur p-0.5', className)}>
         <TooltipProvider delayDuration={300}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -146,9 +146,9 @@ export function DrawingToolbar({
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => onSetMode('simple_select')}
-                className={cn(currentMode === 'simple_select' && 'bg-accent')}
+                className={cn('size-6', currentMode === 'simple_select' && 'bg-accent')}
               >
-                <MousePointerIcon />
+                <MousePointerIcon className="size-3" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
@@ -162,9 +162,9 @@ export function DrawingToolbar({
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => onSetMode('draw_polygon')}
-                className={cn(currentMode === 'draw_polygon' && 'bg-accent')}
+                className={cn('size-6', currentMode === 'draw_polygon' && 'bg-accent')}
               >
-                <PentagonIcon />
+                <PentagonIcon className="size-3" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
@@ -174,16 +174,16 @@ export function DrawingToolbar({
 
           {hasSelection && (
             <>
-              <Separator orientation="vertical" className="h-6 mx-0.5" />
+              <Separator orientation="vertical" className="h-4 mx-0.5" />
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon-sm"
                     onClick={onDeleteSelected}
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    className="size-6 text-destructive hover:text-destructive hover:bg-destructive/10"
                   >
-                    <TrashIcon />
+                    <TrashIcon className="size-3" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
@@ -195,15 +195,16 @@ export function DrawingToolbar({
 
           {isDrawing && (
             <>
-              <Separator orientation="vertical" className="h-6 mx-0.5" />
+              <Separator orientation="vertical" className="h-4 mx-0.5" />
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon-sm"
                     onClick={onCancelDrawing}
+                    className="size-6"
                   >
-                    <XIcon />
+                    <XIcon className="size-3" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
@@ -218,7 +219,7 @@ export function DrawingToolbar({
   }
 
   return (
-    <div className={cn('flex gap-1 rounded-lg border border-border bg-background/95 backdrop-blur p-1', className)}>
+    <div className={cn('flex gap-0.5 rounded-lg border border-border bg-background/95 backdrop-blur p-0.5', className)}>
       <TooltipProvider delayDuration={300}>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -226,9 +227,9 @@ export function DrawingToolbar({
               variant="ghost"
               size="sm"
               onClick={() => onSetMode('simple_select')}
-              className={cn('h-7 px-3 text-xs gap-1.5', currentMode === 'simple_select' && 'bg-accent')}
+              className={cn('h-5 px-1.5 text-[10px] gap-1', currentMode === 'simple_select' && 'bg-accent')}
             >
-              <MousePointerIcon className="size-3.5" />
+              <MousePointerIcon className="size-3" />
               Select
             </Button>
           </TooltipTrigger>
@@ -243,9 +244,9 @@ export function DrawingToolbar({
               variant="ghost"
               size="sm"
               onClick={() => onSetMode('draw_polygon')}
-              className={cn('h-7 px-3 text-xs gap-1.5', currentMode === 'draw_polygon' && 'bg-accent')}
+              className={cn('h-5 px-1.5 text-[10px] gap-1', currentMode === 'draw_polygon' && 'bg-accent')}
             >
-              <PentagonIcon className="size-3.5" />
+              <PentagonIcon className="size-3" />
               Draw {entityLabel}
             </Button>
           </TooltipTrigger>
@@ -261,18 +262,18 @@ export function DrawingToolbar({
               size="sm"
               onClick={() => onSetMode('direct_select')}
               disabled={!hasSelection}
-              className={cn('h-7 px-3 text-xs gap-1.5', currentMode === 'direct_select' && 'bg-accent')}
+              className={cn('h-5 px-1.5 text-[10px] gap-1', currentMode === 'direct_select' && 'bg-accent')}
             >
-              <EditIcon className="size-3.5" />
+              <EditIcon className="size-3" />
               Edit Vertices
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom">
-            <p>Drag vertices to reshape the selected polygon</p>
+            <p>Drag vertices to reshape. Delete key removes selected vertex.</p>
           </TooltipContent>
         </Tooltip>
 
-        <Separator orientation="vertical" className="h-6 mx-0.5" />
+        <Separator orientation="vertical" className="h-4 mx-0.5" />
 
         <Tooltip>
           <TooltipTrigger asChild>
@@ -281,9 +282,9 @@ export function DrawingToolbar({
               size="sm"
               onClick={onDeleteSelected}
               disabled={!hasSelection}
-              className="h-7 px-3 text-xs gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 disabled:text-muted-foreground"
+              className="h-5 px-1.5 text-[10px] gap-1 text-destructive hover:text-destructive hover:bg-destructive/10 disabled:text-muted-foreground"
             >
-              <TrashIcon className="size-3.5" />
+              <TrashIcon className="size-3" />
               Delete
             </Button>
           </TooltipTrigger>
@@ -294,14 +295,14 @@ export function DrawingToolbar({
 
         {isDrawing && (
           <>
-            <Separator orientation="vertical" className="h-6 mx-0.5" />
+            <Separator orientation="vertical" className="h-4 mx-0.5" />
             <Button
               variant="ghost"
               size="sm"
               onClick={onCancelDrawing}
-              className="h-7 px-3 text-xs gap-1.5"
+              className="h-5 px-1.5 text-[10px] gap-1"
             >
-              <XIcon className="size-3.5" />
+              <XIcon className="size-3" />
               Cancel
             </Button>
           </>

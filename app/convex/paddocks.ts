@@ -2,6 +2,7 @@ import { mutationGeneric as mutation, queryGeneric as query } from 'convex/serve
 import { v } from 'convex/values'
 import area from '@turf/area'
 import type { Feature, Polygon } from 'geojson'
+import { HECTARES_PER_SQUARE_METER } from './lib/areaConstants'
 
 const polygonFeature = v.object({
   type: v.literal('Feature'),
@@ -28,8 +29,6 @@ const geometryChange = v.object({
   timestamp: v.string(),
   metadata: v.optional(v.any()),
 })
-
-const HECTARES_PER_SQUARE_METER = 1 / 10000
 
 function calculateAreaHectares(feature: Feature<Polygon>, decimals = 1): number {
   const squareMeters = area(feature)
@@ -187,6 +186,45 @@ export const applyPaddockChanges = mutation({
     }
 
     return { applied }
+  },
+})
+
+/**
+ * Get a paddock by farm and paddock external IDs.
+ * Used by NDVI grid generation for coordinate bounds.
+ */
+export const getPaddockByExternalId = query({
+  args: {
+    farmExternalId: v.string(),
+    paddockExternalId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // First find the farm
+    let farm = await ctx.db
+      .query('farms')
+      .withIndex('by_externalId', (q) => q.eq('externalId', args.farmExternalId))
+      .first()
+
+    // Also check legacyExternalId for migration support
+    if (!farm) {
+      farm = await ctx.db
+        .query('farms')
+        .withIndex('by_legacyExternalId', (q: any) => q.eq('legacyExternalId', args.farmExternalId))
+        .first()
+    }
+
+    if (!farm) {
+      return null
+    }
+
+    // Find the paddock using helper to satisfy TypeScript
+    const farmId = farm._id
+    const paddock = await ctx.db
+      .query('paddocks')
+      .withIndex('by_farm_externalId', (q) => byFarmExternalId(q, farmId, args.paddockExternalId))
+      .first()
+
+    return paddock
   },
 })
 

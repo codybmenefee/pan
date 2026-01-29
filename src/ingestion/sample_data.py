@@ -6,8 +6,9 @@ This is a Python version of the seed data from app/convex/seedData.ts
 from typing import TypedDict, Any
 import math
 
-BASE_LNG = -87.0403892
-BASE_LAT = 35.6389946
+# Updated to match actual Convex farm boundary (cody's 3rd farm)
+BASE_LNG = -87.03840752103511
+BASE_LAT = 35.64216271005741
 HECTARES_PER_SQUARE_METER = 1 / 10000
 
 
@@ -208,15 +209,29 @@ for p in base_paddocks_raw:
         "area": area,
     })
 
-# Create farm geometry
+# Create farm geometry - using actual boundary from Convex
+# This matches the live "cody's 3rd farm" boundary
 sampleFarm = {
     "externalId": "farm-1",
-    "name": "Hillcrest Station",
-    "location": "943 Riverview Ln, Columbia, TN 38401",
-    "totalArea": sum(p["area"] for p in samplePaddocks),
-    "paddockCount": len(samplePaddocks),
+    "name": "cody's 3rd farm",
+    "location": "120 River Heights Dr, Columbia, TN, 38401",
+    "totalArea": 96.6,
+    "paddockCount": 11,
     "coordinates": [BASE_LNG, BASE_LAT],
-    "geometry": create_farm_boundary([p["geometry"] for p in samplePaddocks]),
+    "geometry": {
+        "type": "Feature",
+        "properties": {},
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [[
+                [-87.04434123673687, 35.6462115094798],
+                [-87.03247380533335, 35.6462115094798],
+                [-87.03247380533335, 35.63811391063503],
+                [-87.04434123673687, 35.63811391063503],
+                [-87.04434123673687, 35.6462115094798],
+            ]],
+        },
+    },
 }
 
 DEFAULT_FARM_EXTERNAL_ID = "farm-1"

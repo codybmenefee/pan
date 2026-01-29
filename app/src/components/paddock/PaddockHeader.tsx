@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Link } from '@tanstack/react-router'
 import type { Paddock } from '@/lib/types'
+import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 
 interface PaddockHeaderProps {
   paddock: Paddock
@@ -24,6 +25,8 @@ const statusColors: Record<Paddock['status'], string> = {
 }
 
 export function PaddockHeader({ paddock, onEdit }: PaddockHeaderProps) {
+  const { convert, unitName } = useAreaUnit()
+
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-4">
@@ -45,7 +48,7 @@ export function PaddockHeader({ paddock, onEdit }: PaddockHeaderProps) {
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {paddock.area} hectares
+            {convert(paddock.area).toFixed(1)} {unitName}
           </p>
         </div>
       </div>
