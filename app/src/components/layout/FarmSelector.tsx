@@ -97,6 +97,10 @@ function FarmSelectorInner({ organization }: FarmSelectorInnerProps) {
     }
   }
 
+  // Find the display name from availableFarms (Clerk orgs - source of truth)
+  // This ensures consistency between trigger and dropdown items
+  const displayName = availableFarms.find(f => f.id === activeFarmId)?.name ?? activeFarm?.name ?? 'No farm'
+
   // Always show dropdown selector (even with single farm for consistency)
   return (
     <>
@@ -107,7 +111,7 @@ function FarmSelectorInner({ organization }: FarmSelectorInnerProps) {
         >
           <Building2 className="h-3 w-3 text-muted-foreground" />
           <SelectValue placeholder="Select farm">
-            <span className="text-xs">{activeFarm?.name ?? 'No farm'}</span>
+            <span className="text-xs">{displayName}</span>
           </SelectValue>
         </SelectTrigger>
         <SelectContent className="!max-h-none !overflow-visible">
