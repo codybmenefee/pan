@@ -12,7 +12,7 @@ import { useSatelliteTile, useAvailableTileDates } from '@/lib/hooks/useSatellit
 import { DrawingToolbar } from './DrawingToolbar'
 import { RasterTileLayer } from './RasterTileLayer'
 import type { Feature, Polygon } from 'geojson'
-import { useFarm } from '@/lib/convex/useFarm'
+import { useFarmContext } from '@/lib/farm'
 import { MapSkeleton } from '@/components/ui/loading/MapSkeleton'
 import { ErrorState } from '@/components/ui/error/ErrorState'
 import { createLogger } from '@/lib/logger'
@@ -486,7 +486,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   const lastFocusedSectionIdRef = useRef<string | null>(null)
 
   const { paddocks, sections, getPaddockById, noGrazeZones, waterSources, addPaddock, addNoGrazeZone, addWaterSource, resetCounter } = useGeometry()
-  const { farm, isLoading: isFarmLoading } = useFarm()
+  const { activeFarm: farm, isLoading: isFarmLoading } = useFarmContext()
   const farmId = farm?.id ?? null
   const farmLng = farm?.coordinates?.[0] ?? null
   const farmLat = farm?.coordinates?.[1] ?? null

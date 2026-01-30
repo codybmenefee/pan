@@ -3,7 +3,7 @@ import { api } from '../../../convex/_generated/api'
 import { defaultSettings } from '@/data/mock/settings'
 import type { FarmSettings, MapPreferences } from '@/lib/types'
 import { mapFarmSettingsDoc, type FarmSettingsDoc } from './mappers'
-import { useFarm } from './useFarm'
+import { useFarmContext } from '@/lib/farm'
 
 interface UseFarmSettingsResult {
   farmId: string | null
@@ -15,7 +15,7 @@ interface UseFarmSettingsResult {
 }
 
 export function useFarmSettings(): UseFarmSettingsResult {
-  const { farmId, isLoading: isFarmLoading } = useFarm()
+  const { activeFarmId: farmId, isLoading: isFarmLoading } = useFarmContext()
   const settingsDoc = useQuery(
     api.settings.getSettings,
     farmId ? { farmId } : 'skip'
