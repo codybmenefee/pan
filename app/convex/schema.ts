@@ -104,6 +104,16 @@ export default defineSchema({
     farmExternalId: v.string(),                // DEPRECATED: keep for migration, remove later
     name: v.optional(v.string()),
     email: v.optional(v.string()),
+    // User-level subscription (Early Access paywall)
+    subscriptionStatus: v.optional(v.union(
+      v.literal('none'),
+      v.literal('active'),
+      v.literal('past_due'),
+      v.literal('canceled')
+    )),
+    subscriptionPlanId: v.optional(v.string()),     // Clerk plan ID
+    subscriptionId: v.optional(v.string()),         // Clerk subscription ID
+    subscriptionCurrentPeriodEnd: v.optional(v.string()),
     createdAt: v.string(),
     updatedAt: v.string(),
   }).index('by_externalId', ['externalId']),

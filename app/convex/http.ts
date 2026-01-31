@@ -8,10 +8,21 @@ const log = createLogger('http')
 
 const http = httpRouter()
 
-// Webhook payload types
-interface SubscriptionData {
+// Webhook payload types for organization-based billing
+interface OrgSubscriptionData {
   id: string
   organization_id: string
+  customer_id: string
+  plan_id: string
+  status: 'active' | 'past_due' | 'canceled' | 'trialing'
+  current_period_end: string
+  metadata?: Record<string, string>
+}
+
+// Webhook payload types for user-based billing (Early Access)
+interface UserSubscriptionData {
+  id: string
+  user_id: string
   customer_id: string
   plan_id: string
   status: 'active' | 'past_due' | 'canceled' | 'trialing'
@@ -22,16 +33,22 @@ interface SubscriptionData {
 interface InvoiceData {
   id: string
   subscription_id: string
-  organization_id: string
+  organization_id?: string
+  user_id?: string
   customer_id: string
   status: 'paid' | 'failed' | 'pending'
   amount: number
 }
 
 type WebhookPayload =
-  | { type: 'subscription.created' | 'subscription.updated' | 'subscription.deleted'; data: SubscriptionData }
+  | { type: 'subscription.created' | 'subscription.updated' | 'subscription.deleted'; data: OrgSubscriptionData | UserSubscriptionData }
   | { type: 'invoice.paid' | 'invoice.payment_failed'; data: InvoiceData }
   | { type: string; data: unknown }
+
+// Helper to determine if subscription data is user-based or org-based
+function isUserSubscription(data: OrgSubscriptionData | UserSubscriptionData): data is UserSubscriptionData {
+  return 'user_id' in data && !!data.user_id
+}
 
 // Map Clerk plan IDs to our tier names
 const PLAN_TO_TIER: Record<string, 'free' | 'starter' | 'professional' | 'enterprise'> = {
@@ -79,14 +96,22 @@ http.route({
       switch (payload.type) {
         case 'subscription.created':
         case 'subscription.updated': {
-          const data = payload.data as SubscriptionData
-          await handleSubscriptionUpdate(ctx, data)
+          const data = payload.data as OrgSubscriptionData | UserSubscriptionData
+          if (isUserSubscription(data)) {
+            await handleUserSubscriptionUpdate(ctx, data)
+          } else {
+            await handleSubscriptionUpdate(ctx, data)
+          }
           break
         }
 
         case 'subscription.deleted': {
-          const data = payload.data as SubscriptionData
-          await handleSubscriptionDeleted(ctx, data)
+          const data = payload.data as OrgSubscriptionData | UserSubscriptionData
+          if (isUserSubscription(data)) {
+            await handleUserSubscriptionDeleted(ctx, data)
+          } else {
+            await handleSubscriptionDeleted(ctx, data)
+          }
           break
         }
 
@@ -116,9 +141,44 @@ http.route({
 
 type WebhookContext = Pick<ActionCtx, 'runMutation'>
 
+/**
+ * Handle user-based subscription updates (Early Access paywall)
+ */
+async function handleUserSubscriptionUpdate(
+  ctx: WebhookContext,
+  data: UserSubscriptionData
+) {
+  // Map status - treat 'trialing' as 'active'
+  const status = data.status === 'trialing' ? 'active' : data.status
+
+  await ctx.runMutation(api.users.syncUserSubscription, {
+    userExternalId: data.user_id,
+    subscriptionId: data.id,
+    planId: data.plan_id,
+    status: status as 'active' | 'past_due' | 'canceled',
+    currentPeriodEnd: data.current_period_end,
+  })
+
+  log(`User subscription synced for ${data.user_id}: ${data.plan_id} (${status})`)
+}
+
+/**
+ * Handle user-based subscription deletion (Early Access paywall)
+ */
+async function handleUserSubscriptionDeleted(
+  ctx: WebhookContext,
+  data: UserSubscriptionData
+) {
+  await ctx.runMutation(api.users.cancelUserSubscription, {
+    userExternalId: data.user_id,
+  })
+
+  log(`User subscription canceled for ${data.user_id}`)
+}
+
 async function handleSubscriptionUpdate(
   ctx: WebhookContext,
-  data: SubscriptionData
+  data: OrgSubscriptionData
 ) {
   // Find the farm by Clerk org ID
   const farm = await ctx.runMutation(internal.internal.getFarmByClerkOrgId, {
@@ -151,7 +211,7 @@ async function handleSubscriptionUpdate(
 
 async function handleSubscriptionDeleted(
   ctx: WebhookContext,
-  data: SubscriptionData
+  data: OrgSubscriptionData
 ) {
   const farm = await ctx.runMutation(internal.internal.getFarmByClerkOrgId, {
     clerkOrgId: data.organization_id,
@@ -178,15 +238,22 @@ async function handlePaymentFailed(
   ctx: WebhookContext,
   data: InvoiceData
 ) {
-  // Payment failed - mark subscription as past_due
-  const farm = await ctx.runMutation(internal.internal.getFarmByClerkOrgId, {
-    clerkOrgId: data.organization_id,
-  })
+  // Handle org-based payment failure
+  if (data.organization_id) {
+    const farm = await ctx.runMutation(internal.internal.getFarmByClerkOrgId, {
+      clerkOrgId: data.organization_id,
+    })
 
-  if (farm) {
-    // The subscription.updated webhook should handle this,
-    // but we log it for monitoring
-    log(`Payment failed for farm ${farm._id}`)
+    if (farm) {
+      // The subscription.updated webhook should handle this,
+      // but we log it for monitoring
+      log(`Payment failed for farm ${farm._id}`)
+    }
+  }
+  // Handle user-based payment failure
+  else if (data.user_id) {
+    log(`Payment failed for user ${data.user_id}`)
+    // The subscription.updated webhook should handle marking as past_due
   }
 }
 

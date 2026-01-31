@@ -1,4 +1,5 @@
 import { createFileRoute, Outlet, useRouterState, useNavigate } from '@tanstack/react-router'
+import { useAuth } from '@clerk/clerk-react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Header } from '@/components/layout/Header'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
@@ -6,7 +7,7 @@ import { GeometryProviderWithConvex } from '@/lib/geometry/GeometryProviderWithC
 import { FarmProvider } from '@/lib/farm'
 import { BriefPanelProvider } from '@/lib/brief'
 import { useAppAuth } from '@/lib/auth'
-import { useEffect } from 'react'
+import { useEffect, useCallback } from 'react'
 import { TutorialProvider, TutorialOverlay } from '@/components/onboarding/tutorial'
 import { SatelliteAnimationProvider } from '@/lib/satellite-animation'
 import { SatelliteCollapseAnimation } from '@/components/layout/SatelliteCollapseAnimation'
@@ -17,11 +18,22 @@ export const Route = createFileRoute('/_app')({
 
 function AppLayout() {
   const { isLoaded, isSignedIn, isDevAuth, needsOnboarding, isOrgLoaded } = useAppAuth()
+  const { has, isLoaded: isClerkAuthLoaded } = useAuth()
   const navigate = useNavigate()
   const location = useRouterState({ select: (s) => s.location })
   const isOnboarding = location.pathname === '/onboarding'
 
-  console.log('[AppLayout] Rendering with auth:', { isLoaded, isSignedIn, isDevAuth, needsOnboarding, pathname: location.pathname })
+  // Check if user has any plan via Clerk's session
+  const checkHasPlan = useCallback(() => {
+    if (!has) return false
+    return has({ plan: 'free_user' }) || has({ plan: 'early_access' })
+  }, [has])
+
+  // Paywall can be disabled via env var (useful for dev when Clerk billing isn't fully set up)
+  const paywallEnabled = import.meta.env.VITE_PAYWALL_ENABLED === 'true'
+  const hasPlan = paywallEnabled ? (isClerkAuthLoaded ? checkHasPlan() : false) : true
+
+  console.log('[AppLayout] Rendering with auth:', { isLoaded, isSignedIn, isDevAuth, needsOnboarding, hasPlan, pathname: location.pathname })
 
   // Handle auth redirect in component when auth loads
   useEffect(() => {
@@ -35,13 +47,27 @@ function AppLayout() {
     }
   }, [isLoaded, isSignedIn, isDevAuth, navigate, location.pathname])
 
+  // Handle subscription paywall redirect - must subscribe before onboarding
+  useEffect(() => {
+    if (isDevAuth) return
+    // Wait until auth data is loaded
+    if (!isLoaded || !isClerkAuthLoaded) return
+    // Must be signed in
+    if (!isSignedIn) return
+    // If no plan selected, redirect to paywall
+    if (!hasPlan) {
+      console.log('[AppLayout] No plan selected, redirecting to paywall')
+      navigate({ to: '/subscribe' })
+    }
+  }, [isDevAuth, isLoaded, isClerkAuthLoaded, isSignedIn, hasPlan, navigate])
+
   // Handle onboarding redirect for first-time users (no organizations)
   useEffect(() => {
     if (isDevAuth) return
     // Wait until auth and org data are fully loaded
-    if (!isLoaded || !isOrgLoaded) return
-    // Must be signed in
-    if (!isSignedIn) return
+    if (!isLoaded || !isOrgLoaded || !isClerkAuthLoaded) return
+    // Must be signed in with a plan
+    if (!isSignedIn || !hasPlan) return
     // Check if user needs onboarding and is not already on the onboarding page
     if (needsOnboarding && !isOnboarding) {
       console.log('[AppLayout] First-time user detected, redirecting to onboarding')
@@ -54,7 +80,7 @@ function AppLayout() {
       console.log('[AppLayout] Onboarding complete, redirecting to home')
       navigate({ to: '/', search: { onboarded: 'true', editBoundary: 'true' } })
     }
-  }, [isDevAuth, isLoaded, isOrgLoaded, isSignedIn, needsOnboarding, isOnboarding, navigate])
+  }, [isDevAuth, isLoaded, isOrgLoaded, isClerkAuthLoaded, isSignedIn, hasPlan, needsOnboarding, isOnboarding, navigate])
 
   // Show loading while auth is being checked
   if (!isDevAuth && !isLoaded) {
@@ -70,6 +96,24 @@ function AppLayout() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner message="Redirecting to sign in..." />
+      </div>
+    )
+  }
+
+  // Show loading while checking subscription
+  if (!isDevAuth && !isClerkAuthLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner message="Checking subscription..." />
+      </div>
+    )
+  }
+
+  // Show loading while subscription redirect is happening
+  if (!isDevAuth && !hasPlan) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner message="Redirecting to subscribe..." />
       </div>
     )
   }

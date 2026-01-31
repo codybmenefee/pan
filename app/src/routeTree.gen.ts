@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SubscribeRouteImport } from './routes/subscribe'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as DemoRouteImport } from './routes/demo'
 import { Route as PublicRouteImport } from './routes/_public'
@@ -31,6 +32,11 @@ import { Route as PublicDocsIndexRouteImport } from './routes/_public/docs/index
 import { Route as AppPaddocksIdRouteImport } from './routes/_app/paddocks/$id'
 import { Route as PublicDocsCategoryArticleRouteImport } from './routes/_public/docs/$category.$article'
 
+const SubscribeRoute = SubscribeRouteImport.update({
+  id: '/subscribe',
+  path: '/subscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
@@ -139,6 +145,7 @@ const PublicDocsCategoryArticleRoute =
 export interface FileRoutesByFullPath {
   '/demo': typeof DemoRouteWithChildren
   '/sign-in': typeof SignInRoute
+  '/subscribe': typeof SubscribeRoute
   '/analytics': typeof AppAnalyticsRoute
   '/history': typeof AppHistoryRoute
   '/map': typeof AppMapRoute
@@ -159,6 +166,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
+  '/subscribe': typeof SubscribeRoute
   '/analytics': typeof AppAnalyticsRoute
   '/history': typeof AppHistoryRoute
   '/map': typeof AppMapRoute
@@ -182,6 +190,7 @@ export interface FileRoutesById {
   '/_public': typeof PublicRouteWithChildren
   '/demo': typeof DemoRouteWithChildren
   '/sign-in': typeof SignInRoute
+  '/subscribe': typeof SubscribeRoute
   '/_app/analytics': typeof AppAnalyticsRoute
   '/_app/history': typeof AppHistoryRoute
   '/_app/map': typeof AppMapRoute
@@ -205,6 +214,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/demo'
     | '/sign-in'
+    | '/subscribe'
     | '/analytics'
     | '/history'
     | '/map'
@@ -225,6 +235,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/sign-in'
+    | '/subscribe'
     | '/analytics'
     | '/history'
     | '/map'
@@ -247,6 +258,7 @@ export interface FileRouteTypes {
     | '/_public'
     | '/demo'
     | '/sign-in'
+    | '/subscribe'
     | '/_app/analytics'
     | '/_app/history'
     | '/_app/map'
@@ -271,10 +283,18 @@ export interface RootRouteChildren {
   PublicRoute: typeof PublicRouteWithChildren
   DemoRoute: typeof DemoRouteWithChildren
   SignInRoute: typeof SignInRoute
+  SubscribeRoute: typeof SubscribeRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/subscribe': {
+      id: '/subscribe'
+      path: '/subscribe'
+      fullPath: '/subscribe'
+      preLoaderRoute: typeof SubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sign-in': {
       id: '/sign-in'
       path: '/sign-in'
@@ -499,6 +519,7 @@ const rootRouteChildren: RootRouteChildren = {
   PublicRoute: PublicRouteWithChildren,
   DemoRoute: DemoRouteWithChildren,
   SignInRoute: SignInRoute,
+  SubscribeRoute: SubscribeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
