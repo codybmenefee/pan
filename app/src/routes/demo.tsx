@@ -9,7 +9,7 @@ import { DemoAuthProvider, useDemoAuth } from '@/lib/auth/DemoAuthProvider'
 import { SatelliteAnimationProvider } from '@/lib/satellite-animation'
 import { SatelliteCollapseAnimation } from '@/components/layout/SatelliteCollapseAnimation'
 import { useDemoSeeding } from '@/lib/convex/useDemoSeeding'
-import { TutorialProvider } from '@/components/onboarding/tutorial'
+import { TutorialProvider, TutorialOverlay } from '@/components/onboarding/tutorial'
 
 export const Route = createFileRoute('/demo')({
   component: DemoLayout,
@@ -42,7 +42,7 @@ function DemoLayoutContent() {
       <DemoGeometryProvider>
         <BriefPanelProvider>
           <SatelliteAnimationProvider>
-            <TutorialProvider>
+            <TutorialProvider forceStart>
               <div className="flex h-screen flex-col bg-background text-foreground">
                 <DemoHeader />
                 <div className="flex flex-1 overflow-hidden">
@@ -53,6 +53,7 @@ function DemoLayoutContent() {
                 </div>
               </div>
               <SatelliteCollapseAnimation />
+              <TutorialOverlay />
             </TutorialProvider>
           </SatelliteAnimationProvider>
         </BriefPanelProvider>

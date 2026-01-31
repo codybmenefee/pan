@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, type ReactNode } from 'react'
+import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
 import { TutorialContext, getTutorialCompleted, setTutorialCompleted } from './useTutorial'
 
 const TOTAL_STEPS = 5
@@ -6,19 +6,26 @@ const TOTAL_STEPS = 5
 interface TutorialProviderProps {
   children: ReactNode
   autoStart?: boolean
+  /** Force start tutorial every time, ignoring completion status (for demo mode) */
+  forceStart?: boolean
 }
 
-export function TutorialProvider({ children, autoStart = false }: TutorialProviderProps) {
+export function TutorialProvider({ children, autoStart = false, forceStart = false }: TutorialProviderProps) {
   const [isActive, setIsActive] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
   const [hasCompleted, setHasCompleted] = useState(() => getTutorialCompleted())
+  const hasForceStarted = useRef(false)
 
-  // Auto-start tutorial if requested and not completed
+  // Force start or auto-start tutorial
   useEffect(() => {
-    if (autoStart && !hasCompleted) {
+    if (forceStart && !hasForceStarted.current) {
+      hasForceStarted.current = true
+      setCurrentStep(0)
+      setIsActive(true)
+    } else if (autoStart && !hasCompleted) {
       setIsActive(true)
     }
-  }, [autoStart, hasCompleted])
+  }, [autoStart, forceStart, hasCompleted])
 
   const startTutorial = useCallback(() => {
     setCurrentStep(0)
