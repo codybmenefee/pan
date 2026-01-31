@@ -84,6 +84,7 @@ export function GeometryProvider({
   initialWaterSources,
   onGeometryChange,
   onPaddockMetadataChange,
+  onSectionMetadataChange,
 }: GeometryProviderProps) {
   const [paddocks, setPaddocks] = useState<Paddock[]>(() => {
     const source = initialPaddocks ?? mockPaddocks
@@ -430,6 +431,16 @@ export function GeometryProvider({
     [recordChange, sections]
   )
 
+  const updateSectionMetadata = useCallback(
+    (id: string, metadata: Partial<Omit<Section, 'id' | 'paddockId' | 'geometry'>>) => {
+      setSections((prev) => prev.map((s) => (s.id === id ? { ...s, ...metadata } : s)))
+      if (onSectionMetadataChange) {
+        void onSectionMetadataChange(id, metadata)
+      }
+    },
+    [onSectionMetadataChange]
+  )
+
   // No-graze zone operations
   const addNoGrazeZone = useCallback(
     (
@@ -674,6 +685,7 @@ export function GeometryProvider({
       deletePaddock,
       addSection,
       updateSection,
+      updateSectionMetadata,
       deleteSection,
       addNoGrazeZone,
       updateNoGrazeZone,
@@ -708,6 +720,7 @@ export function GeometryProvider({
       deletePaddock,
       addSection,
       updateSection,
+      updateSectionMetadata,
       deleteSection,
       addNoGrazeZone,
       updateNoGrazeZone,

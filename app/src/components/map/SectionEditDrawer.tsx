@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react'
-import { X, Trash2, Info, Pencil } from 'lucide-react'
+import { useState, useMemo, useCallback } from 'react'
+import { X, Trash2, Info, Pencil, Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import {
   Dialog,
@@ -14,6 +15,7 @@ import type { Feature, Polygon } from 'geojson'
 import { useGeometry, calculateAreaHectares } from '@/lib/geometry'
 import { cn } from '@/lib/utils'
 import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
+import { isDemoDevMode } from '@/lib/demo'
 
 interface SectionEditDrawerProps {
   sectionId: string
@@ -32,7 +34,7 @@ export function SectionEditDrawer({
   onEnterEditMode,
   onClose
 }: SectionEditDrawerProps) {
-  const { deleteSection, getSectionById, getPaddockById } = useGeometry()
+  const { deleteSection, getSectionById, getPaddockById, updateSectionMetadata } = useGeometry()
   const { format } = useAreaUnit()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
@@ -121,6 +123,12 @@ export function SectionEditDrawer({
 
   const isPastSection = sectionAge === 'previous' || sectionAge === 'historical'
 
+  const handleDateChange = useCallback((newDate: string) => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+      updateSectionMetadata(sectionId, { date: newDate })
+    }
+  }, [sectionId, updateSectionMetadata])
+
   const handleDelete = () => {
     deleteSection(sectionId)
     setDeleteDialogOpen(false)
@@ -167,6 +175,26 @@ export function SectionEditDrawer({
             <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Section Area</div>
             <div className="text-2xl font-semibold">{format(area, 2)}</div>
           </div>
+
+          {/* Date picker - only show in edit mode for dev mode */}
+          {isEditMode && isDemoDevMode && section?.date && (
+            <div className="rounded-md border border-border bg-muted/50 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <label className="text-xs text-muted-foreground uppercase tracking-wide">
+                  Section Date
+                </label>
+              </div>
+              <Input
+                type="date"
+                value={section.date}
+                onChange={(e) => handleDateChange(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Dev tool: Change when this section was grazed.
+              </p>
+            </div>
+          )}
 
           {section?.reasoning && section.reasoning.length > 0 && (
             <div className="space-y-2">

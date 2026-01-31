@@ -72,6 +72,7 @@ export function DemoGeometryProvider({ children }: DemoGeometryProviderProps) {
   const applyPaddockChanges = useMutation(api.paddocks.applyPaddockChanges)
   const updatePaddockMetadata = useMutation(api.paddocks.updatePaddockMetadata)
   const updatePlanSectionGeometry = useMutation(api.intelligence.updatePlanSectionGeometry)
+  const updateSectionDate = useMutation(api.intelligence.updateSectionDate)
   const deletePlan = useMutation(api.intelligence.forceDeleteTodayPlan)
   const createNoGrazeZone = useMutation(api.noGrazeZones.create)
   const updateNoGrazeZoneMutation = useMutation(api.noGrazeZones.update)
@@ -352,6 +353,23 @@ export function DemoGeometryProvider({ children }: DemoGeometryProviderProps) {
     [farmId, demoSessionId, paddocks, updatePaddockMetadata, triggerLocalStorageUpdate]
   )
 
+  const handleSectionMetadataChange = useCallback(
+    async (sectionId: string, metadata: Partial<Omit<Section, 'id' | 'paddockId' | 'geometry'>>) => {
+      if (isDemoDevMode) {
+        if (metadata.date) {
+          await updateSectionDate({ planId: sectionId as any, date: metadata.date })
+        }
+      } else if (demoSessionId) {
+        const existing = sections.find((s) => s.id === sectionId)
+        if (existing) {
+          setDemoSection(demoSessionId, sectionId, { ...existing, ...metadata })
+          triggerLocalStorageUpdate()
+        }
+      }
+    },
+    [demoSessionId, sections, updateSectionDate, triggerLocalStorageUpdate]
+  )
+
   const isLoading =
     isFarmLoading ||
     (!!farmId &&
@@ -402,6 +420,7 @@ export function DemoGeometryProvider({ children }: DemoGeometryProviderProps) {
       initialWaterSources={waterSources}
       onGeometryChange={handleGeometryChange}
       onPaddockMetadataChange={handlePaddockMetadataChange}
+      onSectionMetadataChange={handleSectionMetadataChange}
     >
       {children}
     </GeometryProvider>
