@@ -17,6 +17,8 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as DemoIndexRouteImport } from './routes/demo/index'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as DemoSettingsRouteImport } from './routes/demo/settings'
+import { Route as DemoHistoryRouteImport } from './routes/demo/history'
+import { Route as DemoAnalyticsRouteImport } from './routes/demo/analytics'
 import { Route as PublicTechnologyRouteImport } from './routes/_public/technology'
 import { Route as PublicResearchRouteImport } from './routes/_public/research'
 import { Route as PublicMarketingRouteImport } from './routes/_public/marketing'
@@ -68,6 +70,16 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const DemoSettingsRoute = DemoSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => DemoRoute,
+} as any)
+const DemoHistoryRoute = DemoHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => DemoRoute,
+} as any)
+const DemoAnalyticsRoute = DemoAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
   getParentRoute: () => DemoRoute,
 } as any)
 const PublicTechnologyRoute = PublicTechnologyRouteImport.update({
@@ -157,6 +169,8 @@ export interface FileRoutesByFullPath {
   '/marketing': typeof PublicMarketingRoute
   '/research': typeof PublicResearchRoute
   '/technology': typeof PublicTechnologyRoute
+  '/demo/analytics': typeof DemoAnalyticsRoute
+  '/demo/history': typeof DemoHistoryRoute
   '/demo/settings': typeof DemoSettingsRoute
   '/': typeof AppIndexRoute
   '/demo/': typeof DemoIndexRoute
@@ -177,6 +191,8 @@ export interface FileRoutesByTo {
   '/marketing': typeof PublicMarketingRoute
   '/research': typeof PublicResearchRoute
   '/technology': typeof PublicTechnologyRoute
+  '/demo/analytics': typeof DemoAnalyticsRoute
+  '/demo/history': typeof DemoHistoryRoute
   '/demo/settings': typeof DemoSettingsRoute
   '/': typeof AppIndexRoute
   '/demo': typeof DemoIndexRoute
@@ -202,6 +218,8 @@ export interface FileRoutesById {
   '/_public/marketing': typeof PublicMarketingRoute
   '/_public/research': typeof PublicResearchRoute
   '/_public/technology': typeof PublicTechnologyRoute
+  '/demo/analytics': typeof DemoAnalyticsRoute
+  '/demo/history': typeof DemoHistoryRoute
   '/demo/settings': typeof DemoSettingsRoute
   '/_app/': typeof AppIndexRoute
   '/demo/': typeof DemoIndexRoute
@@ -226,6 +244,8 @@ export interface FileRouteTypes {
     | '/marketing'
     | '/research'
     | '/technology'
+    | '/demo/analytics'
+    | '/demo/history'
     | '/demo/settings'
     | '/'
     | '/demo/'
@@ -246,6 +266,8 @@ export interface FileRouteTypes {
     | '/marketing'
     | '/research'
     | '/technology'
+    | '/demo/analytics'
+    | '/demo/history'
     | '/demo/settings'
     | '/'
     | '/demo'
@@ -270,6 +292,8 @@ export interface FileRouteTypes {
     | '/_public/marketing'
     | '/_public/research'
     | '/_public/technology'
+    | '/demo/analytics'
+    | '/demo/history'
     | '/demo/settings'
     | '/_app/'
     | '/demo/'
@@ -342,6 +366,20 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/demo/settings'
       preLoaderRoute: typeof DemoSettingsRouteImport
+      parentRoute: typeof DemoRoute
+    }
+    '/demo/history': {
+      id: '/demo/history'
+      path: '/history'
+      fullPath: '/demo/history'
+      preLoaderRoute: typeof DemoHistoryRouteImport
+      parentRoute: typeof DemoRoute
+    }
+    '/demo/analytics': {
+      id: '/demo/analytics'
+      path: '/analytics'
+      fullPath: '/demo/analytics'
+      preLoaderRoute: typeof DemoAnalyticsRouteImport
       parentRoute: typeof DemoRoute
     }
     '/_public/technology': {
@@ -503,11 +541,15 @@ const PublicRouteWithChildren =
   PublicRoute._addFileChildren(PublicRouteChildren)
 
 interface DemoRouteChildren {
+  DemoAnalyticsRoute: typeof DemoAnalyticsRoute
+  DemoHistoryRoute: typeof DemoHistoryRoute
   DemoSettingsRoute: typeof DemoSettingsRoute
   DemoIndexRoute: typeof DemoIndexRoute
 }
 
 const DemoRouteChildren: DemoRouteChildren = {
+  DemoAnalyticsRoute: DemoAnalyticsRoute,
+  DemoHistoryRoute: DemoHistoryRoute,
   DemoSettingsRoute: DemoSettingsRoute,
   DemoIndexRoute: DemoIndexRoute,
 }
