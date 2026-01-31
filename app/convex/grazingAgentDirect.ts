@@ -49,13 +49,16 @@ The grid shows NDVI values sampled across the paddock:
 
 Use the coordinate reference to convert grid cells to polygon vertices.
 
-## SECTION DRAWING RULES
-- Target high-NDVI cells in the grid
-- Draw sections adjacent to previous sections when possible
-- Up to 5% overlap with previous sections is acceptable
-- Sections must be contiguous (no gaps)
-- Avoid skinny strips - draw reasonably-shaped polygons
-- Section should be approximately 20% of paddock area
+## SECTION PLACEMENT PRIORITY (follow this order)
+1. ADJACENCY FIRST: New section MUST share an edge with the most recent section
+2. NDVI SECOND: Within adjacent area, target cells with NDVI 0.60+
+3. Shape: Avoid skinny strips - draw reasonably-shaped polygons
+4. Size: Approximately 20% of paddock area
+5. Overlap: Up to 5% overlap with previous sections is acceptable
+
+IMPORTANT: Only place a section away from the previous section if:
+- This is the first section in the paddock (no previous sections exist)
+- The paddock has been fully grazed and is starting a new rotation
 
 ## CRITICAL RULES
 - You MUST ALWAYS create a section geometry - animals must eat somewhere every day
@@ -294,7 +297,7 @@ ${JSON.stringify(previousSections.slice(1).map((s: any) => ({ date: s.date, area
 
 ## SECTION DRAWING INSTRUCTIONS
 1. Study the NDVI grid above - identify cells with values 0.60+ (high vegetation)
-2. ${mostRecentSection ? 'Draw the new section ADJACENT to the most recent section' : 'Draw the section in a high-NDVI area'}
+2. ${mostRecentSection ? 'CRITICAL: New section MUST share an edge with the previous section. Start from where livestock finished yesterday.' : 'First section in paddock - draw in highest-NDVI area'}
 3. Use the grid coordinates to convert cell positions to polygon vertices
 4. Section MUST be entirely within the paddock boundary
 5. Target ~${Math.round((targetPaddock?.area ?? 0) * 0.2 * 10) / 10} hectares (20% of paddock)
