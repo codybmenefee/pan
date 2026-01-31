@@ -1,4 +1,5 @@
-import { BookOpen, HelpCircle, LogOut } from 'lucide-react'
+import { useState } from 'react'
+import { BookOpen, Bug, HelpCircle, LogOut } from 'lucide-react'
 import { useUser, useClerk } from '@clerk/clerk-react'
 import { FarmSelector } from './FarmSelector'
 import { DailyPlanButton } from './DailyPlanButton'
@@ -8,6 +9,7 @@ import { SatelliteStatusIcon } from './SatelliteStatusIcon'
 import { Link } from '@tanstack/react-router'
 import { useAppAuth } from '@/lib/auth'
 import { useTutorial } from '@/components/onboarding/tutorial'
+import { BugReportModal } from './BugReportModal'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -100,6 +102,7 @@ function ProfileDropdown() {
 
 export function Header() {
   const { startTutorial, resetTutorial } = useTutorial()
+  const [bugReportOpen, setBugReportOpen] = useState(false)
 
   const handleHelpClick = () => {
     resetTutorial()
@@ -127,6 +130,14 @@ export function Header() {
           <HelpCircle className="h-3 w-3" />
         </button>
 
+        <button
+          onClick={() => setBugReportOpen(true)}
+          className="flex h-5 w-5 items-center justify-center rounded hover:bg-accent"
+          title="Report a bug"
+        >
+          <Bug className="h-3 w-3" />
+        </button>
+
         <Link to="/docs" className="flex h-5 w-5 items-center justify-center rounded hover:bg-accent" title="Documentation">
           <BookOpen className="h-3 w-3" />
         </Link>
@@ -135,6 +146,8 @@ export function Header() {
 
         <ProfileDropdown />
       </div>
+
+      <BugReportModal open={bugReportOpen} onOpenChange={setBugReportOpen} />
     </header>
   )
 }

@@ -387,4 +387,41 @@ export default defineSchema({
   })
     .index('by_farm', ['farmExternalId'])
     .index('by_plan', ['planId']),
+
+  // Bug reports submitted by users
+  bugReports: defineTable({
+    userExternalId: v.optional(v.string()),
+    farmExternalId: v.optional(v.string()),
+    title: v.string(),
+    description: v.string(),
+    category: v.union(
+      v.literal('ui_visual'),
+      v.literal('functionality'),
+      v.literal('performance'),
+      v.literal('data'),
+      v.literal('map'),
+      v.literal('satellite'),
+      v.literal('ai_recommendations'),
+      v.literal('other')
+    ),
+    severity: v.union(
+      v.literal('low'),
+      v.literal('medium'),
+      v.literal('high'),
+      v.literal('critical')
+    ),
+    stepsToReproduce: v.optional(v.string()),
+    context: v.object({
+      url: v.string(),
+      userAgent: v.string(),
+      screenSize: v.optional(v.string()),
+      timestamp: v.string(),
+    }),
+    // GitHub integration
+    githubIssueUrl: v.optional(v.string()),
+    githubIssueNumber: v.optional(v.number()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index('by_user', ['userExternalId']),
 })

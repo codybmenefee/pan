@@ -8,6 +8,8 @@
  * @module
  */
 
+import type * as bugReports from "../bugReports.js";
+import type * as bugReportsAction from "../bugReportsAction.js";
 import type * as crons from "../crons.js";
 import type * as demo from "../demo.js";
 import type * as farmerObservations from "../farmerObservations.js";
@@ -23,7 +25,9 @@ import type * as internal_ from "../internal.js";
 import type * as lib_areaConstants from "../lib/areaConstants.js";
 import type * as lib_logger from "../lib/logger.js";
 import type * as livestock from "../livestock.js";
+import type * as migrations_deleteBadFarmSettings from "../migrations/deleteBadFarmSettings.js";
 import type * as migrations_migrateToClerkOrgs from "../migrations/migrateToClerkOrgs.js";
+import type * as migrations_updateDemoGeometries from "../migrations/updateDemoGeometries.js";
 import type * as ndviGrid from "../ndviGrid.js";
 import type * as noGrazeZones from "../noGrazeZones.js";
 import type * as notifications from "../notifications.js";
@@ -47,6 +51,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  bugReports: typeof bugReports;
+  bugReportsAction: typeof bugReportsAction;
   crons: typeof crons;
   demo: typeof demo;
   farmerObservations: typeof farmerObservations;
@@ -62,7 +68,9 @@ declare const fullApi: ApiFromModules<{
   "lib/areaConstants": typeof lib_areaConstants;
   "lib/logger": typeof lib_logger;
   livestock: typeof livestock;
+  "migrations/deleteBadFarmSettings": typeof migrations_deleteBadFarmSettings;
   "migrations/migrateToClerkOrgs": typeof migrations_migrateToClerkOrgs;
+  "migrations/updateDemoGeometries": typeof migrations_updateDemoGeometries;
   ndviGrid: typeof ndviGrid;
   noGrazeZones: typeof noGrazeZones;
   notifications: typeof notifications;
