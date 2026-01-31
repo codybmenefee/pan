@@ -3,12 +3,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2 } from 'lucide-react'
-import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 
 interface FarmData {
   name: string
   location: string
-  area: string
 }
 
 interface FarmSetupFormProps {
@@ -26,14 +24,12 @@ export function FarmSetupForm({
   isSubmitting = false,
   error,
 }: FarmSetupFormProps) {
-  const { unitName } = useAreaUnit()
   const [formData, setFormData] = useState<FarmData>(initialData || {
     name: '',
     location: '',
-    area: '',
   })
 
-  const isValid = formData.name.trim() && formData.location.trim() && formData.area.trim()
+  const isValid = formData.name.trim() && formData.location.trim()
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -76,24 +72,6 @@ export function FarmSetupForm({
             <p className="text-xs text-muted-foreground">
               Enter your farm address to center the map on your location
             </p>
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="area" className="text-sm font-medium">
-              Total Area (approximate)
-            </label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="area"
-                type="number"
-                value={formData.area}
-                onChange={(e) => setFormData({ ...formData, area: e.target.value })}
-                placeholder="450"
-                className="w-32"
-                disabled={isSubmitting}
-              />
-              <span className="text-sm text-muted-foreground">{unitName}</span>
-            </div>
           </div>
 
           {error && (

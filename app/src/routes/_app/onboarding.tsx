@@ -23,7 +23,6 @@ const isDevMode = import.meta.env.VITE_DEV_AUTH === 'true'
 interface FarmData {
   name: string
   location: string
-  area: string
 }
 
 function OnboardingPage() {
@@ -48,7 +47,6 @@ function DevOnboarding({ organizationId }: { organizationId: string | null }) {
   const [farmData, setFarmData] = useState<FarmData>({
     name: '',
     location: '',
-    area: '',
   })
   const [livestockData, setLivestockData] = useState<LivestockData>({
     cows: 0,
@@ -99,13 +97,19 @@ function DevOnboarding({ organizationId }: { organizationId: string | null }) {
         return
       }
 
-      const paddockSize = data.area ? Math.min(parseFloat(data.area), 50) : 10
+      // Default paddock size of 10 hectares - users will adjust on the map
       await setupFarm({
         orgId: organizationId,
         name: data.name.trim(),
         location: data.location.trim(),
         coordinates: geocodeResult.coordinates,
-        totalArea: paddockSize,
+        totalArea: 10,
+      })
+
+      // Set area unit to acres since geocoding is US-only
+      await updateSettings({
+        farmId: organizationId,
+        settings: { areaUnit: 'acres' },
       })
 
       // Store the org ID as the farm ID for later mutations
@@ -274,7 +278,6 @@ function ClerkOnboarding() {
   const [farmData, setFarmData] = useState<FarmData>({
     name: '',
     location: '',
-    area: '',
   })
   const [livestockData, setLivestockData] = useState<LivestockData>({
     cows: 0,
@@ -336,6 +339,12 @@ function ClerkOnboarding() {
       if (setActive) {
         await setActive({ organization: org.id })
       }
+
+      // Step 5: Set area unit to acres since geocoding is US-only
+      await updateSettings({
+        farmId: org.id,
+        settings: { areaUnit: 'acres' },
+      })
 
       // Store the org ID as the farm ID for later mutations
       // (livestock and settings use external ID, not internal Convex ID)
