@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { AlertCircle, UserPlus } from 'lucide-react'
+import { UserPlus } from 'lucide-react'
 import {
   FarmInfoStrip,
   GeneralSettings,
@@ -9,7 +9,6 @@ import {
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
 import { useFarmSettings } from '@/lib/convex/useFarmSettings'
 
@@ -32,19 +31,6 @@ function DemoSettingsPage() {
     <div className="h-full overflow-auto">
       <div className="p-4 max-w-4xl">
         <h1 className="text-xl font-semibold mb-3">Settings</h1>
-
-        {/* Demo mode upsell banner */}
-        <Alert className="mb-4 bg-amber-50 border-amber-200">
-          <AlertCircle className="h-4 w-4 text-amber-600" />
-          <AlertTitle className="text-amber-800">Demo Mode</AlertTitle>
-          <AlertDescription className="text-amber-700">
-            <span>Settings changes won't persist in demo mode. </span>
-            <Link to="/onboarding" className="font-medium underline underline-offset-2 hover:text-amber-900">
-              Create an account
-            </Link>
-            <span> to save your settings.</span>
-          </AlertDescription>
-        </Alert>
 
         <FarmInfoStrip />
 

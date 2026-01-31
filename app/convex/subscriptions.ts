@@ -64,6 +64,20 @@ export const getSubscription = query({
       }
     }
 
+    // Demo farms get professional tier access for full feature showcase
+    if (farmDoc.isDemoFarm) {
+      return {
+        tier: 'professional' as const,
+        status: 'active' as const,
+        acreageLimit: TIER_CONFIG.professional.acreageLimit,
+        rawImageryEnabled: true,
+        premiumProvidersEnabled: true,
+        retentionDays: TIER_CONFIG.professional.retentionDays,
+        isDefaultFree: false,
+        isDemoMode: true,
+      }
+    }
+
     const subscription = await ctx.db
       .query('subscriptions')
       .withIndex('by_farm', (q) => q.eq('farmId', farmDoc._id))

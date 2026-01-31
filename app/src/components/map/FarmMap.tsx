@@ -12,7 +12,7 @@ import { useSatelliteTile, useAvailableTileDates } from '@/lib/hooks/useSatellit
 import { DrawingToolbar } from './DrawingToolbar'
 import { RasterTileLayer } from './RasterTileLayer'
 import type { Feature, Polygon } from 'geojson'
-import { useFarm } from '@/lib/convex/useFarm'
+import { useFarmContext } from '@/lib/farm'
 import { MapSkeleton } from '@/components/ui/loading/MapSkeleton'
 import { ErrorState } from '@/components/ui/error/ErrorState'
 import { createLogger } from '@/lib/logger'
@@ -486,15 +486,34 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   const lastFocusedSectionIdRef = useRef<string | null>(null)
 
   const { paddocks, sections, getPaddockById, noGrazeZones, waterSources, addPaddock, addNoGrazeZone, addWaterSource, resetCounter } = useGeometry()
-  const { farm, isLoading: isFarmLoading } = useFarm()
+  const { activeFarm: farm, isLoading: isFarmLoading } = useFarmContext()
   const farmId = farm?.id ?? null
   const farmLng = farm?.coordinates?.[0] ?? null
   const farmLat = farm?.coordinates?.[1] ?? null
   const farmGeometry = farm?.geometry ?? null
 
-  // Compute initial map center from farm boundary if valid, otherwise use address
+  // Compute initial map center - prefer paddock bounds (more reliable than farm geometry which may be out of sync)
   const initialMapCenter = useMemo<[number, number] | null>(() => {
-    // First try to use the farm boundary center
+    // First try to use the paddock bounds center (most reliable)
+    if (paddocks.length > 0) {
+      let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
+      paddocks.forEach(paddock => {
+        const coords = paddock.geometry?.geometry?.coordinates?.[0]
+        if (coords) {
+          coords.forEach(([lng, lat]) => {
+            minLng = Math.min(minLng, lng)
+            maxLng = Math.max(maxLng, lng)
+            minLat = Math.min(minLat, lat)
+            maxLat = Math.max(maxLat, lat)
+          })
+        }
+      })
+      if (minLng !== Infinity) {
+        return [(minLng + maxLng) / 2, (minLat + maxLat) / 2]
+      }
+    }
+
+    // Fall back to farm boundary center
     if (farmGeometry) {
       const coords = farmGeometry.geometry.coordinates[0]
       if (coords && coords.length >= 4) {
@@ -524,7 +543,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       return [farmLng, farmLat]
     }
     return null
-  }, [farmGeometry, farmLng, farmLat])
+  }, [paddocks, farmGeometry, farmLng, farmLat])
 
   // Fetch available satellite tile dates (dates with actual raster imagery)
   // We specifically query for ndvi_heatmap tiles since that's what the NDVI layer displays
@@ -760,9 +779,51 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       }
     },
     focusOnFarmBoundary: () => {
-      if (!mapInstance || !farmGeometry) return
+      if (!mapInstance) return
       userHasInteractedRef.current = false  // Reset so focus works
-      fitPolygonBounds(farmGeometry, 50)
+
+      // If we have paddocks, compute their bounding box and use that
+      // This handles cases where farm boundary geometry is out of sync with paddock locations
+      if (paddocks.length > 0) {
+        let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
+        paddocks.forEach(paddock => {
+          const coords = paddock.geometry?.geometry?.coordinates?.[0]
+          if (coords) {
+            coords.forEach(([lng, lat]) => {
+              minLng = Math.min(minLng, lng)
+              maxLng = Math.max(maxLng, lng)
+              minLat = Math.min(minLat, lat)
+              maxLat = Math.max(maxLat, lat)
+            })
+          }
+        })
+
+        if (minLng !== Infinity) {
+          // Add some padding around the paddock bounds
+          const padding = 0.002 // ~200m
+          const paddockBoundsGeometry: Feature<Polygon> = {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'Polygon',
+              coordinates: [[
+                [minLng - padding, maxLat + padding],
+                [maxLng + padding, maxLat + padding],
+                [maxLng + padding, minLat - padding],
+                [minLng - padding, minLat - padding],
+                [minLng - padding, maxLat + padding],
+              ]]
+            }
+          }
+          fitPolygonBounds(paddockBoundsGeometry, 50)
+          return
+        }
+      }
+
+      // Fall back to farm boundary if no paddocks
+      if (farmGeometry) {
+        fitPolygonBounds(farmGeometry, 50)
+      }
     },
     createPaddockAtCenter: () => {
       if (!mapInstance) return null
@@ -1009,7 +1070,34 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       setMapInstance(map)
       setIsMapLoaded(true)
 
-      // Fit to farm boundary if valid, otherwise use center/zoom (already set above)
+      // Fit to paddock bounds first (more reliable than farm geometry which may be out of sync)
+      // This handles cases where the farm boundary hasn't been updated but paddocks have correct positions
+      if (paddocks.length > 0) {
+        let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
+        paddocks.forEach(paddock => {
+          const coords = paddock.geometry?.geometry?.coordinates?.[0]
+          if (coords) {
+            coords.forEach(([lng, lat]) => {
+              minLng = Math.min(minLng, lng)
+              maxLng = Math.max(maxLng, lng)
+              minLat = Math.min(minLat, lat)
+              maxLat = Math.max(maxLat, lat)
+            })
+          }
+        })
+
+        if (minLng !== Infinity) {
+          const padding = 0.002 // ~200m padding around paddocks
+          const bounds = new maplibregl.LngLatBounds(
+            [minLng - padding, minLat - padding],
+            [maxLng + padding, maxLat + padding]
+          )
+          map.fitBounds(bounds, { padding: 50, duration: 0 })
+          return
+        }
+      }
+
+      // Fall back to farm boundary if no paddocks
       if (hasValidBoundary() && farmGeometry) {
         const coords = farmGeometry.geometry.coordinates[0]
         let minLng = Infinity
@@ -1035,7 +1123,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       setMapInstance(null)
       setIsMapLoaded(false)
     }
-  }, [farmId, initialMapCenter, hasValidBoundary, farmGeometry])
+  }, [farmId, initialMapCenter, hasValidBoundary, farmGeometry, paddocks])
 
   // Add paddock and section layers once map is loaded
   useEffect(() => {
@@ -1743,6 +1831,12 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
 
     sections.forEach((section) => {
+      // Skip the section being edited/displayed via initialSectionFeature to avoid duplicate rendering
+      // The initialSectionFeature is rendered separately via the 'section-initial' layer
+      if (initialSectionId && section.id === initialSectionId) {
+        return
+      }
+
       const item: SectionRenderItem = {
         id: section.id,
         paddockId: section.paddockId,
@@ -1765,11 +1859,12 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       currentCount: categorized.current.length,
       yesterdayCount: categorized.yesterday.length,
       grazedCount: categorized.grazed.length,
+      excludedSectionId: initialSectionId,
     })
 
     sectionStateRef.current = categorized
     pushSectionData(mapInstance, categorized)
-  }, [mapInstance, isMapLoaded, sections])
+  }, [mapInstance, isMapLoaded, sections, initialSectionId])
 
   // Update no-graze zone layer data
   useEffect(() => {

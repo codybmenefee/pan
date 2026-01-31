@@ -44,6 +44,7 @@ export interface GeometryContextValue {
   // Section operations
   addSection: (paddockId: string, geometry: Feature<Polygon>, metadata?: Partial<Omit<Section, 'id' | 'paddockId' | 'geometry'>>) => string
   updateSection: (id: string, geometry: Feature<Polygon>) => void
+  updateSectionMetadata: (id: string, metadata: Partial<SectionMetadata>) => void
   deleteSection: (id: string) => void
 
   // No-graze zone operations
@@ -84,4 +85,5 @@ export interface GeometryProviderProps {
   initialWaterSources?: WaterSource[]
   onGeometryChange?: (changes: GeometryChange[]) => Promise<void>
   onPaddockMetadataChange?: (id: string, metadata: Partial<PaddockMetadata>) => Promise<void>
+  onSectionMetadataChange?: (id: string, metadata: Partial<SectionMetadata>) => Promise<void>
 }

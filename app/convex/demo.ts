@@ -4,6 +4,107 @@ import { v } from 'convex/values'
 // Source farm to copy data from (dev user's farm)
 const SOURCE_FARM_EXTERNAL_ID = 'farm-1'
 
+// East Ridge paddock ID for demo section staging
+const EAST_RIDGE_PADDOCK_ID = 'p4'
+
+/**
+ * Get a date string for N days ago in YYYY-MM-DD format.
+ */
+function getDateString(daysAgo: number): string {
+  const date = new Date()
+  date.setDate(date.getDate() - daysAgo)
+  return date.toISOString().split('T')[0]
+}
+
+/**
+ * Create a horizontal strip polygon within the East Ridge paddock bounds.
+ * East Ridge (p4) is in the upper-right area of the farm.
+ *
+ * For strip grazing, we create horizontal sections from north to south.
+ * stripIndex: 0 = northernmost, 1 = second strip
+ * Each strip is ~30% of the usable paddock area
+ */
+function createEastRidgeStrip(stripIndex: number): {
+  type: 'Polygon'
+  coordinates: number[][][]
+} {
+  // East Ridge bounds - constrained to the northern portion of the paddock
+  // to ensure strips stay clearly within the paddock boundary
+  const westLng = -87.0365
+  const eastLng = -87.0352
+  const northLat = 35.6424
+  const southLat = 35.6414
+
+  const paddockHeight = northLat - southLat  // ~0.001
+  const stripHeight = paddockHeight * 0.30   // Each strip is 30% of area
+
+  // Calculate strip bounds (from north to south)
+  const stripNorth = northLat - (stripIndex * stripHeight)
+  const stripSouth = stripNorth - stripHeight
+
+  // Create a simple rectangular strip
+  return {
+    type: 'Polygon',
+    coordinates: [[
+      [westLng, stripNorth],
+      [eastLng, stripNorth],
+      [eastLng, stripSouth],
+      [westLng, stripSouth],
+      [westLng, stripNorth],
+    ]],
+  }
+}
+
+/**
+ * Create historical grazing sections for East Ridge to demonstrate progressive strip grazing.
+ * Creates 2 executed sections in the northern portion, leaving southern 40% for AI to plan.
+ */
+async function generateDemoSectionsForEastRidge(
+  ctx: any,
+  demoFarmId: string,
+  now: string
+): Promise<void> {
+  // Section 1: Day -2, northern strip (30% of paddock)
+  await ctx.db.insert('plans', {
+    farmExternalId: demoFarmId,
+    date: getDateString(2),
+    primaryPaddockExternalId: EAST_RIDGE_PADDOCK_ID,
+    confidenceScore: 82,
+    reasoning: [
+      'Day 1 of East Ridge rotation',
+      'Starting from northern boundary for progressive strip grazing',
+      'Good NDVI values in this section',
+    ],
+    status: 'executed',
+    sectionGeometry: createEastRidgeStrip(0),
+    sectionAreaHectares: 3.2,
+    sectionJustification: 'Progressive strip grazing demonstration - northern section',
+    paddockGrazedPercentage: 30,
+    createdAt: now,
+    updatedAt: now,
+  })
+
+  // Section 2: Day -1, middle-north strip (next 30% of paddock)
+  await ctx.db.insert('plans', {
+    farmExternalId: demoFarmId,
+    date: getDateString(1),
+    primaryPaddockExternalId: EAST_RIDGE_PADDOCK_ID,
+    confidenceScore: 85,
+    reasoning: [
+      'Day 2 of East Ridge rotation',
+      'Adjacent to previous section for efficient movement',
+      'Continuing progressive strip pattern',
+    ],
+    status: 'executed',
+    sectionGeometry: createEastRidgeStrip(1),
+    sectionAreaHectares: 3.4,
+    sectionJustification: 'Progressive strip grazing demonstration - middle section',
+    paddockGrazedPercentage: 60,
+    createdAt: now,
+    updatedAt: now,
+  })
+}
+
 /**
  * Helper to copy data from the source farm to a demo farm.
  * Copies all farm data including paddocks, observations, events, settings, etc.
@@ -229,6 +330,9 @@ async function copyFarmData(
       updatedAt: now,
     })
   }
+
+  // Generate historical grazing sections for East Ridge to show strip grazing progression
+  await generateDemoSectionsForEastRidge(ctx, demoFarmId, now)
 
   // Copy satellite image tiles (reference same R2 URLs - they're read-only)
   const sourceTiles = await ctx.db

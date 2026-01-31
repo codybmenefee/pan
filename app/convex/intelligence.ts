@@ -652,6 +652,28 @@ export const backdateSections = mutation({
 })
 
 /**
+ * Update a single section's date. Dev tool for testing historical patterns.
+ */
+export const updateSectionDate = mutation({
+  args: {
+    planId: v.id('plans'),
+    date: v.string(), // YYYY-MM-DD format
+  },
+  handler: async (ctx, args) => {
+    const plan = await ctx.db.get(args.planId)
+    if (!plan) throw new Error('Plan not found')
+
+    // Validate date format
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(args.date)) {
+      throw new Error('Invalid date format. Use YYYY-MM-DD.')
+    }
+
+    await ctx.db.patch(args.planId, { date: args.date })
+    return args.planId
+  },
+})
+
+/**
  * Get rest period distribution for analytics.
  * Computes gaps between consecutive grazing events per paddock.
  */
