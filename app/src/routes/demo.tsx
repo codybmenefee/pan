@@ -2,7 +2,7 @@ import { createFileRoute, Outlet } from '@tanstack/react-router'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { DemoHeader } from '@/components/demo/DemoHeader'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
-import { GeometryProviderWithConvex } from '@/lib/geometry/GeometryProviderWithConvex'
+import { DemoGeometryProvider } from '@/lib/demo/DemoGeometryProvider'
 import { DemoFarmProvider } from '@/lib/farm/DemoFarmProvider'
 import { BriefPanelProvider } from '@/lib/brief'
 import { DemoAuthProvider, useDemoAuth } from '@/lib/auth/DemoAuthProvider'
@@ -39,7 +39,7 @@ function DemoLayoutContent() {
 
   return (
     <DemoFarmProvider>
-      <GeometryProviderWithConvex>
+      <DemoGeometryProvider>
         <BriefPanelProvider>
           <SatelliteAnimationProvider>
             <TutorialProvider>
@@ -56,7 +56,7 @@ function DemoLayoutContent() {
             </TutorialProvider>
           </SatelliteAnimationProvider>
         </BriefPanelProvider>
-      </GeometryProviderWithConvex>
+      </DemoGeometryProvider>
     </DemoFarmProvider>
   )
 }
