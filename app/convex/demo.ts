@@ -567,7 +567,7 @@ async function copyFarmBaseData(
   if (sourceSettings) {
     await ctx.db.insert('farmSettings', {
       farmExternalId: demoFarmId,
-      subscriptionTier: 'professional', // Demo users get professional features
+      subscriptionTier: 'premium', // Demo users get premium features
       minNDVIThreshold: sourceSettings.minNDVIThreshold,
       minRestPeriod: sourceSettings.minRestPeriod,
       cloudCoverTolerance: sourceSettings.cloudCoverTolerance,
