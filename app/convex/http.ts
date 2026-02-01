@@ -19,15 +19,52 @@ interface OrgSubscriptionData {
   metadata?: Record<string, string>
 }
 
-// Webhook payload types for user-based billing (Early Access)
-interface UserSubscriptionData {
+// Clerk Commerce subscription item (each plan in the subscription)
+interface ClerkSubscriptionItem {
+  id: string
+  plan: {
+    id: string
+    name: string
+    slug: string
+    amount: number
+    currency: string
+    is_recurring: boolean
+  }
+  status: 'active' | 'ended' | 'past_due' | 'canceled' | 'incomplete' | 'upcoming' | 'trialing'
+  period_start: number
+  period_end: number | null
+}
+
+// Clerk Commerce payer info
+interface ClerkPayer {
   id: string
   user_id: string
-  customer_id: string
-  plan_id: string
-  status: 'active' | 'past_due' | 'canceled' | 'trialing'
-  current_period_end: string
-  metadata?: Record<string, string>
+  organization_id?: string
+  email: string
+  first_name?: string
+  last_name?: string
+}
+
+// Webhook payload types for user-based billing (Clerk Commerce)
+interface UserSubscriptionData {
+  id: string
+  status: 'active' | 'past_due' | 'canceled' | 'ended' | 'incomplete'
+  items: ClerkSubscriptionItem[]
+  payer: ClerkPayer
+  payer_id: string
+  payment_source_id?: string
+  latest_payment_id?: string
+  created_at: number
+  updated_at: number
+  // Legacy fields (may not be present in new Clerk Commerce)
+  userId?: string
+  user_id?: string
+  customerId?: string
+  customer_id?: string
+  planId?: string
+  plan_id?: string
+  currentPeriodEnd?: string
+  current_period_end?: string
 }
 
 interface InvoiceData {
@@ -47,7 +84,61 @@ type WebhookPayload =
 
 // Helper to determine if subscription data is user-based or org-based
 function isUserSubscription(data: OrgSubscriptionData | UserSubscriptionData): data is UserSubscriptionData {
-  return 'user_id' in data && !!data.user_id
+  const userData = data as UserSubscriptionData
+  // Clerk Commerce uses payer.user_id
+  if (userData.payer?.user_id) return true
+  // Legacy format
+  return !!(userData.user_id || userData.userId)
+}
+
+// Helper to normalize user subscription data from Clerk Commerce format
+function normalizeUserSubscription(data: UserSubscriptionData) {
+  // Defensive: ensure items is an array
+  const items = Array.isArray(data.items) ? data.items : []
+
+  // Find the active plan item - check for multiple active-like statuses
+  const activeItem = items.find(item =>
+    item?.status === 'active' ||
+    item?.status === 'trialing'
+  )
+
+  // Get user ID from payer (Clerk Commerce) or legacy fields
+  const userId = data.payer?.user_id || data.userId || data.user_id || ''
+
+  // Get plan slug from active item - defensive null checks
+  const planSlug = activeItem?.plan?.slug || data.planId || data.plan_id || ''
+
+  // Get period end from active item - handle both ms and seconds timestamps
+  let periodEnd: string
+  if (activeItem?.period_end) {
+    // Clerk Commerce sends timestamps in seconds, not milliseconds
+    const timestamp = activeItem.period_end > 1e12
+      ? activeItem.period_end  // Already milliseconds
+      : activeItem.period_end * 1000  // Convert seconds to milliseconds
+    periodEnd = new Date(timestamp).toISOString()
+  } else {
+    periodEnd = data.currentPeriodEnd || data.current_period_end || new Date().toISOString()
+  }
+
+  // Determine status - use active item status or overall subscription status
+  let status: 'active' | 'past_due' | 'canceled' = 'active'
+  if (activeItem) {
+    if (activeItem.status === 'past_due') status = 'past_due'
+    if (activeItem.status === 'canceled' || activeItem.status === 'ended') status = 'canceled'
+  } else if (data.status) {
+    if (data.status === 'past_due') status = 'past_due'
+    if (data.status === 'canceled' || data.status === 'ended') status = 'canceled'
+  }
+
+  return {
+    id: data.id,
+    userId,
+    customerId: data.payer_id || data.customerId || data.customer_id || '',
+    planId: planSlug,
+    status,
+    currentPeriodEnd: periodEnd,
+    hasActivePlan: !!activeItem,
+  }
 }
 
 // Map Clerk plan IDs to our tier names
@@ -91,6 +182,7 @@ http.route({
     }
 
     log(`Received Clerk billing webhook: ${payload.type}`)
+    log(`Payload: ${JSON.stringify(payload, null, 2)}`)
 
     try {
       switch (payload.type) {
@@ -148,18 +240,43 @@ async function handleUserSubscriptionUpdate(
   ctx: WebhookContext,
   data: UserSubscriptionData
 ) {
-  // Map status - treat 'trialing' as 'active'
-  const status = data.status === 'trialing' ? 'active' : data.status
+  let normalized
+  try {
+    normalized = normalizeUserSubscription(data)
+  } catch (error) {
+    log.error('Failed to normalize subscription data', {
+      error: String(error),
+      rawData: JSON.stringify(data),
+    })
+    throw new Error(`Subscription normalization failed: ${error}`)
+  }
 
-  await ctx.runMutation(api.users.syncUserSubscription, {
-    userExternalId: data.user_id,
-    subscriptionId: data.id,
-    planId: data.plan_id,
-    status: status as 'active' | 'past_due' | 'canceled',
-    currentPeriodEnd: data.current_period_end,
-  })
+  log(`Processing user subscription: userId=${normalized.userId}, planId=${normalized.planId}, status=${normalized.status}, hasActivePlan=${normalized.hasActivePlan}`)
 
-  log(`User subscription synced for ${data.user_id}: ${data.plan_id} (${status})`)
+  if (!normalized.userId) {
+    log.error('User subscription missing userId', { data: JSON.stringify(data) })
+    throw new Error('User subscription missing userId')
+  }
+
+  // Only sync if there's an active plan (early_access)
+  // This handles the case where user has multiple items (free ended, early_access active)
+  if (normalized.hasActivePlan) {
+    await ctx.runMutation(api.users.syncUserSubscription, {
+      userExternalId: normalized.userId,
+      subscriptionId: normalized.id,
+      planId: normalized.planId,
+      status: normalized.status,
+      currentPeriodEnd: normalized.currentPeriodEnd,
+    })
+
+    log(`User subscription synced for ${normalized.userId}: ${normalized.planId} (${normalized.status})`)
+  } else {
+    // No active plan - cancel subscription
+    log(`No active plan found for ${normalized.userId}, marking as canceled`)
+    await ctx.runMutation(api.users.cancelUserSubscription, {
+      userExternalId: normalized.userId,
+    })
+  }
 }
 
 /**
@@ -169,11 +286,18 @@ async function handleUserSubscriptionDeleted(
   ctx: WebhookContext,
   data: UserSubscriptionData
 ) {
+  const normalized = normalizeUserSubscription(data)
+
+  if (!normalized.userId) {
+    log.error('User subscription delete missing userId', { data: JSON.stringify(data) })
+    throw new Error('User subscription delete missing userId')
+  }
+
   await ctx.runMutation(api.users.cancelUserSubscription, {
-    userExternalId: data.user_id,
+    userExternalId: normalized.userId,
   })
 
-  log(`User subscription canceled for ${data.user_id}`)
+  log(`User subscription canceled for ${normalized.userId}`)
 }
 
 async function handleSubscriptionUpdate(
