@@ -1,9 +1,6 @@
-import type { Feature, Polygon } from 'geojson'
+import type { Feature, Polygon, Point } from 'geojson'
 import area from '@turf/area'
 import { HECTARES_PER_SQUARE_METER } from './lib/areaConstants'
-
-const BASE_LNG = -87.0403892
-const BASE_LAT = 35.6389946
 
 export const DEFAULT_FARM_EXTERNAL_ID = 'farm-1'
 export const DEFAULT_USER_EXTERNAL_ID = 'dev-user-1'
@@ -30,139 +27,253 @@ function calculateAreaHectares(feature: Feature<Polygon>, decimals = 1): number 
   return Math.round(hectares * factor) / factor
 }
 
-function createPolygon(offsetLng: number, offsetLat: number, size: number): Feature<Polygon> {
-  const lng = BASE_LNG + offsetLng
-  const lat = BASE_LAT + offsetLat
-  const s = size * 0.005
+// Rotation configuration constants
+export const ROTATION_CONFIG = {
+  /** Minimum days to spend in a paddock before moving */
+  MIN_DAYS_IN_PADDOCK: 3,
+  /** Maximum days to spend in a paddock before moving */
+  MAX_DAYS_IN_PADDOCK: 4,
+  /** Minimum rest period between grazing same paddock (days) */
+  MIN_REST_PERIOD: 21,
+  /** NDVI recovery rate per day (approximate) */
+  NDVI_RECOVERY_RATE_PER_DAY: 0.025,
+  /** Minimum NDVI after grazing */
+  MIN_NDVI_AFTER_GRAZING: 0.20,
+  /** Maximum NDVI when fully recovered */
+  MAX_NDVI_RECOVERED: 0.70,
+  /** Default number of strips per paddock */
+  DEFAULT_STRIPS_PER_PADDOCK: 3,
+}
 
-  return {
+// Real paddock geometries from production (oriented over actual Columbia, TN fields)
+export const paddockGeometries: Record<string, Feature<Polygon>> = {
+  p1: {
     type: 'Feature',
-    properties: {},
+    properties: { entityId: 'p1', entityType: 'paddock' },
     geometry: {
       type: 'Polygon',
       coordinates: [[
-        [lng, lat],
-        [lng + s, lat],
-        [lng + s, lat - s],
-        [lng, lat - s],
-        [lng, lat],
+        [-87.0397151751705, 35.64517947639289],
+        [-87.03859429334015, 35.64481193563437],
+        [-87.03774455927639, 35.64426942801891],
+        [-87.0392354865863, 35.64344523496971],
+        [-87.04003725584133, 35.64408961008082],
+        [-87.03960210716617, 35.644556580655056],
+        [-87.03980940419737, 35.64493484980728],
+        [-87.0397151751705, 35.64517947639289],
       ]],
     },
-  }
-}
-
-function createFarmBoundary(paddockGeometries: Feature<Polygon>[]): Feature<Polygon> {
-  let minLng = Infinity
-  let minLat = Infinity
-  let maxLng = -Infinity
-  let maxLat = -Infinity
-
-  paddockGeometries.forEach((feature) => {
-    feature.geometry.coordinates[0].forEach(([lng, lat]) => {
-      minLng = Math.min(minLng, lng)
-      maxLng = Math.max(maxLng, lng)
-      minLat = Math.min(minLat, lat)
-      maxLat = Math.max(maxLat, lat)
-    })
-  })
-
-  const padding = 0.006
-  return {
+  },
+  p2: {
     type: 'Feature',
-    properties: {},
+    properties: { entityId: 'p2', entityType: 'paddock' },
     geometry: {
       type: 'Polygon',
       coordinates: [[
-        [minLng - padding, maxLat + padding],
-        [maxLng + padding, maxLat + padding],
-        [maxLng + padding, minLat - padding],
-        [minLng - padding, minLat - padding],
-        [minLng - padding, maxLat + padding],
+        [-87.04129253080069, 35.645489348163714],
+        [-87.03998354641223, 35.64471899067983],
+        [-87.0404278, 35.64461346],
+        [-87.04047000608041, 35.64415853002819],
+        [-87.03960934858975, 35.643314249419596],
+        [-87.04119274471498, 35.64244250645793],
+        [-87.04129253080069, 35.645489348163714],
       ]],
     },
-  }
+  },
+  p3: {
+    type: 'Feature',
+    properties: { entityId: 'p3', entityType: 'paddock' },
+    geometry: {
+      type: 'Polygon',
+      coordinates: [[
+        [-87.03793806153855, 35.64398436238422],
+        [-87.0371872608203, 35.64407217655365],
+        [-87.03602321174208, 35.64352716],
+        [-87.03539432293357, 35.64318068832997],
+        [-87.03522492457154, 35.64278754147296],
+        [-87.03616337293026, 35.642323140968294],
+        [-87.03793806153855, 35.64398436238422],
+      ]],
+    },
+  },
+  p4: {
+    type: 'Feature',
+    properties: { entityId: 'p4', entityType: 'paddock' },
+    geometry: {
+      type: 'Polygon',
+      coordinates: [[
+        [-87.03754364707473, 35.641668279812805],
+        [-87.03628096325767, 35.642172808890706],
+        [-87.03512001710901, 35.6425942771626],
+        [-87.03485083970001, 35.64184580957378],
+        [-87.03484013324115, 35.641175136772496],
+        [-87.03658744189558, 35.64038521823965],
+        [-87.03754364707473, 35.641668279812805],
+      ]],
+    },
+  },
+  p5: {
+    type: 'Feature',
+    properties: { entityId: 'p5', entityType: 'paddock' },
+    geometry: {
+      type: 'Polygon',
+      coordinates: [[
+        [-87.0406044827726, 35.6396559687299],
+        [-87.0373031908863, 35.64106750277516],
+        [-87.0366576096398, 35.64036891907377],
+        [-87.04036547413159, 35.639016396706715],
+        [-87.04062866443813, 35.63923238216604],
+        [-87.0406044827726, 35.6396559687299],
+      ]],
+    },
+  },
+  p6: {
+    type: 'Feature',
+    properties: { entityId: 'p6', entityType: 'paddock' },
+    geometry: {
+      type: 'Polygon',
+      coordinates: [[
+        [-87.03884751709019, 35.64339541993121],
+        [-87.03798785636894, 35.643953401441024],
+        [-87.03625145893781, 35.64226066124887],
+        [-87.03746820096396, 35.64183209220326],
+        [-87.03884751709019, 35.64339541993121],
+      ]],
+    },
+  },
+  p7: {
+    type: 'Feature',
+    properties: { entityId: 'p7', entityType: 'paddock' },
+    geometry: {
+      type: 'Polygon',
+      coordinates: [[
+        [-87.03934550934439, 35.64193806372046],
+        [-87.0389974656823, 35.642496819503236],
+        [-87.03915182562857, 35.64304578996256],
+        [-87.03900245715545, 35.64330015418798],
+        [-87.03775642063364, 35.64177810914282],
+        [-87.03911227371509, 35.641141876784275],
+        [-87.03934550934439, 35.64193806372046],
+      ]],
+    },
+  },
+  p8: {
+    type: 'Feature',
+    properties: { entityId: 'p8', entityType: 'paddock' },
+    geometry: {
+      type: 'Polygon',
+      coordinates: [[
+        [-87.04123692533379, 35.64202019092877],
+        [-87.04054797413285, 35.64239044525953],
+        [-87.04031355794291, 35.64165524105345],
+        [-87.03979879170721, 35.64112106426853],
+        [-87.04076483026331, 35.64054630948765],
+        [-87.04111631764795, 35.641068816643575],
+        [-87.04091275646923, 35.64145069411512],
+        [-87.04123692533379, 35.64202019092877],
+      ]],
+    },
+  },
 }
+
+// Real farm boundary that encompasses all paddocks
+const farmGeometry: Feature<Polygon> = {
+  type: 'Feature',
+  properties: {},
+  geometry: {
+    type: 'Polygon',
+    coordinates: [[
+      [-87.04303251567856, 35.646039653104296],
+      [-87.03323954437344, 35.646039653104296],
+      [-87.03323954437344, 35.638081167693215],
+      [-87.04303251567856, 35.638081167693215],
+      [-87.04303251567856, 35.646039653104296],
+    ]],
+  },
+}
+
+const farmCoordinates: [number, number] = [-87.03813603002601, 35.642060410398756]
 
 const basePaddocks = [
   {
     externalId: 'p1',
     name: 'South Valley',
-    status: 'recovering',
+    status: 'recovering' as const,
     ndvi: 0.31,
     restDays: 14,
     waterAccess: 'Trough (north)',
     lastGrazed: 'Jan 2',
-    geometry: createPolygon(0, 0, 1.2),
+    geometry: paddockGeometries.p1,
   },
   {
     externalId: 'p2',
     name: 'North Flat',
-    status: 'almost_ready',
+    status: 'almost_ready' as const,
     ndvi: 0.48,
     restDays: 19,
     waterAccess: 'Stream (west)',
     lastGrazed: 'Dec 28',
-    geometry: createPolygon(-0.008, 0.006, 1.1),
+    geometry: paddockGeometries.p2,
   },
   {
     externalId: 'p3',
     name: 'Top Block',
-    status: 'recovering',
+    status: 'recovering' as const,
     ndvi: 0.39,
     restDays: 16,
     waterAccess: 'Trough (center)',
     lastGrazed: 'Dec 31',
-    geometry: createPolygon(0.006, 0.008, 0.9),
+    geometry: paddockGeometries.p3,
   },
   {
     externalId: 'p4',
     name: 'East Ridge',
-    status: 'ready',
+    status: 'ready' as const,
     ndvi: 0.52,
     restDays: 24,
     waterAccess: 'Creek (east)',
     lastGrazed: 'Dec 23',
-    geometry: createPolygon(0.012, 0.004, 1.0),
+    geometry: paddockGeometries.p4,
   },
   {
     externalId: 'p5',
     name: 'Creek Bend',
-    status: 'grazed',
+    status: 'grazed' as const,
     ndvi: 0.22,
     restDays: 3,
     waterAccess: 'Creek (south)',
     lastGrazed: 'Jan 13',
-    geometry: createPolygon(-0.006, -0.008, 1.0),
+    geometry: paddockGeometries.p5,
   },
   {
     externalId: 'p6',
     name: 'West Slope',
-    status: 'recovering',
+    status: 'recovering' as const,
     ndvi: 0.35,
     restDays: 12,
     waterAccess: 'Trough (west)',
     lastGrazed: 'Jan 4',
-    geometry: createPolygon(0.004, -0.008, 1.1),
+    geometry: paddockGeometries.p6,
   },
   {
     externalId: 'p7',
     name: 'Creek Side',
-    status: 'almost_ready',
+    status: 'almost_ready' as const,
     ndvi: 0.44,
     restDays: 28,
     waterAccess: 'Creek (east)',
     lastGrazed: 'Dec 19',
-    geometry: createPolygon(0.018, -0.004, 1.3),
+    geometry: paddockGeometries.p7,
   },
   {
     externalId: 'p8',
     name: 'Lower Paddock',
-    status: 'grazed',
+    status: 'grazed' as const,
     ndvi: 0.19,
     restDays: 5,
     waterAccess: 'Trough (south)',
     lastGrazed: 'Jan 11',
-    geometry: createPolygon(0.020, -0.012, 1.4),
+    geometry: paddockGeometries.p8,
   },
 ]
 
@@ -174,11 +285,212 @@ export const samplePaddocks = basePaddocks.map((paddock) => ({
 export const sampleFarm = {
   externalId: DEFAULT_FARM_EXTERNAL_ID,
   name: 'Hillcrest Station',
-  location: '943 Riverview Ln, Columbia, TN 38401',
+  location: '120 River Heights Drive, Columbia, Tennessee, 38401',
   totalArea: 142,
   paddockCount: samplePaddocks.length,
-  coordinates: [BASE_LNG, BASE_LAT] as [number, number],
-  geometry: createFarmBoundary(samplePaddocks.map((paddock) => paddock.geometry)),
+  coordinates: farmCoordinates,
+  geometry: farmGeometry,
+}
+
+// Sample water sources
+export const sampleWaterSources: Array<{
+  name: string
+  type: 'trough' | 'pond' | 'dam' | 'tank' | 'stream' | 'other'
+  geometryType: 'point' | 'polygon'
+  geometry: Feature<Point> | Feature<Polygon>
+  status: 'active' | 'seasonal' | 'maintenance' | 'dry'
+  description?: string
+}> = [
+  {
+    name: 'North Trough',
+    type: 'trough',
+    geometryType: 'point',
+    geometry: {
+      type: 'Feature',
+      properties: {},
+      geometry: {
+        type: 'Point',
+        coordinates: [-87.0392, 35.6448],
+      },
+    },
+    status: 'active',
+    description: 'Main water trough near paddocks p1 and p2',
+  },
+  {
+    name: 'Creek Access',
+    type: 'stream',
+    geometryType: 'point',
+    geometry: {
+      type: 'Feature',
+      properties: {},
+      geometry: {
+        type: 'Point',
+        coordinates: [-87.0365, 35.6405],
+      },
+    },
+    status: 'active',
+    description: 'Natural creek access point',
+  },
+  {
+    name: 'South Tank',
+    type: 'tank',
+    geometryType: 'point',
+    geometry: {
+      type: 'Feature',
+      properties: {},
+      geometry: {
+        type: 'Point',
+        coordinates: [-87.0400, 35.6395],
+      },
+    },
+    status: 'active',
+    description: 'Storage tank for southern paddocks',
+  },
+]
+
+// Sample no-graze zones
+export const sampleNoGrazeZones: Array<{
+  name: string
+  type: 'environmental' | 'hazard' | 'infrastructure' | 'protected' | 'other'
+  description?: string
+  geometry: Feature<Polygon>
+}> = [
+  {
+    name: 'Riparian Buffer',
+    type: 'environmental',
+    description: 'Protected riparian zone along creek',
+    geometry: {
+      type: 'Feature',
+      properties: {},
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[
+          [-87.0368, 35.6410],
+          [-87.0362, 35.6410],
+          [-87.0362, 35.6400],
+          [-87.0368, 35.6400],
+          [-87.0368, 35.6410],
+        ]],
+      },
+    },
+  },
+]
+
+// Sample livestock
+export const sampleLivestock: Array<{
+  animalType: 'cow' | 'sheep'
+  adultCount: number
+  offspringCount: number
+  notes?: string
+}> = [
+  {
+    animalType: 'cow',
+    adultCount: 45,
+    offspringCount: 12,
+    notes: 'Angus beef cattle, spring calving herd',
+  },
+  {
+    animalType: 'sheep',
+    adultCount: 30,
+    offspringCount: 8,
+    notes: 'Mixed wool flock',
+  },
+]
+
+// Sample plans with sections for strip grazing demonstration
+// These are generated dynamically based on current date
+export function generateSamplePlans(farmExternalId: string) {
+  const today = new Date()
+
+  // Helper to get date string N days ago
+  const getDateString = (daysAgo: number): string => {
+    const date = new Date(today)
+    date.setDate(date.getDate() - daysAgo)
+    return date.toISOString().split('T')[0]
+  }
+
+  // East Ridge (p4) strip grazing sections - within the paddock bounds
+  // p4 coordinates roughly: west=-87.0375, east=-87.0348, north=35.6426, south=35.6404
+  const createEastRidgeStrip = (stripIndex: number): { type: 'Polygon'; coordinates: number[][][] } => {
+    const westLng = -87.0370
+    const eastLng = -87.0352
+    const northLat = 35.6422
+    const southLat = 35.6408
+
+    const paddockHeight = northLat - southLat
+    const stripHeight = paddockHeight * 0.30
+
+    const stripNorth = northLat - (stripIndex * stripHeight)
+    const stripSouth = stripNorth - stripHeight
+
+    return {
+      type: 'Polygon',
+      coordinates: [[
+        [westLng, stripNorth],
+        [eastLng, stripNorth],
+        [eastLng, stripSouth],
+        [westLng, stripSouth],
+        [westLng, stripNorth],
+      ]],
+    }
+  }
+
+  return [
+    // Day -2: First strip (northern section)
+    {
+      farmExternalId,
+      date: getDateString(2),
+      primaryPaddockExternalId: 'p4',
+      alternativePaddockExternalIds: [],
+      confidenceScore: 82,
+      reasoning: [
+        'Day 1 of East Ridge rotation',
+        'Starting from northern boundary for progressive strip grazing',
+        'Good NDVI values in this section',
+      ],
+      status: 'executed' as const,
+      sectionGeometry: createEastRidgeStrip(0),
+      sectionAreaHectares: 1.1,
+      sectionJustification: 'Progressive strip grazing - northern section',
+      paddockGrazedPercentage: 30,
+    },
+    // Day -1: Second strip (middle section)
+    {
+      farmExternalId,
+      date: getDateString(1),
+      primaryPaddockExternalId: 'p4',
+      alternativePaddockExternalIds: [],
+      confidenceScore: 85,
+      reasoning: [
+        'Day 2 of East Ridge rotation',
+        'Adjacent to previous section for efficient movement',
+        'Continuing progressive strip pattern',
+      ],
+      status: 'executed' as const,
+      sectionGeometry: createEastRidgeStrip(1),
+      sectionAreaHectares: 1.1,
+      sectionJustification: 'Progressive strip grazing - middle section',
+      paddockGrazedPercentage: 60,
+    },
+    // Today: Third strip (southern section) - pending approval
+    {
+      farmExternalId,
+      date: getDateString(0),
+      primaryPaddockExternalId: 'p4',
+      alternativePaddockExternalIds: ['p1', 'p2'],
+      confidenceScore: 88,
+      reasoning: [
+        'Day 3 of East Ridge rotation',
+        'Final strip completes paddock coverage',
+        'Southern section has highest remaining NDVI',
+      ],
+      status: 'pending' as const,
+      sectionGeometry: createEastRidgeStrip(2),
+      sectionAreaHectares: 1.1,
+      sectionJustification: 'Progressive strip grazing - southern section to complete rotation',
+      paddockGrazedPercentage: 90,
+    },
+  ]
 }
 
 export const sampleGrazingEvents = [

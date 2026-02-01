@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import { useDemoAuth } from '@/lib/auth/DemoAuthProvider'
+import { isDemoDevMode } from '@/lib/demo/isDemoDevMode'
 
 interface UseDemoSeedingResult {
   isSeeding: boolean
@@ -16,14 +17,19 @@ export function useDemoSeeding(): UseDemoSeedingResult {
   const [isSeeding, setIsSeeding] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Check if demo farm already exists
+  // In dev mode, query farm-1 directly (no seeding needed)
+  // In public demo mode, check if demo farm already exists
   const demoFarm = useQuery(
-    api.demo.getDemoFarm,
-    demoSessionId ? { sessionId: demoSessionId } : 'skip'
+    isDemoDevMode ? api.farms.getFarm : api.demo.getDemoFarm,
+    isDemoDevMode
+      ? { farmId: 'farm-1' }
+      : (demoSessionId ? { sessionId: demoSessionId } : 'skip')
   )
 
-  // Seed demo farm on first load
+  // Seed demo farm on first load (only in public demo mode)
+  // In dev mode, we use farm-1 directly and don't need to seed
   useEffect(() => {
+    if (isDemoDevMode) return // Dev mode uses farm-1 directly
     if (!demoSessionId) return
     if (demoFarm !== null && demoFarm !== undefined) return // Farm already exists
     if (demoFarm === undefined) return // Still loading

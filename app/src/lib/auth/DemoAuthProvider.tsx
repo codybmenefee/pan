@@ -1,4 +1,5 @@
 import { createContext, useContext, useMemo, useState, useEffect, type ReactNode } from 'react'
+import { isDemoDevMode } from '@/lib/demo/isDemoDevMode'
 
 // Session storage key for demo session ID
 const DEMO_SESSION_KEY = 'demo_session_id'
@@ -59,6 +60,25 @@ export function DemoAuthProvider({ children }: { children: ReactNode }) {
   }
 
   const value = useMemo<DemoAuthContextValue>(() => {
+    // In dev mode, use farm-1 directly (no demo session needed)
+    // This ensures mutations and queries target the same farm
+    if (isDemoDevMode) {
+      return {
+        userId: 'dev-user-1',
+        isLoaded: true,
+        isSignedIn: true,
+        isDevAuth: false,  // Keep false since we're in demo context
+        isDemoMode: true,
+        demoSessionId: null,  // No demo session in dev mode
+        organizationId: 'farm-1',  // Use source farm directly
+        organizationList: [{ id: 'farm-1', name: 'Demo Farm (Dev)' }],
+        isOrgLoaded: true,
+        setActiveOrganization: async () => {},
+        needsOnboarding: false,
+        resetDemoSession: () => {},  // No-op in dev mode
+      }
+    }
+
     const demoUserId = sessionId ? `demo-user-${sessionId}` : null
     const demoFarmId = sessionId ? `demo-farm-${sessionId}` : null
 

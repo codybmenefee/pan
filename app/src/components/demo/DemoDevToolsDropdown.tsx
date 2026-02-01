@@ -1,4 +1,4 @@
-import { Wrench, RotateCcw, Trash2, Calendar, Database, Settings, GraduationCap, Camera, Eraser, History } from 'lucide-react'
+import { Wrench, RotateCcw, Trash2, Calendar, Database, Settings, GraduationCap, Camera, Eraser, History, RefreshCw, CalendarDays } from 'lucide-react'
 import { useMutation } from 'convex/react'
 import { useNavigate } from '@tanstack/react-router'
 import { toast } from 'sonner'
@@ -26,6 +26,7 @@ export function DemoDevToolsDropdown() {
   const resetSettings = useMutation(api.settings.resetSettings)
   const setupTutorialDemo = useMutation(api.farms.setupTutorialDemo)
   const backdateSections = useMutation(api.intelligence.backdateSections)
+  const regenerateDemoHistory = useMutation(api.demo.regenerateDemoHistory)
 
   // In dev mode, operate on source farm (farm-1) to edit demo source data
   // In public demo mode, operate on session-specific farm
@@ -112,6 +113,60 @@ export function DemoDevToolsDropdown() {
     }
   }
 
+  const handleRegenerateDemoHistory = async () => {
+    if (!effectiveFarmId) {
+      toast.error('No active farm')
+      return
+    }
+    console.log('[DemoDevToolsDropdown] Regenerating demo history for farm:', effectiveFarmId, 'isDemoDevMode:', isDemoDevMode, 'activeFarmId:', activeFarmId)
+    try {
+      toast.loading('Regenerating demo history...')
+      const result = await regenerateDemoHistory({ farmExternalId: effectiveFarmId })
+      toast.dismiss()
+      toast.success(`Demo history regenerated: ${result.plansCreated} plans created`)
+      // Refresh to show updated data
+      window.location.reload()
+    } catch (error) {
+      toast.dismiss()
+      toast.error('Failed to regenerate demo history')
+      console.error('Regenerate demo history error:', error)
+    }
+  }
+
+  const handleSetDemoDate = async () => {
+    if (!effectiveFarmId) {
+      toast.error('No active farm')
+      return
+    }
+
+    // Simple prompt for date input
+    const dateInput = window.prompt('Enter demo date (YYYY-MM-DD):', new Date().toISOString().split('T')[0])
+    if (!dateInput) return
+
+    // Validate date format
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+      toast.error('Invalid date format. Please use YYYY-MM-DD')
+      return
+    }
+
+    try {
+      toast.loading('Setting demo date...')
+      const result = await regenerateDemoHistory({
+        farmExternalId: effectiveFarmId,
+        demoDate: dateInput,
+        historyDays: 14,
+      })
+      toast.dismiss()
+      toast.success(`Demo date set to ${dateInput}: ${result.plansCreated} plans created`)
+      // Refresh to show updated data
+      window.location.reload()
+    } catch (error) {
+      toast.dismiss()
+      toast.error('Failed to set demo date')
+      console.error('Set demo date error:', error)
+    }
+  }
+
   // Check if there are demo edits to clear
   const showClearDemoEdits = !isDemoDevMode && demoSessionId && hasDemoEdits(demoSessionId)
 
@@ -143,6 +198,16 @@ export function DemoDevToolsDropdown() {
           <History className="h-3.5 w-3.5 mr-2" />
           Backdate Sections (-1 day)
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleRegenerateDemoHistory}>
+          <RefreshCw className="h-3.5 w-3.5 mr-2" />
+          Regenerate Demo History
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleSetDemoDate}>
+          <CalendarDays className="h-3.5 w-3.5 mr-2" />
+          Set Demo Date...
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleClearGrazingEvents}>
           <Trash2 className="h-3.5 w-3.5 mr-2" />
           Clear Grazing Events

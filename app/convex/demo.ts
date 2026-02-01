@@ -1,115 +1,468 @@
 import { mutationGeneric as mutation, queryGeneric as query } from 'convex/server'
 import { v } from 'convex/values'
+import type { Feature, Polygon } from 'geojson'
+import bbox from '@turf/bbox'
+import area from '@turf/area'
+import intersect from '@turf/intersect'
+import { featureCollection, polygon } from '@turf/helpers'
+import { paddockGeometries, ROTATION_CONFIG, samplePaddocks } from './seedData'
+import { HECTARES_PER_SQUARE_METER } from './lib/areaConstants'
 
 // Source farm to copy data from (dev user's farm)
 const SOURCE_FARM_EXTERNAL_ID = 'farm-1'
 
-// East Ridge paddock ID for demo section staging
-const EAST_RIDGE_PADDOCK_ID = 'p4'
+// ============================================================================
+// Types
+// ============================================================================
+
+interface PaddockData {
+  externalId: string
+  name: string
+  geometry: Feature<Polygon>
+  area: number
+}
+
+interface RotationDay {
+  date: string
+  paddockId: string
+  stripIndex: number
+  isNewPaddock: boolean
+  totalStripsInPaddock: number
+}
+
+interface PaddockStateUpdate {
+  externalId: string
+  ndvi: number
+  restDays: number
+  status: 'grazed' | 'recovering' | 'almost_ready' | 'ready'
+  lastGrazed: string | null
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
 
 /**
- * Get a date string for N days ago in YYYY-MM-DD format.
+ * Get a date string for N days relative to a base date in YYYY-MM-DD format.
  */
-function getDateString(daysAgo: number): string {
-  const date = new Date()
-  date.setDate(date.getDate() - daysAgo)
+function getDateString(baseDate: Date, daysOffset: number): string {
+  const date = new Date(baseDate)
+  date.setDate(date.getDate() + daysOffset)
   return date.toISOString().split('T')[0]
 }
 
 /**
- * Create a horizontal strip polygon within the East Ridge paddock bounds.
- * East Ridge (p4) is in the upper-right area of the farm.
- *
- * For strip grazing, we create horizontal sections from north to south.
- * stripIndex: 0 = northernmost, 1 = second strip
- * Each strip is ~30% of the usable paddock area
+ * Calculate area in hectares from a geometry.
  */
-function createEastRidgeStrip(stripIndex: number): {
-  type: 'Polygon'
-  coordinates: number[][][]
-} {
-  // East Ridge bounds - constrained to the northern portion of the paddock
-  // to ensure strips stay clearly within the paddock boundary
-  const westLng = -87.0365
-  const eastLng = -87.0352
-  const northLat = 35.6424
-  const southLat = 35.6414
-
-  const paddockHeight = northLat - southLat  // ~0.001
-  const stripHeight = paddockHeight * 0.30   // Each strip is 30% of area
-
-  // Calculate strip bounds (from north to south)
-  const stripNorth = northLat - (stripIndex * stripHeight)
-  const stripSouth = stripNorth - stripHeight
-
-  // Create a simple rectangular strip
-  return {
-    type: 'Polygon',
-    coordinates: [[
-      [westLng, stripNorth],
-      [eastLng, stripNorth],
-      [eastLng, stripSouth],
-      [westLng, stripSouth],
-      [westLng, stripNorth],
-    ]],
+function calculateAreaHectares(geometry: Feature<Polygon>): number {
+  try {
+    const sqMeters = area(geometry)
+    return Number.isFinite(sqMeters) ? Math.round((sqMeters * HECTARES_PER_SQUARE_METER) * 10) / 10 : 0
+  } catch {
+    return 0
   }
 }
 
 /**
- * Create historical grazing sections for East Ridge to demonstrate progressive strip grazing.
- * Creates 2 executed sections in the northern portion, leaving southern 40% for AI to plan.
+ * Generate N equal strips within a paddock geometry.
+ * Strips are oriented along the longer axis of the paddock's bounding box.
  */
-async function generateDemoSectionsForEastRidge(
-  ctx: any,
-  demoFarmId: string,
-  now: string
-): Promise<void> {
-  // Section 1: Day -2, northern strip (30% of paddock)
-  await ctx.db.insert('plans', {
-    farmExternalId: demoFarmId,
-    date: getDateString(2),
-    primaryPaddockExternalId: EAST_RIDGE_PADDOCK_ID,
-    confidenceScore: 82,
-    reasoning: [
-      'Day 1 of East Ridge rotation',
-      'Starting from northern boundary for progressive strip grazing',
-      'Good NDVI values in this section',
-    ],
-    status: 'executed',
-    sectionGeometry: createEastRidgeStrip(0),
-    sectionAreaHectares: 3.2,
-    sectionJustification: 'Progressive strip grazing demonstration - northern section',
-    paddockGrazedPercentage: 30,
-    createdAt: now,
-    updatedAt: now,
-  })
+function generatePaddockStrips(
+  paddockGeometry: Feature<Polygon>,
+  numStrips: number = ROTATION_CONFIG.DEFAULT_STRIPS_PER_PADDOCK
+): Polygon[] {
+  // Get bounding box [minLng, minLat, maxLng, maxLat]
+  const [minLng, minLat, maxLng, maxLat] = bbox(paddockGeometry)
 
-  // Section 2: Day -1, middle-north strip (next 30% of paddock)
-  await ctx.db.insert('plans', {
-    farmExternalId: demoFarmId,
-    date: getDateString(1),
-    primaryPaddockExternalId: EAST_RIDGE_PADDOCK_ID,
-    confidenceScore: 85,
-    reasoning: [
-      'Day 2 of East Ridge rotation',
-      'Adjacent to previous section for efficient movement',
-      'Continuing progressive strip pattern',
-    ],
-    status: 'executed',
-    sectionGeometry: createEastRidgeStrip(1),
-    sectionAreaHectares: 3.4,
-    sectionJustification: 'Progressive strip grazing demonstration - middle section',
-    paddockGrazedPercentage: 60,
-    createdAt: now,
-    updatedAt: now,
-  })
+  const width = maxLng - minLng   // longitude span
+  const height = maxLat - minLat  // latitude span
+
+  // Determine orientation: strips run perpendicular to the shorter axis
+  // For typical paddocks that are wider than tall, we create horizontal strips (north to south)
+  // For paddocks taller than wide, we create vertical strips (west to east)
+  const isHorizontalStrips = height >= width
+
+  const strips: Polygon[] = []
+
+  for (let i = 0; i < numStrips; i++) {
+    let stripPolygon: Polygon
+
+    if (isHorizontalStrips) {
+      // Horizontal strips (divide by latitude, strips go north to south)
+      const stripHeight = height / numStrips
+      const stripNorth = maxLat - (i * stripHeight)
+      const stripSouth = stripNorth - stripHeight
+
+      stripPolygon = {
+        type: 'Polygon',
+        coordinates: [[
+          [minLng, stripNorth],
+          [maxLng, stripNorth],
+          [maxLng, stripSouth],
+          [minLng, stripSouth],
+          [minLng, stripNorth],
+        ]],
+      }
+    } else {
+      // Vertical strips (divide by longitude, strips go west to east)
+      const stripWidth = width / numStrips
+      const stripWest = minLng + (i * stripWidth)
+      const stripEast = stripWest + stripWidth
+
+      stripPolygon = {
+        type: 'Polygon',
+        coordinates: [[
+          [stripWest, maxLat],
+          [stripEast, maxLat],
+          [stripEast, minLat],
+          [stripWest, minLat],
+          [stripWest, maxLat],
+        ]],
+      }
+    }
+
+    // Clip strip to paddock boundary
+    const stripFeature: Feature<Polygon> = {
+      type: 'Feature',
+      properties: {},
+      geometry: stripPolygon,
+    }
+
+    const clipped = intersect(featureCollection([stripFeature, paddockGeometry]))
+
+    if (clipped && clipped.geometry.type === 'Polygon') {
+      strips.push(clipped.geometry as Polygon)
+    } else if (clipped && clipped.geometry.type === 'MultiPolygon') {
+      // If clipping produces multiple polygons, take the largest one
+      let bestArea = 0
+      let bestPolygon: Polygon | null = null
+
+      for (const coords of clipped.geometry.coordinates) {
+        const candidate = polygon(coords)
+        const candidateArea = area(candidate)
+        if (candidateArea > bestArea) {
+          bestArea = candidateArea
+          bestPolygon = { type: 'Polygon', coordinates: coords }
+        }
+      }
+
+      if (bestPolygon) {
+        strips.push(bestPolygon)
+      }
+    }
+  }
+
+  return strips
 }
 
 /**
- * Helper to copy data from the source farm to a demo farm.
- * Copies all farm data including paddocks, observations, events, settings, etc.
+ * Get number of strips for a paddock based on its area.
+ * Larger paddocks get more strips.
  */
-async function copyFarmData(
+function getStripsForPaddock(paddockArea: number): number {
+  if (paddockArea >= 5) return 4
+  if (paddockArea >= 3) return 3
+  return 3
+}
+
+/**
+ * Generate a realistic rotation sequence over a given number of days.
+ * Rotates through paddocks, spending 3-4 days in each (one strip per day).
+ */
+function generateRotationSequence(
+  paddocks: PaddockData[],
+  demoDate: Date,
+  historyDays: number
+): RotationDay[] {
+  const sequence: RotationDay[] = []
+
+  // Track when each paddock was last grazed (for rest period)
+  const lastGrazedDay: Record<string, number> = {}
+
+  // Start historyDays ago
+  let currentDayOffset = -historyDays
+
+  // Pre-seed some paddocks as having been grazed long ago (before our window)
+  // This creates variety in rest periods
+  const paddockIds = paddocks.map(p => p.externalId)
+  paddockIds.forEach((id, index) => {
+    // Stagger initial grazing dates: some 30+ days ago, some 20+ days ago
+    lastGrazedDay[id] = -historyDays - 20 - (index * 5)
+  })
+
+  // Current paddock index and strip within that paddock
+  let currentPaddockIndex = 0
+  let currentStripIndex = 0
+  let daysInCurrentPaddock = 0
+
+  // Find a good starting paddock (one that's been rested long enough)
+  const findNextPaddock = (fromIndex: number): number => {
+    // Try to find a paddock that has rested at least MIN_REST_PERIOD
+    for (let offset = 1; offset <= paddocks.length; offset++) {
+      const candidateIndex = (fromIndex + offset) % paddocks.length
+      const paddockId = paddocks[candidateIndex].externalId
+      const daysSinceGrazed = currentDayOffset - (lastGrazedDay[paddockId] ?? -100)
+
+      if (daysSinceGrazed >= ROTATION_CONFIG.MIN_REST_PERIOD) {
+        return candidateIndex
+      }
+    }
+
+    // If no paddock has rested enough, pick the one with longest rest
+    let bestIndex = (fromIndex + 1) % paddocks.length
+    let longestRest = 0
+
+    for (let i = 0; i < paddocks.length; i++) {
+      if (i === fromIndex) continue
+      const daysSinceGrazed = currentDayOffset - (lastGrazedDay[paddocks[i].externalId] ?? -100)
+      if (daysSinceGrazed > longestRest) {
+        longestRest = daysSinceGrazed
+        bestIndex = i
+      }
+    }
+
+    return bestIndex
+  }
+
+  // Start with a paddock that has good rest
+  currentPaddockIndex = findNextPaddock(-1)
+  let currentPaddock = paddocks[currentPaddockIndex]
+  let currentStripsTotal = getStripsForPaddock(currentPaddock.area)
+
+  while (currentDayOffset <= 0) {
+    const dateStr = getDateString(demoDate, currentDayOffset)
+    const isNewPaddock = daysInCurrentPaddock === 0
+
+    sequence.push({
+      date: dateStr,
+      paddockId: currentPaddock.externalId,
+      stripIndex: currentStripIndex,
+      isNewPaddock,
+      totalStripsInPaddock: currentStripsTotal,
+    })
+
+    // Update state
+    currentStripIndex++
+    daysInCurrentPaddock++
+    currentDayOffset++
+
+    // Check if we should move to next paddock
+    // Move when: we've done all strips OR we've hit MAX_DAYS_IN_PADDOCK
+    const shouldMovePaddock =
+      currentStripIndex >= currentStripsTotal ||
+      daysInCurrentPaddock >= ROTATION_CONFIG.MAX_DAYS_IN_PADDOCK
+
+    if (shouldMovePaddock && currentDayOffset <= 0) {
+      // Record when this paddock was last grazed
+      lastGrazedDay[currentPaddock.externalId] = currentDayOffset - 1
+
+      // Find next paddock
+      currentPaddockIndex = findNextPaddock(currentPaddockIndex)
+      currentPaddock = paddocks[currentPaddockIndex]
+      currentStripsTotal = getStripsForPaddock(currentPaddock.area)
+      currentStripIndex = 0
+      daysInCurrentPaddock = 0
+    }
+  }
+
+  return sequence
+}
+
+/**
+ * Calculate paddock states based on generated grazing history.
+ */
+function simulatePaddockStates(
+  rotationSequence: RotationDay[],
+  demoDate: Date,
+  paddocks: PaddockData[]
+): PaddockStateUpdate[] {
+  const demoDateStr = getDateString(demoDate, 0)
+
+  // Find last grazing date for each paddock
+  const lastGrazedMap: Record<string, string> = {}
+
+  for (const day of rotationSequence) {
+    // Only count executed days (not today's pending plan)
+    if (day.date < demoDateStr) {
+      lastGrazedMap[day.paddockId] = day.date
+    }
+  }
+
+  const updates: PaddockStateUpdate[] = []
+
+  for (const paddock of paddocks) {
+    const lastGrazed = lastGrazedMap[paddock.externalId] ?? null
+
+    let restDays = 30  // Default if never grazed in our window
+    if (lastGrazed) {
+      const lastDate = new Date(lastGrazed)
+      restDays = Math.floor((demoDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
+    }
+
+    // Calculate NDVI based on rest days (recovery model)
+    // NDVI drops to MIN after grazing, recovers at ~0.025/day, caps at MAX
+    let ndvi = ROTATION_CONFIG.MIN_NDVI_AFTER_GRAZING +
+      (restDays * ROTATION_CONFIG.NDVI_RECOVERY_RATE_PER_DAY)
+    ndvi = Math.min(ndvi, ROTATION_CONFIG.MAX_NDVI_RECOVERED)
+    ndvi = Math.round(ndvi * 100) / 100  // Round to 2 decimals
+
+    // Determine status based on NDVI and rest days
+    let status: PaddockStateUpdate['status']
+    if (restDays < 7) {
+      status = 'grazed'
+    } else if (ndvi >= 0.45 && restDays >= 21) {
+      status = 'ready'
+    } else if (ndvi >= 0.40 && restDays >= 14) {
+      status = 'almost_ready'
+    } else {
+      status = 'recovering'
+    }
+
+    updates.push({
+      externalId: paddock.externalId,
+      ndvi,
+      restDays,
+      status,
+      lastGrazed,
+    })
+  }
+
+  return updates
+}
+
+/**
+ * Generate historical demo data for a demo farm.
+ * Creates ~14 days of realistic rotation history across all paddocks.
+ */
+async function generateHistoricalDemoData(
+  ctx: any,
+  demoFarmId: string,
+  demoDate: string,
+  historyDays: number = 14
+): Promise<{ plansCreated: number; paddockStates: PaddockStateUpdate[] }> {
+  const demoDt = new Date(demoDate + 'T12:00:00Z')
+  const now = new Date().toISOString()
+
+  console.log('[generateHistoricalDemoData] Starting', { demoFarmId, demoDate, historyDays })
+
+  // Get paddock data from our geometries
+  const paddocks: PaddockData[] = Object.entries(paddockGeometries).map(([externalId, geometry]) => {
+    const paddockInfo = samplePaddocks.find(p => p.externalId === externalId)
+    return {
+      externalId,
+      name: paddockInfo?.name ?? externalId,
+      geometry,
+      area: calculateAreaHectares(geometry),
+    }
+  })
+
+  console.log('[generateHistoricalDemoData] Paddocks available:', paddocks.map(p => ({ id: p.externalId, name: p.name, area: p.area })))
+
+  // Generate rotation sequence
+  const rotationSequence = generateRotationSequence(paddocks, demoDt, historyDays)
+
+  console.log('[generateHistoricalDemoData] Rotation sequence:', rotationSequence.map(r => ({ date: r.date, paddock: r.paddockId, strip: r.stripIndex })))
+
+  // Pre-generate all strips for each paddock
+  const paddockStrips: Record<string, Polygon[]> = {}
+  for (const paddock of paddocks) {
+    const numStrips = getStripsForPaddock(paddock.area)
+    paddockStrips[paddock.externalId] = generatePaddockStrips(paddock.geometry, numStrips)
+  }
+
+  // Create plans for each day in the rotation
+  let plansCreated = 0
+  const todayStr = getDateString(demoDt, 0)
+
+  for (const day of rotationSequence) {
+    const isToday = day.date === todayStr
+    const status = isToday ? 'pending' : 'executed'
+
+    const paddock = paddocks.find(p => p.externalId === day.paddockId)
+    const strips = paddockStrips[day.paddockId]
+    const stripGeometry = strips?.[day.stripIndex] ?? strips?.[0]
+
+    if (!stripGeometry) {
+      console.warn(`No strip geometry for paddock ${day.paddockId}, strip ${day.stripIndex}`)
+      continue
+    }
+
+    const stripFeature: Feature<Polygon> = {
+      type: 'Feature',
+      properties: {},
+      geometry: stripGeometry,
+    }
+    const stripArea = calculateAreaHectares(stripFeature)
+
+    // Calculate cumulative grazed percentage for this paddock rotation
+    const paddockGrazedPercentage = Math.round(
+      ((day.stripIndex + 1) / day.totalStripsInPaddock) * 100
+    )
+
+    // Generate contextual reasoning
+    const dayInPaddock = day.stripIndex + 1
+    const reasoning = day.isNewPaddock
+      ? [
+          `Starting rotation in ${paddock?.name ?? day.paddockId}`,
+          'Good NDVI values after adequate rest period',
+          `Day 1 of ${day.totalStripsInPaddock}-day rotation`,
+        ]
+      : [
+          `Day ${dayInPaddock} of ${paddock?.name ?? day.paddockId} rotation`,
+          'Continuing progressive strip grazing pattern',
+          'Adjacent to previous section for efficient livestock movement',
+        ]
+
+    await ctx.db.insert('plans', {
+      farmExternalId: demoFarmId,
+      date: day.date,
+      primaryPaddockExternalId: day.paddockId,
+      alternativePaddockExternalIds: [],
+      confidenceScore: 80 + Math.floor(Math.random() * 10), // 80-89
+      reasoning,
+      status,
+      sectionGeometry: stripGeometry,
+      sectionAreaHectares: stripArea,
+      sectionJustification: day.isNewPaddock
+        ? `Starting ${day.totalStripsInPaddock}-strip rotation in ${paddock?.name ?? day.paddockId}`
+        : `Strip ${dayInPaddock}/${day.totalStripsInPaddock} - progressive grazing pattern`,
+      paddockGrazedPercentage,
+      createdAt: now,
+      updatedAt: now,
+    })
+
+    // Create corresponding grazing event for historical days
+    if (!isToday) {
+      await ctx.db.insert('grazingEvents', {
+        farmExternalId: demoFarmId,
+        paddockExternalId: day.paddockId,
+        date: day.date,
+        durationDays: 1,
+        notes: day.isNewPaddock
+          ? `Started rotation in ${paddock?.name ?? day.paddockId}`
+          : `Day ${dayInPaddock} in ${paddock?.name ?? day.paddockId}`,
+        createdAt: now,
+      })
+    }
+
+    plansCreated++
+  }
+
+  // Calculate final paddock states
+  const paddockStates = simulatePaddockStates(rotationSequence, demoDt, paddocks)
+
+  return { plansCreated, paddockStates }
+}
+
+// ============================================================================
+// Farm Data Copy (base data without plans)
+// ============================================================================
+
+/**
+ * Helper to copy base data from the source farm to a demo farm.
+ * Copies all farm data EXCEPT plans and grazing events (those are generated).
+ */
+async function copyFarmBaseData(
   ctx: any,
   sourceFarmExternalId: string,
   demoFarmId: string,
@@ -203,24 +556,9 @@ async function copyFarmData(
     })
   }
 
-  // Copy grazing events
-  const sourceEvents = await ctx.db
-    .query('grazingEvents')
-    .withIndex('by_farm', (q: any) => q.eq('farmExternalId', sourceFarmExternalId))
-    .collect()
+  // NOTE: We do NOT copy grazing events or plans - those are generated
 
-  for (const event of sourceEvents) {
-    await ctx.db.insert('grazingEvents', {
-      farmExternalId: demoFarmId,
-      paddockExternalId: event.paddockExternalId,
-      date: event.date,
-      durationDays: event.durationDays,
-      notes: event.notes,
-      createdAt: event.createdAt,
-    })
-  }
-
-  // Copy farm settings
+  // Copy farm settings (with professional tier for demo)
   const sourceSettings = await ctx.db
     .query('farmSettings')
     .withIndex('by_farm', (q: any) => q.eq('farmExternalId', sourceFarmExternalId))
@@ -229,7 +567,7 @@ async function copyFarmData(
   if (sourceSettings) {
     await ctx.db.insert('farmSettings', {
       farmExternalId: demoFarmId,
-      subscriptionTier: sourceSettings.subscriptionTier,
+      subscriptionTier: 'professional', // Demo users get professional features
       minNDVIThreshold: sourceSettings.minNDVIThreshold,
       minRestPeriod: sourceSettings.minRestPeriod,
       cloudCoverTolerance: sourceSettings.cloudCoverTolerance,
@@ -304,36 +642,6 @@ async function copyFarmData(
     })
   }
 
-  // Copy today's plan (if exists)
-  const today = now.split('T')[0]
-  const sourcePlan = await ctx.db
-    .query('plans')
-    .withIndex('by_farm_date', (q: any) => q.eq('farmExternalId', sourceFarmExternalId).eq('date', today))
-    .first()
-
-  if (sourcePlan) {
-    await ctx.db.insert('plans', {
-      farmExternalId: demoFarmId,
-      date: sourcePlan.date,
-      primaryPaddockExternalId: sourcePlan.primaryPaddockExternalId,
-      alternativePaddockExternalIds: sourcePlan.alternativePaddockExternalIds,
-      confidenceScore: sourcePlan.confidenceScore,
-      reasoning: sourcePlan.reasoning,
-      status: 'pending', // Reset to pending for demo users to interact with
-      sectionGeometry: sourcePlan.sectionGeometry,
-      sectionAreaHectares: sourcePlan.sectionAreaHectares,
-      sectionCentroid: sourcePlan.sectionCentroid,
-      sectionAvgNdvi: sourcePlan.sectionAvgNdvi,
-      sectionJustification: sourcePlan.sectionJustification,
-      paddockGrazedPercentage: sourcePlan.paddockGrazedPercentage,
-      createdAt: now,
-      updatedAt: now,
-    })
-  }
-
-  // Generate historical grazing sections for East Ridge to show strip grazing progression
-  await generateDemoSectionsForEastRidge(ctx, demoFarmId, now)
-
   // Copy satellite image tiles (reference same R2 URLs - they're read-only)
   const sourceTiles = await ctx.db
     .query('satelliteImageTiles')
@@ -370,14 +678,59 @@ async function copyFarmData(
     farmId,
     paddockCount: sourcePaddocks.length,
     observationCount: sourceObservations.length,
-    eventCount: sourceEvents.length,
     tileCount: sourceTiles.length,
   }
 }
 
 /**
- * Seed a demo farm by copying data from the dev user's farm.
- * Creates isolated farm data that's tied to the demo session.
+ * Update paddock states in the database based on simulation results.
+ */
+async function updatePaddockStates(
+  ctx: any,
+  farmId: any,
+  paddockStates: PaddockStateUpdate[]
+) {
+  const now = new Date().toISOString()
+
+  for (const state of paddockStates) {
+    const paddock = await ctx.db
+      .query('paddocks')
+      .withIndex('by_farm_externalId', (q: any) =>
+        q.eq('farmId', farmId).eq('externalId', state.externalId)
+      )
+      .first()
+
+    if (paddock) {
+      // Build patch object - only include lastGrazed if it has a value
+      // (schema requires string, not nullable)
+      const patchData: Record<string, unknown> = {
+        ndvi: state.ndvi,
+        restDays: state.restDays,
+        status: state.status,
+        updatedAt: now,
+      }
+
+      if (state.lastGrazed) {
+        // Format as human-readable date like 'Jan 2' to match existing data
+        const date = new Date(state.lastGrazed)
+        patchData.lastGrazed = date.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        })
+      }
+
+      await ctx.db.patch(paddock._id, patchData)
+    }
+  }
+}
+
+// ============================================================================
+// Mutations
+// ============================================================================
+
+/**
+ * Seed a demo farm by copying base data from the dev user's farm
+ * and generating fresh historical rotation data.
  */
 export const seedDemoFarm = mutation({
   args: {
@@ -401,14 +754,100 @@ export const seedDemoFarm = mutation({
       }
     }
 
-    // Copy data from the source farm
-    const result = await copyFarmData(ctx, SOURCE_FARM_EXTERNAL_ID, demoFarmId, demoUserId)
+    // Copy base data from the source farm (excludes plans and events)
+    const result = await copyFarmBaseData(ctx, SOURCE_FARM_EXTERNAL_ID, demoFarmId, demoUserId)
+
+    // Generate historical demo data
+    const today = new Date().toISOString().split('T')[0]
+    const { plansCreated, paddockStates } = await generateHistoricalDemoData(
+      ctx,
+      demoFarmId,
+      today,
+      14 // 14 days of history
+    )
+
+    // Update paddock states based on generated history
+    await updatePaddockStates(ctx, result.farmId, paddockStates)
 
     return {
       farmId: result.farmId,
       farmExternalId: demoFarmId,
       paddockCount: result.paddockCount,
+      plansCreated,
       alreadySeeded: false,
+    }
+  },
+})
+
+/**
+ * Regenerate demo history for an existing demo farm.
+ * Deletes existing plans/events and generates fresh data.
+ */
+export const regenerateDemoHistory = mutation({
+  args: {
+    farmExternalId: v.string(),
+    demoDate: v.optional(v.string()),  // YYYY-MM-DD, defaults to today
+    historyDays: v.optional(v.number()), // defaults to 14
+  },
+  handler: async (ctx, args) => {
+    const demoDate = args.demoDate ?? new Date().toISOString().split('T')[0]
+    const historyDays = args.historyDays ?? 14
+
+    console.log('[regenerateDemoHistory] Called with:', { farmExternalId: args.farmExternalId, demoDate, historyDays })
+
+    // Get the farm
+    const farm = await ctx.db
+      .query('farms')
+      .withIndex('by_externalId', (q: any) => q.eq('externalId', args.farmExternalId))
+      .first()
+
+    if (!farm) {
+      throw new Error(`Farm not found: ${args.farmExternalId}`)
+    }
+
+    console.log('[regenerateDemoHistory] Found farm:', { farmId: farm._id, name: farm.name })
+
+    // Delete existing plans
+    const existingPlans = await ctx.db
+      .query('plans')
+      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', args.farmExternalId))
+      .collect()
+
+    console.log('[regenerateDemoHistory] Deleting existing plans:', existingPlans.length)
+
+    for (const plan of existingPlans) {
+      await ctx.db.delete(plan._id)
+    }
+
+    // Delete existing grazing events
+    const existingEvents = await ctx.db
+      .query('grazingEvents')
+      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', args.farmExternalId))
+      .collect()
+
+    for (const event of existingEvents) {
+      await ctx.db.delete(event._id)
+    }
+
+    // Generate fresh historical data
+    const { plansCreated, paddockStates } = await generateHistoricalDemoData(
+      ctx,
+      args.farmExternalId,
+      demoDate,
+      historyDays
+    )
+
+    // Update paddock states
+    await updatePaddockStates(ctx, farm._id, paddockStates)
+
+    console.log('[regenerateDemoHistory] Complete:', { plansCreated, paddockStatesUpdated: paddockStates.length })
+
+    return {
+      plansCreated,
+      eventsCreated: plansCreated - 1, // All except today's pending plan
+      paddockStatesUpdated: paddockStates.length,
+      demoDate,
+      historyDays,
     }
   },
 })
@@ -533,13 +972,26 @@ export const resetDemoFarm = mutation({
     // Delete existing demo data
     await deleteDemoFarmData(ctx, demoFarmId, demoUserId)
 
-    // Re-copy from source farm
-    const result = await copyFarmData(ctx, SOURCE_FARM_EXTERNAL_ID, demoFarmId, demoUserId)
+    // Copy base data from source farm
+    const result = await copyFarmBaseData(ctx, SOURCE_FARM_EXTERNAL_ID, demoFarmId, demoUserId)
+
+    // Generate fresh historical data
+    const today = new Date().toISOString().split('T')[0]
+    const { plansCreated, paddockStates } = await generateHistoricalDemoData(
+      ctx,
+      demoFarmId,
+      today,
+      14
+    )
+
+    // Update paddock states
+    await updatePaddockStates(ctx, result.farmId, paddockStates)
 
     return {
       farmId: result.farmId,
       farmExternalId: demoFarmId,
       paddockCount: result.paddockCount,
+      plansCreated,
       reset: true,
     }
   },
@@ -573,6 +1025,32 @@ export const cleanupOldDemoFarms = mutation({
 })
 
 /**
+ * Force delete ALL demo farms (for dev sync).
+ * Use when you need to refresh demo farms with updated source data.
+ */
+export const forceCleanupAllDemoFarms = mutation({
+  handler: async (ctx) => {
+    const demoFarms = await ctx.db
+      .query('farms')
+      .withIndex('by_isDemoFarm', (q: any) => q.eq('isDemoFarm', true))
+      .collect()
+
+    let deletedCount = 0
+    for (const farm of demoFarms) {
+      const demoUserId = farm.externalId.replace('demo-farm-', 'demo-user-')
+      await deleteDemoFarmData(ctx, farm.externalId, demoUserId)
+      deletedCount++
+    }
+
+    return { deletedCount }
+  },
+})
+
+// ============================================================================
+// Queries
+// ============================================================================
+
+/**
  * Check if a demo farm exists for a given session ID.
  */
 export const getDemoFarm = query({
@@ -585,5 +1063,63 @@ export const getDemoFarm = query({
       .query('farms')
       .withIndex('by_externalId', (q) => q.eq('externalId', demoFarmId))
       .first()
+  },
+})
+
+/**
+ * Debug: List all historical plans for a farm.
+ */
+export const debugListHistoricalPlans = query({
+  args: {
+    farmExternalId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const plans = await ctx.db
+      .query('plans')
+      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', args.farmExternalId))
+      .collect()
+
+    return plans
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((p: any) => ({
+        date: p.date,
+        paddock: p.primaryPaddockExternalId,
+        status: p.status,
+        hasSection: !!p.sectionGeometry,
+        areaHa: p.sectionAreaHectares,
+        grazedPct: p.paddockGrazedPercentage,
+      }))
+  },
+})
+
+/**
+ * Debug: List all demo farms and their plans.
+ */
+export const debugListDemoFarmsWithPlans = query({
+  handler: async (ctx) => {
+    const demoFarms = await ctx.db
+      .query('farms')
+      .withIndex('by_isDemoFarm', (q: any) => q.eq('isDemoFarm', true))
+      .collect()
+
+    const results = []
+    for (const farm of demoFarms) {
+      const plans = await ctx.db
+        .query('plans')
+        .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farm.externalId))
+        .collect()
+
+      results.push({
+        farmId: farm.externalId,
+        planCount: plans.length,
+        plans: plans.map((p: any) => ({
+          date: p.date,
+          primaryPaddockExternalId: p.primaryPaddockExternalId,
+          hasSectionGeometry: !!p.sectionGeometry,
+          sectionAreaHectares: p.sectionAreaHectares,
+        })),
+      })
+    }
+    return results
   },
 })

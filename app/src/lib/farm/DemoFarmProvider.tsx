@@ -4,6 +4,7 @@ import { api } from '../../../convex/_generated/api'
 import { useDemoAuth } from '@/lib/auth/DemoAuthProvider'
 import { mapFarmDoc, type FarmDoc } from '@/lib/convex/mappers'
 import { FarmContext } from './FarmContext'
+import { isDemoDevMode } from '@/lib/demo/isDemoDevMode'
 import type { Farm } from '@/lib/types'
 
 interface FarmInfo {
@@ -14,10 +15,13 @@ interface FarmInfo {
 export function DemoFarmProvider({ children }: { children: ReactNode }) {
   const { demoSessionId, organizationId } = useDemoAuth()
 
-  // Get the demo farm by session ID
+  // In dev mode, query farm-1 directly (not a demo farm copy)
+  // This ensures mutations and queries target the same farm
   const demoFarmDoc = useQuery(
-    api.demo.getDemoFarm,
-    demoSessionId ? { sessionId: demoSessionId } : 'skip'
+    isDemoDevMode ? api.farms.getFarm : api.demo.getDemoFarm,
+    isDemoDevMode
+      ? { farmId: 'farm-1' }
+      : (demoSessionId ? { sessionId: demoSessionId } : 'skip')
   ) as FarmDoc | null | undefined
 
   // Map to domain type
@@ -37,7 +41,11 @@ export function DemoFarmProvider({ children }: { children: ReactNode }) {
     // Demo mode doesn't support switching farms
   }
 
-  const isLoading = demoSessionId !== null && demoFarmDoc === undefined
+  // In dev mode, loading is based on whether we got farm-1 yet
+  // In public demo mode, loading is based on session ID and demo farm query
+  const isLoading = isDemoDevMode
+    ? demoFarmDoc === undefined
+    : (demoSessionId !== null && demoFarmDoc === undefined)
 
   const value = useMemo(() => ({
     activeFarmId: organizationId,
