@@ -27,7 +27,7 @@ export function DemoHeader() {
         <DemoDevToolsDropdown />
 
         <Link
-          to="/onboarding"
+          to="/sign-in"
           className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors"
         >
           Sign Up

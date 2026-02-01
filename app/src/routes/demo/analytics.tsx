@@ -178,7 +178,7 @@ function DemoAnalyticsPage() {
                 Sign up to track NDVI trends, paddock recovery, and AI recommendation accuracy for your farm.
               </p>
             </div>
-            <Link to="/onboarding">
+            <Link to="/sign-in">
               <Button>
                 <UserPlus className="h-4 w-4 mr-2" />
                 Create Account

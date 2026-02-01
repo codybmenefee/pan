@@ -14,7 +14,7 @@ import {
   AIPartnershipChart,
 } from '@/components/analytics'
 
-export const Route = createFileRoute('/_app/analytics')({
+export const Route = createFileRoute('/app/analytics')({
   component: AnalyticsPage,
 })
 

@@ -38,7 +38,7 @@ export function DemoDevToolsDropdown() {
   }
 
   const handleResetOnboarding = () => {
-    navigate({ to: '/onboarding' })
+    navigate({ to: '/app/onboarding' })
     toast.success('Navigating to onboarding')
   }
 

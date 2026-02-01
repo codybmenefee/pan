@@ -141,7 +141,7 @@ function DemoHistoryPage() {
                 Sign up to see AI recommendations for your actual paddocks with real satellite data.
               </p>
             </div>
-            <Link to="/onboarding">
+            <Link to="/sign-in">
               <Button>
                 <UserPlus className="h-4 w-4 mr-2" />
                 Create Account

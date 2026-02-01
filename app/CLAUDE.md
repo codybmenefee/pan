@@ -76,6 +76,7 @@ Domain types in `src/lib/types.ts`: `Plan`, `Paddock`, `Farm`, `Section`, `Obser
 Required for full functionality:
 - `VITE_CONVEX_URL` - Convex deployment URL
 - `VITE_CLERK_PUBLISHABLE_KEY` - Clerk auth (or use `VITE_DEV_AUTH=true` for dev mode)
+- `VITE_PAYWALL_DISABLED` - Set to "true" to disable the subscription paywall (paywall is enabled by default)
 - `BRAINTRUST_API_KEY` - Agent observability (optional, set in Convex dashboard)
 - `BRAINTRUST_PROJECT_NAME` - Braintrust project name (optional, defaults to 'grazing-agent')
 

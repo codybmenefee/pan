@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Droplets, Timer, Grid3X3 } from 'lucide-react'
 import { useGeometry } from '@/lib/geometry'
 
-export const Route = createFileRoute('/_app/paddocks/$id')({
+export const Route = createFileRoute('/app/paddocks/$id')({
   component: PaddockDetailPage,
 })
 

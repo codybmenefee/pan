@@ -31,7 +31,7 @@ export function PaddockHeader({ paddock, onEdit }: PaddockHeaderProps) {
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link to="/map">
+          <Link to="/app/map">
             <ArrowLeft className="h-5 w-5" />
             <span className="sr-only">Back to map</span>
           </Link>

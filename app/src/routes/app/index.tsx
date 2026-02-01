@@ -61,7 +61,7 @@ interface EditDrawerState {
 function GISRoute() {
   console.log('[_app/index] Rendering GISRoute')
   const navigate = useNavigate()
-  const search = useSearch({ from: '/_app/' })
+  const search = useSearch({ from: '/app/' })
   const { activeFarmId, activeFarm, isLoading } = useFarmContext()
   const { briefOpen, setBriefOpen } = useBriefPanel()
   const hasFarmBoundary = activeFarm?.geometry != null
@@ -180,7 +180,7 @@ function GISRoute() {
         })
 
         // Navigate to paddock editing step
-        navigate({ to: '/', search: { editPaddock: 'true' } })
+        navigate({ to: '/app', search: { editPaddock: 'true' } })
       } catch (err) {
         console.error('[Onboarding Save Effect] Error saving paddock:', err)
         toast.error('Failed to save paddock')
@@ -197,7 +197,7 @@ function GISRoute() {
     boundaryCompleteRef.current = true
     // Stop the drawing mode and remove the query param
     cancelDraw()
-    navigate({ to: '/', search: {} })
+    navigate({ to: '/app', search: {} })
   }, [cancelDraw, navigate])
 
   const handleBoundarySaved = useCallback(async (_geometry: Feature<Polygon>) => {
@@ -282,7 +282,7 @@ function GISRoute() {
     // Mark that we're intentionally canceling to prevent effect re-triggering
     boundaryCompleteRef.current = true
     cancelDraw()
-    navigate({ to: '/', search: {} })
+    navigate({ to: '/app', search: {} })
   }, [cancelDraw, navigate])
   const [selectedNoGrazeZone, setSelectedNoGrazeZone] = useState<NoGrazeZone | null>(null)
   const [selectedWaterSource, setSelectedWaterSource] = useState<WaterSource | null>(null)
@@ -726,7 +726,7 @@ function GISRoute() {
           onComplete={() => {
             // Save any pending changes and proceed to animal location
             saveChanges().then(() => {
-              navigate({ to: '/', search: { setAnimalLocation: 'true' } })
+              navigate({ to: '/app', search: { setAnimalLocation: 'true' } })
             })
           }}
         />
@@ -739,7 +739,7 @@ function GISRoute() {
           map={mapInstance}
           onComplete={() => {
             // Clear the query param
-            navigate({ to: '/', search: {} })
+            navigate({ to: '/app', search: {} })
             // Trigger tutorial if not completed
             if (!getTutorialCompleted()) {
               startTutorial()
@@ -749,7 +749,7 @@ function GISRoute() {
           }}
           onSkip={() => {
             // Allow skipping - clear the param
-            navigate({ to: '/', search: {} })
+            navigate({ to: '/app', search: {} })
             // Trigger tutorial if not completed
             if (!getTutorialCompleted()) {
               startTutorial()
@@ -999,7 +999,7 @@ function GISRoute() {
   )
 }
 
-export const Route = createFileRoute('/_app/')({
+export const Route = createFileRoute('/app/')({
   component: GISRoute,
   validateSearch: searchSchema,
 })

@@ -57,7 +57,7 @@ export function DemoUpsellDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Continue Demo
           </Button>
-          <Link to="/onboarding">
+          <Link to="/sign-in">
             <Button>Create Account</Button>
           </Link>
         </DialogFooter>

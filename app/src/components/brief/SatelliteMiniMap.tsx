@@ -580,7 +580,7 @@ export function SatelliteMiniMap({
       {/* Edit button - links to map page with edit mode */}
       {!isEditActive && isMapLoaded && showEditButton && (
         <Link
-          to="/map"
+          to="/app/map"
           search={{
             edit: true,
             paddockId,

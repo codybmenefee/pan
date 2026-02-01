@@ -12,7 +12,7 @@ export function FarmInfoStrip() {
   const { format } = useAreaUnit()
 
   const handleEditBoundary = () => {
-    navigate({ to: '/', search: { editBoundary: 'true' } })
+    navigate({ to: '/app', search: { editBoundary: 'true' } })
   }
 
   if (!farm) return null

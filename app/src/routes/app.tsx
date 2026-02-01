@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, useRouterState, useNavigate } from '@tanstack/react-router'
-import { useAuth } from '@clerk/clerk-react'
+import { useQuery } from 'convex/react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Header } from '@/components/layout/Header'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
@@ -7,31 +7,39 @@ import { GeometryProviderWithConvex } from '@/lib/geometry/GeometryProviderWithC
 import { FarmProvider } from '@/lib/farm'
 import { BriefPanelProvider } from '@/lib/brief'
 import { useAppAuth } from '@/lib/auth'
-import { useEffect, useCallback } from 'react'
+import { useEffect } from 'react'
 import { TutorialProvider, TutorialOverlay } from '@/components/onboarding/tutorial'
 import { SatelliteAnimationProvider } from '@/lib/satellite-animation'
 import { SatelliteCollapseAnimation } from '@/components/layout/SatelliteCollapseAnimation'
+import { api } from '../../convex/_generated/api'
 
-export const Route = createFileRoute('/_app')({
+export const Route = createFileRoute('/app')({
   component: AppLayout,
 })
 
 function AppLayout() {
-  const { isLoaded, isSignedIn, isDevAuth, needsOnboarding, isOrgLoaded } = useAppAuth()
-  const { has, isLoaded: isClerkAuthLoaded } = useAuth()
+  const { isLoaded, isSignedIn, isDevAuth, needsOnboarding, isOrgLoaded, userId, hasPlan: checkPlan, isPlanLoaded } = useAppAuth()
   const navigate = useNavigate()
   const location = useRouterState({ select: (s) => s.location })
-  const isOnboarding = location.pathname === '/onboarding'
+  const isOnboarding = location.pathname === '/app/onboarding'
 
-  // Check if user has any plan via Clerk's session
-  const checkHasPlan = useCallback(() => {
-    if (!has) return false
-    return has({ plan: 'free_user' }) || has({ plan: 'early_access' })
-  }, [has])
+  // Check subscription status from Convex (set by webhook)
+  const convexSubscription = useQuery(
+    api.users.getUserSubscription,
+    userId && !isDevAuth ? { externalId: userId } : 'skip'
+  )
 
-  // Paywall can be disabled via env var (useful for dev when Clerk billing isn't fully set up)
-  const paywallEnabled = import.meta.env.VITE_PAYWALL_ENABLED === 'true'
-  const hasPlan = paywallEnabled ? (isClerkAuthLoaded ? checkHasPlan() : false) : true
+  // Paywall is enabled by default, can be disabled via env var (useful for dev)
+  const paywallDisabled = import.meta.env.VITE_PAYWALL_DISABLED === 'true'
+  const paywallEnabled = !paywallDisabled
+
+  // Check subscription from multiple sources
+  const isSubscriptionLoaded = isPlanLoaded && (isDevAuth || convexSubscription !== undefined)
+  const hasPlan = paywallEnabled
+    ? (isSubscriptionLoaded
+        ? (convexSubscription?.hasAccess || checkPlan('early_access'))
+        : false)
+    : true
 
   console.log('[AppLayout] Rendering with auth:', { isLoaded, isSignedIn, isDevAuth, needsOnboarding, hasPlan, pathname: location.pathname })
 
@@ -51,7 +59,7 @@ function AppLayout() {
   useEffect(() => {
     if (isDevAuth) return
     // Wait until auth data is loaded
-    if (!isLoaded || !isClerkAuthLoaded) return
+    if (!isLoaded || !isSubscriptionLoaded) return
     // Must be signed in
     if (!isSignedIn) return
     // If no plan selected, redirect to paywall
@@ -59,28 +67,28 @@ function AppLayout() {
       console.log('[AppLayout] No plan selected, redirecting to paywall')
       navigate({ to: '/subscribe' })
     }
-  }, [isDevAuth, isLoaded, isClerkAuthLoaded, isSignedIn, hasPlan, navigate])
+  }, [isDevAuth, isLoaded, isSubscriptionLoaded, isSignedIn, hasPlan, navigate])
 
   // Handle onboarding redirect for first-time users (no organizations)
   useEffect(() => {
     if (isDevAuth) return
     // Wait until auth and org data are fully loaded
-    if (!isLoaded || !isOrgLoaded || !isClerkAuthLoaded) return
+    if (!isLoaded || !isOrgLoaded || !isSubscriptionLoaded) return
     // Must be signed in with a plan
     if (!isSignedIn || !hasPlan) return
     // Check if user needs onboarding and is not already on the onboarding page
     if (needsOnboarding && !isOnboarding) {
       console.log('[AppLayout] First-time user detected, redirecting to onboarding')
-      navigate({ to: '/onboarding' })
+      navigate({ to: '/app/onboarding' })
     }
     // If user is on onboarding but doesn't need it anymore (org was created), redirect to home
     // BUT only if onboarding is not actively in progress (user hasn't completed all steps yet)
     const onboardingInProgress = sessionStorage.getItem('onboardingInProgress') === 'true'
     if (!needsOnboarding && isOnboarding && !onboardingInProgress) {
       console.log('[AppLayout] Onboarding complete, redirecting to home')
-      navigate({ to: '/', search: { onboarded: 'true', editBoundary: 'true' } })
+      navigate({ to: '/app', search: { onboarded: 'true', editBoundary: 'true' } })
     }
-  }, [isDevAuth, isLoaded, isOrgLoaded, isClerkAuthLoaded, isSignedIn, hasPlan, needsOnboarding, isOnboarding, navigate])
+  }, [isDevAuth, isLoaded, isOrgLoaded, isSubscriptionLoaded, isSignedIn, hasPlan, needsOnboarding, isOnboarding, navigate])
 
   // Show loading while auth is being checked
   if (!isDevAuth && !isLoaded) {
@@ -101,7 +109,7 @@ function AppLayout() {
   }
 
   // Show loading while checking subscription
-  if (!isDevAuth && !isClerkAuthLoaded) {
+  if (!isDevAuth && !isSubscriptionLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner message="Checking subscription..." />

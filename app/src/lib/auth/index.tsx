@@ -34,6 +34,9 @@ interface AppAuthContextValue {
   setActiveOrganization: (orgId: string) => Promise<void>
   // Onboarding detection - true when user is signed in but has no organizations
   needsOnboarding: boolean
+  // Subscription/plan checking
+  hasPlan: (plan: string) => boolean
+  isPlanLoaded: boolean
 }
 
 const AppAuthContext = createContext<AppAuthContextValue | null>(null)
@@ -44,7 +47,7 @@ const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 function ClerkAuthBridge({ children }: { children: ReactNode }) {
   // Use useAuth() instead of useUser() - useAuth() tells us when Clerk is loaded
   // regardless of sign-in state, while useUser() only loads with a signed-in user
-  const { userId, isLoaded, isSignedIn } = useAuth()
+  const { userId, isLoaded, isSignedIn, has } = useAuth()
 
   // Organization hooks
   const { organization, isLoaded: isOrgLoaded } = useOrganization()
@@ -89,6 +92,12 @@ function ClerkAuthBridge({ children }: { children: ReactNode }) {
     return organizationList.length === 0
   }, [isLoaded, isOrgLoaded, isSignedIn, organization?.id, organizationList.length])
 
+  // Wrap Clerk's has() function for plan checking
+  const hasPlan = useCallback((plan: string) => {
+    if (!has) return false
+    return has({ plan })
+  }, [has])
+
   const value = useMemo<AppAuthContextValue>(() => {
     return {
       userId: userId ?? null,
@@ -102,8 +111,10 @@ function ClerkAuthBridge({ children }: { children: ReactNode }) {
       isOrgLoaded,
       setActiveOrganization,
       needsOnboarding,
+      hasPlan,
+      isPlanLoaded: isLoaded,
     }
-  }, [userId, isLoaded, isSignedIn, organization?.id, organizationList, isOrgLoaded, setActiveOrganization, needsOnboarding])
+  }, [userId, isLoaded, isSignedIn, organization?.id, organizationList, isOrgLoaded, setActiveOrganization, needsOnboarding, hasPlan])
 
   return <AppAuthContext.Provider value={value}>{children}</AppAuthContext.Provider>
 }
@@ -126,6 +137,8 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
             // No-op in dev mode, could add localStorage persistence if needed
           },
           needsOnboarding: false, // Dev mode always has an org
+          hasPlan: () => true, // Dev mode bypasses subscription checks
+          isPlanLoaded: true,
         }}
       >
         {children}
@@ -148,8 +161,8 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
     <ClerkProvider
       publishableKey={clerkPublishableKey}
       appearance={clerkAppearance}
-      signInForceRedirectUrl="/"
-      signUpForceRedirectUrl="/"
+      signInForceRedirectUrl="/app"
+      signUpForceRedirectUrl="/app"
       afterSignOutUrl="/sign-in"
     >
       <ClerkAuthBridge>{children}</ClerkAuthBridge>
@@ -183,7 +196,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   if (!isSignedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
-        <SignIn routing="hash" forceRedirectUrl="/" appearance={clerkAppearance} />
+        <SignIn routing="hash" forceRedirectUrl="/app" appearance={clerkAppearance} />
       </div>
     )
   }

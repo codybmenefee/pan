@@ -32,7 +32,7 @@ export function SettingsForm({ settings, onChange }: SettingsFormProps) {
   const { format } = useAreaUnit()
 
   const handleEditBoundary = () => {
-    navigate({ to: '/', search: { editBoundary: 'true' } })
+    navigate({ to: '/app', search: { editBoundary: 'true' } })
   }
 
   const updateSetting = <K extends keyof FarmSettings>(

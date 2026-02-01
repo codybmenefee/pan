@@ -398,7 +398,7 @@ function InvestorsPage() {
               </Link>
 
               <Link
-                to="/onboarding"
+                to="/sign-in"
                 className="bg-[#1a2429]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-4 hover:border-[#075056] transition-colors block"
               >
                 <h3 className="text-sm font-semibold text-[#FDF6E3] mb-1">Try It Free</h3>

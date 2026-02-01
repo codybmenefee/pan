@@ -48,8 +48,8 @@ export function RotationHeatmap({
               {data.map((row) => (
                 <tr key={row.paddockId} className="border-t border-border">
                   <td className="py-2 pr-4">
-                    <Link 
-                      to="/paddocks/$id" 
+                    <Link
+                      to="/app/paddocks/$id"
                       params={{ id: row.paddockId }}
                       className="hover:underline"
                     >

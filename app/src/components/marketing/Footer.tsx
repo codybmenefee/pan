@@ -35,7 +35,7 @@ export function Footer() {
               </li>
               <li>
                 <Link
-                  to="/onboarding"
+                  to="/sign-in"
                   className={`hover:text-[#FDF6E3] transition-colors ${focusRing}`}
                 >
                   Get Started

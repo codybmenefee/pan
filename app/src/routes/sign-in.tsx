@@ -17,9 +17,15 @@ function SignInPage() {
 
   useEffect(() => {
     if (isSignedIn || isDevAuth) {
-      navigate({ to: redirectTo || '/' })
+      navigate({ to: redirectTo || '/app' })
     }
   }, [isSignedIn, isDevAuth, redirectTo, navigate])
+
+  // In dev mode, don't render Clerk's SignIn component (no ClerkProvider)
+  // The useEffect above will redirect to /app
+  if (isDevAuth) {
+    return null
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-6">
@@ -35,7 +41,7 @@ function SignInPage() {
 
       <SignIn
         routing="hash"
-        forceRedirectUrl={redirectTo || '/'}
+        forceRedirectUrl={redirectTo || '/app'}
         appearance={clerkAppearance}
       />
     </div>

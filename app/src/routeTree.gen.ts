@@ -12,26 +12,27 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SubscribeRouteImport } from './routes/subscribe'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as DemoRouteImport } from './routes/demo'
+import { Route as AppRouteImport } from './routes/app'
 import { Route as PublicRouteImport } from './routes/_public'
-import { Route as AppRouteImport } from './routes/_app'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as DemoIndexRouteImport } from './routes/demo/index'
-import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as DemoSettingsRouteImport } from './routes/demo/settings'
 import { Route as DemoHistoryRouteImport } from './routes/demo/history'
 import { Route as DemoAnalyticsRouteImport } from './routes/demo/analytics'
+import { Route as AppUpgradeRouteImport } from './routes/app/upgrade'
+import { Route as AppSettingsRouteImport } from './routes/app/settings'
+import { Route as AppOnboardingRouteImport } from './routes/app/onboarding'
+import { Route as AppMapRouteImport } from './routes/app/map'
+import { Route as AppHistoryRouteImport } from './routes/app/history'
+import { Route as AppAnalyticsRouteImport } from './routes/app/analytics'
 import { Route as PublicTechnologyRouteImport } from './routes/_public/technology'
 import { Route as PublicResearchRouteImport } from './routes/_public/research'
 import { Route as PublicMarketingRouteImport } from './routes/_public/marketing'
 import { Route as PublicInvestorsRouteImport } from './routes/_public/investors'
 import { Route as PublicDocsRouteImport } from './routes/_public/docs'
-import { Route as AppUpgradeRouteImport } from './routes/_app/upgrade'
-import { Route as AppSettingsRouteImport } from './routes/_app/settings'
-import { Route as AppOnboardingRouteImport } from './routes/_app/onboarding'
-import { Route as AppMapRouteImport } from './routes/_app/map'
-import { Route as AppHistoryRouteImport } from './routes/_app/history'
-import { Route as AppAnalyticsRouteImport } from './routes/_app/analytics'
 import { Route as PublicDocsIndexRouteImport } from './routes/_public/docs/index'
-import { Route as AppPaddocksIdRouteImport } from './routes/_app/paddocks/$id'
+import { Route as AppPaddocksIdRouteImport } from './routes/app/paddocks/$id'
 import { Route as PublicDocsCategoryArticleRouteImport } from './routes/_public/docs/$category.$article'
 
 const SubscribeRoute = SubscribeRouteImport.update({
@@ -49,12 +50,18 @@ const DemoRoute = DemoRouteImport.update({
   path: '/demo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppRoute = AppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PublicRoute = PublicRouteImport.update({
   id: '/_public',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppRoute = AppRouteImport.update({
-  id: '/_app',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DemoIndexRoute = DemoIndexRouteImport.update({
@@ -81,31 +88,6 @@ const DemoAnalyticsRoute = DemoAnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
   getParentRoute: () => DemoRoute,
-} as any)
-const PublicTechnologyRoute = PublicTechnologyRouteImport.update({
-  id: '/technology',
-  path: '/technology',
-  getParentRoute: () => PublicRoute,
-} as any)
-const PublicResearchRoute = PublicResearchRouteImport.update({
-  id: '/research',
-  path: '/research',
-  getParentRoute: () => PublicRoute,
-} as any)
-const PublicMarketingRoute = PublicMarketingRouteImport.update({
-  id: '/marketing',
-  path: '/marketing',
-  getParentRoute: () => PublicRoute,
-} as any)
-const PublicInvestorsRoute = PublicInvestorsRouteImport.update({
-  id: '/investors',
-  path: '/investors',
-  getParentRoute: () => PublicRoute,
-} as any)
-const PublicDocsRoute = PublicDocsRouteImport.update({
-  id: '/docs',
-  path: '/docs',
-  getParentRoute: () => PublicRoute,
 } as any)
 const AppUpgradeRoute = AppUpgradeRouteImport.update({
   id: '/upgrade',
@@ -137,6 +119,31 @@ const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => AppRoute,
 } as any)
+const PublicTechnologyRoute = PublicTechnologyRouteImport.update({
+  id: '/technology',
+  path: '/technology',
+  getParentRoute: () => PublicRoute,
+} as any)
+const PublicResearchRoute = PublicResearchRouteImport.update({
+  id: '/research',
+  path: '/research',
+  getParentRoute: () => PublicRoute,
+} as any)
+const PublicMarketingRoute = PublicMarketingRouteImport.update({
+  id: '/marketing',
+  path: '/marketing',
+  getParentRoute: () => PublicRoute,
+} as any)
+const PublicInvestorsRoute = PublicInvestorsRouteImport.update({
+  id: '/investors',
+  path: '/investors',
+  getParentRoute: () => PublicRoute,
+} as any)
+const PublicDocsRoute = PublicDocsRouteImport.update({
+  id: '/docs',
+  path: '/docs',
+  getParentRoute: () => PublicRoute,
+} as any)
 const PublicDocsIndexRoute = PublicDocsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -155,156 +162,165 @@ const PublicDocsCategoryArticleRoute =
   } as any)
 
 export interface FileRoutesByFullPath {
+  '/': typeof IndexRoute
+  '/app': typeof AppRouteWithChildren
   '/demo': typeof DemoRouteWithChildren
   '/sign-in': typeof SignInRoute
   '/subscribe': typeof SubscribeRoute
-  '/analytics': typeof AppAnalyticsRoute
-  '/history': typeof AppHistoryRoute
-  '/map': typeof AppMapRoute
-  '/onboarding': typeof AppOnboardingRoute
-  '/settings': typeof AppSettingsRoute
-  '/upgrade': typeof AppUpgradeRoute
   '/docs': typeof PublicDocsRouteWithChildren
   '/investors': typeof PublicInvestorsRoute
   '/marketing': typeof PublicMarketingRoute
   '/research': typeof PublicResearchRoute
   '/technology': typeof PublicTechnologyRoute
+  '/app/analytics': typeof AppAnalyticsRoute
+  '/app/history': typeof AppHistoryRoute
+  '/app/map': typeof AppMapRoute
+  '/app/onboarding': typeof AppOnboardingRoute
+  '/app/settings': typeof AppSettingsRoute
+  '/app/upgrade': typeof AppUpgradeRoute
   '/demo/analytics': typeof DemoAnalyticsRoute
   '/demo/history': typeof DemoHistoryRoute
   '/demo/settings': typeof DemoSettingsRoute
-  '/': typeof AppIndexRoute
+  '/app/': typeof AppIndexRoute
   '/demo/': typeof DemoIndexRoute
-  '/paddocks/$id': typeof AppPaddocksIdRoute
+  '/app/paddocks/$id': typeof AppPaddocksIdRoute
   '/docs/': typeof PublicDocsIndexRoute
   '/docs/$category/$article': typeof PublicDocsCategoryArticleRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof IndexRoute
   '/sign-in': typeof SignInRoute
   '/subscribe': typeof SubscribeRoute
-  '/analytics': typeof AppAnalyticsRoute
-  '/history': typeof AppHistoryRoute
-  '/map': typeof AppMapRoute
-  '/onboarding': typeof AppOnboardingRoute
-  '/settings': typeof AppSettingsRoute
-  '/upgrade': typeof AppUpgradeRoute
   '/investors': typeof PublicInvestorsRoute
   '/marketing': typeof PublicMarketingRoute
   '/research': typeof PublicResearchRoute
   '/technology': typeof PublicTechnologyRoute
+  '/app/analytics': typeof AppAnalyticsRoute
+  '/app/history': typeof AppHistoryRoute
+  '/app/map': typeof AppMapRoute
+  '/app/onboarding': typeof AppOnboardingRoute
+  '/app/settings': typeof AppSettingsRoute
+  '/app/upgrade': typeof AppUpgradeRoute
   '/demo/analytics': typeof DemoAnalyticsRoute
   '/demo/history': typeof DemoHistoryRoute
   '/demo/settings': typeof DemoSettingsRoute
-  '/': typeof AppIndexRoute
+  '/app': typeof AppIndexRoute
   '/demo': typeof DemoIndexRoute
-  '/paddocks/$id': typeof AppPaddocksIdRoute
+  '/app/paddocks/$id': typeof AppPaddocksIdRoute
   '/docs': typeof PublicDocsIndexRoute
   '/docs/$category/$article': typeof PublicDocsCategoryArticleRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/_app': typeof AppRouteWithChildren
+  '/': typeof IndexRoute
   '/_public': typeof PublicRouteWithChildren
+  '/app': typeof AppRouteWithChildren
   '/demo': typeof DemoRouteWithChildren
   '/sign-in': typeof SignInRoute
   '/subscribe': typeof SubscribeRoute
-  '/_app/analytics': typeof AppAnalyticsRoute
-  '/_app/history': typeof AppHistoryRoute
-  '/_app/map': typeof AppMapRoute
-  '/_app/onboarding': typeof AppOnboardingRoute
-  '/_app/settings': typeof AppSettingsRoute
-  '/_app/upgrade': typeof AppUpgradeRoute
   '/_public/docs': typeof PublicDocsRouteWithChildren
   '/_public/investors': typeof PublicInvestorsRoute
   '/_public/marketing': typeof PublicMarketingRoute
   '/_public/research': typeof PublicResearchRoute
   '/_public/technology': typeof PublicTechnologyRoute
+  '/app/analytics': typeof AppAnalyticsRoute
+  '/app/history': typeof AppHistoryRoute
+  '/app/map': typeof AppMapRoute
+  '/app/onboarding': typeof AppOnboardingRoute
+  '/app/settings': typeof AppSettingsRoute
+  '/app/upgrade': typeof AppUpgradeRoute
   '/demo/analytics': typeof DemoAnalyticsRoute
   '/demo/history': typeof DemoHistoryRoute
   '/demo/settings': typeof DemoSettingsRoute
-  '/_app/': typeof AppIndexRoute
+  '/app/': typeof AppIndexRoute
   '/demo/': typeof DemoIndexRoute
-  '/_app/paddocks/$id': typeof AppPaddocksIdRoute
+  '/app/paddocks/$id': typeof AppPaddocksIdRoute
   '/_public/docs/': typeof PublicDocsIndexRoute
   '/_public/docs/$category/$article': typeof PublicDocsCategoryArticleRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/'
+    | '/app'
     | '/demo'
     | '/sign-in'
     | '/subscribe'
-    | '/analytics'
-    | '/history'
-    | '/map'
-    | '/onboarding'
-    | '/settings'
-    | '/upgrade'
     | '/docs'
     | '/investors'
     | '/marketing'
     | '/research'
     | '/technology'
+    | '/app/analytics'
+    | '/app/history'
+    | '/app/map'
+    | '/app/onboarding'
+    | '/app/settings'
+    | '/app/upgrade'
     | '/demo/analytics'
     | '/demo/history'
     | '/demo/settings'
-    | '/'
+    | '/app/'
     | '/demo/'
-    | '/paddocks/$id'
+    | '/app/paddocks/$id'
     | '/docs/'
     | '/docs/$category/$article'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/'
     | '/sign-in'
     | '/subscribe'
-    | '/analytics'
-    | '/history'
-    | '/map'
-    | '/onboarding'
-    | '/settings'
-    | '/upgrade'
     | '/investors'
     | '/marketing'
     | '/research'
     | '/technology'
+    | '/app/analytics'
+    | '/app/history'
+    | '/app/map'
+    | '/app/onboarding'
+    | '/app/settings'
+    | '/app/upgrade'
     | '/demo/analytics'
     | '/demo/history'
     | '/demo/settings'
-    | '/'
+    | '/app'
     | '/demo'
-    | '/paddocks/$id'
+    | '/app/paddocks/$id'
     | '/docs'
     | '/docs/$category/$article'
   id:
     | '__root__'
-    | '/_app'
+    | '/'
     | '/_public'
+    | '/app'
     | '/demo'
     | '/sign-in'
     | '/subscribe'
-    | '/_app/analytics'
-    | '/_app/history'
-    | '/_app/map'
-    | '/_app/onboarding'
-    | '/_app/settings'
-    | '/_app/upgrade'
     | '/_public/docs'
     | '/_public/investors'
     | '/_public/marketing'
     | '/_public/research'
     | '/_public/technology'
+    | '/app/analytics'
+    | '/app/history'
+    | '/app/map'
+    | '/app/onboarding'
+    | '/app/settings'
+    | '/app/upgrade'
     | '/demo/analytics'
     | '/demo/history'
     | '/demo/settings'
-    | '/_app/'
+    | '/app/'
     | '/demo/'
-    | '/_app/paddocks/$id'
+    | '/app/paddocks/$id'
     | '/_public/docs/'
     | '/_public/docs/$category/$article'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  AppRoute: typeof AppRouteWithChildren
+  IndexRoute: typeof IndexRoute
   PublicRoute: typeof PublicRouteWithChildren
+  AppRoute: typeof AppRouteWithChildren
   DemoRoute: typeof DemoRouteWithChildren
   SignInRoute: typeof SignInRoute
   SubscribeRoute: typeof SubscribeRoute
@@ -333,6 +349,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app': {
+      id: '/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_public': {
       id: '/_public'
       path: ''
@@ -340,11 +363,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app': {
-      id: '/_app'
-      path: ''
-      fullPath: ''
-      preLoaderRoute: typeof AppRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/demo/': {
@@ -354,10 +377,10 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoIndexRouteImport
       parentRoute: typeof DemoRoute
     }
-    '/_app/': {
-      id: '/_app/'
+    '/app/': {
+      id: '/app/'
       path: '/'
-      fullPath: '/'
+      fullPath: '/app/'
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
@@ -381,6 +404,48 @@ declare module '@tanstack/react-router' {
       fullPath: '/demo/analytics'
       preLoaderRoute: typeof DemoAnalyticsRouteImport
       parentRoute: typeof DemoRoute
+    }
+    '/app/upgrade': {
+      id: '/app/upgrade'
+      path: '/upgrade'
+      fullPath: '/app/upgrade'
+      preLoaderRoute: typeof AppUpgradeRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/settings': {
+      id: '/app/settings'
+      path: '/settings'
+      fullPath: '/app/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/onboarding': {
+      id: '/app/onboarding'
+      path: '/onboarding'
+      fullPath: '/app/onboarding'
+      preLoaderRoute: typeof AppOnboardingRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/map': {
+      id: '/app/map'
+      path: '/map'
+      fullPath: '/app/map'
+      preLoaderRoute: typeof AppMapRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/history': {
+      id: '/app/history'
+      path: '/history'
+      fullPath: '/app/history'
+      preLoaderRoute: typeof AppHistoryRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/analytics': {
+      id: '/app/analytics'
+      path: '/analytics'
+      fullPath: '/app/analytics'
+      preLoaderRoute: typeof AppAnalyticsRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_public/technology': {
       id: '/_public/technology'
@@ -417,48 +482,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicDocsRouteImport
       parentRoute: typeof PublicRoute
     }
-    '/_app/upgrade': {
-      id: '/_app/upgrade'
-      path: '/upgrade'
-      fullPath: '/upgrade'
-      preLoaderRoute: typeof AppUpgradeRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/settings': {
-      id: '/_app/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AppSettingsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/onboarding': {
-      id: '/_app/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof AppOnboardingRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/map': {
-      id: '/_app/map'
-      path: '/map'
-      fullPath: '/map'
-      preLoaderRoute: typeof AppMapRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/history': {
-      id: '/_app/history'
-      path: '/history'
-      fullPath: '/history'
-      preLoaderRoute: typeof AppHistoryRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/analytics': {
-      id: '/_app/analytics'
-      path: '/analytics'
-      fullPath: '/analytics'
-      preLoaderRoute: typeof AppAnalyticsRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_public/docs/': {
       id: '/_public/docs/'
       path: '/'
@@ -466,10 +489,10 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicDocsIndexRouteImport
       parentRoute: typeof PublicDocsRoute
     }
-    '/_app/paddocks/$id': {
-      id: '/_app/paddocks/$id'
+    '/app/paddocks/$id': {
+      id: '/app/paddocks/$id'
       path: '/paddocks/$id'
-      fullPath: '/paddocks/$id'
+      fullPath: '/app/paddocks/$id'
       preLoaderRoute: typeof AppPaddocksIdRouteImport
       parentRoute: typeof AppRoute
     }
@@ -482,30 +505,6 @@ declare module '@tanstack/react-router' {
     }
   }
 }
-
-interface AppRouteChildren {
-  AppAnalyticsRoute: typeof AppAnalyticsRoute
-  AppHistoryRoute: typeof AppHistoryRoute
-  AppMapRoute: typeof AppMapRoute
-  AppOnboardingRoute: typeof AppOnboardingRoute
-  AppSettingsRoute: typeof AppSettingsRoute
-  AppUpgradeRoute: typeof AppUpgradeRoute
-  AppIndexRoute: typeof AppIndexRoute
-  AppPaddocksIdRoute: typeof AppPaddocksIdRoute
-}
-
-const AppRouteChildren: AppRouteChildren = {
-  AppAnalyticsRoute: AppAnalyticsRoute,
-  AppHistoryRoute: AppHistoryRoute,
-  AppMapRoute: AppMapRoute,
-  AppOnboardingRoute: AppOnboardingRoute,
-  AppSettingsRoute: AppSettingsRoute,
-  AppUpgradeRoute: AppUpgradeRoute,
-  AppIndexRoute: AppIndexRoute,
-  AppPaddocksIdRoute: AppPaddocksIdRoute,
-}
-
-const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface PublicDocsRouteChildren {
   PublicDocsIndexRoute: typeof PublicDocsIndexRoute
@@ -540,6 +539,30 @@ const PublicRouteChildren: PublicRouteChildren = {
 const PublicRouteWithChildren =
   PublicRoute._addFileChildren(PublicRouteChildren)
 
+interface AppRouteChildren {
+  AppAnalyticsRoute: typeof AppAnalyticsRoute
+  AppHistoryRoute: typeof AppHistoryRoute
+  AppMapRoute: typeof AppMapRoute
+  AppOnboardingRoute: typeof AppOnboardingRoute
+  AppSettingsRoute: typeof AppSettingsRoute
+  AppUpgradeRoute: typeof AppUpgradeRoute
+  AppIndexRoute: typeof AppIndexRoute
+  AppPaddocksIdRoute: typeof AppPaddocksIdRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppAnalyticsRoute: AppAnalyticsRoute,
+  AppHistoryRoute: AppHistoryRoute,
+  AppMapRoute: AppMapRoute,
+  AppOnboardingRoute: AppOnboardingRoute,
+  AppSettingsRoute: AppSettingsRoute,
+  AppUpgradeRoute: AppUpgradeRoute,
+  AppIndexRoute: AppIndexRoute,
+  AppPaddocksIdRoute: AppPaddocksIdRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 interface DemoRouteChildren {
   DemoAnalyticsRoute: typeof DemoAnalyticsRoute
   DemoHistoryRoute: typeof DemoHistoryRoute
@@ -557,8 +580,9 @@ const DemoRouteChildren: DemoRouteChildren = {
 const DemoRouteWithChildren = DemoRoute._addFileChildren(DemoRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
-  AppRoute: AppRouteWithChildren,
+  IndexRoute: IndexRoute,
   PublicRoute: PublicRouteWithChildren,
+  AppRoute: AppRouteWithChildren,
   DemoRoute: DemoRouteWithChildren,
   SignInRoute: SignInRoute,
   SubscribeRoute: SubscribeRoute,

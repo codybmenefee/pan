@@ -1,52 +1,97 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useUser, useClerk, useAuth, PricingTable } from '@clerk/clerk-react'
+import { useQuery } from 'convex/react'
 import { useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Leaf, LogOut } from 'lucide-react'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
+import { useAppAuth } from '@/lib/auth'
+import { api } from '../../convex/_generated/api'
 
 export const Route = createFileRoute('/subscribe')({
   component: SubscribePage,
 })
 
 function SubscribePage() {
+  const { isDevAuth } = useAppAuth()
+  const navigate = useNavigate()
+
+  // In dev mode, redirect to app (no Clerk provider available)
+  useEffect(() => {
+    if (isDevAuth) {
+      navigate({ to: '/app' })
+    }
+  }, [isDevAuth, navigate])
+
+  // Don't render Clerk components in dev mode
+  if (isDevAuth) {
+    return null
+  }
+
+  return <SubscribePageContent />
+}
+
+function SubscribePageContent() {
   const { user, isLoaded: isUserLoaded } = useUser()
   const { has, isLoaded: isAuthLoaded } = useAuth()
   const { signOut } = useClerk()
   const navigate = useNavigate()
 
-  // Debug: log what Clerk knows about the user's subscription
+  // Check subscription status from Convex (set by webhook)
+  const convexSubscription = useQuery(
+    api.users.getUserSubscription,
+    user?.id ? { externalId: user.id } : 'skip'
+  )
+
+  // Debug: log subscription status (after checkHasPlan is defined below)
   useEffect(() => {
     if (isUserLoaded && user) {
-      console.log('[Subscribe] User data:', user)
-      console.log('[Subscribe] User publicMetadata:', user.publicMetadata)
-      console.log('[Subscribe] has() free_user:', has?.({ plan: 'free_user' }))
-      console.log('[Subscribe] has() early_access:', has?.({ plan: 'early_access' }))
+      console.log('[Subscribe] User ID:', user.id)
+      console.log('[Subscribe] Clerk has() early_access:', has?.({ plan: 'early_access' }))
+      console.log('[Subscribe] Convex subscription:', convexSubscription)
+      if (!convexSubscription?.hasAccess && !has?.({ plan: 'early_access' })) {
+        console.warn('[Subscribe] Subscription not detected. If you just subscribed, the webhook may not be configured.')
+        console.warn('[Subscribe] Configure Clerk webhook to send to: <your-convex-url>/webhooks/clerk-billing')
+      }
     }
-  }, [isUserLoaded, user, has])
+  }, [isUserLoaded, user, has, convexSubscription])
 
-  // Check if user has any plan via Clerk's session (works for free plans too)
-  // The plan slug should match what you created in Clerk Dashboard
+  // Check if user has the early_access plan via multiple sources
   const checkHasPlan = useCallback(() => {
-    if (!has) return false
-    // Check for any of your plans - add your plan slugs here
-    // Clerk's has() returns true if the user has the specified plan
-    return has({ plan: 'free_user' }) || has({ plan: 'early_access' })
-  }, [has])
+    // 1. Check Convex subscription status (most reliable - set by webhook)
+    if (convexSubscription?.hasAccess) return true
+    // 2. Check via has() function (Clerk's session claims)
+    if (has?.({ plan: 'early_access' })) return true
+    // 3. Fallback: check publicMetadata (set by webhook on subscription change)
+    const tier = user?.publicMetadata?.subscriptionTier as string | undefined
+    if (tier === 'early_access') return true
+    return false
+  }, [convexSubscription?.hasAccess, has, user?.publicMetadata])
 
-  // Paywall can be disabled via env var
-  const paywallEnabled = import.meta.env.VITE_PAYWALL_ENABLED === 'true'
-  const hasPlan = isAuthLoaded ? checkHasPlan() : false
+  // Paywall is enabled by default, can be disabled via env var (useful for dev)
+  const paywallDisabled = import.meta.env.VITE_PAYWALL_DISABLED === 'true'
+  const paywallEnabled = !paywallDisabled
+  const isSubscriptionLoaded = isAuthLoaded && isUserLoaded && convexSubscription !== undefined
+  const hasPlan = isSubscriptionLoaded ? checkHasPlan() : false
 
   // If paywall disabled or user already has a plan, redirect to main app
   useEffect(() => {
-    if (!paywallEnabled || (isAuthLoaded && hasPlan)) {
-      navigate({ to: '/' })
+    if (!paywallEnabled || (isSubscriptionLoaded && hasPlan)) {
+      navigate({ to: '/app' })
     }
-  }, [paywallEnabled, isAuthLoaded, hasPlan, navigate])
+  }, [paywallEnabled, isSubscriptionLoaded, hasPlan, navigate])
 
-  // Show loading while checking auth
-  if (!isUserLoaded || !isAuthLoaded) {
+  // Show loading while redirect is in progress (user has plan)
+  if (hasPlan) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <LoadingSpinner message="Redirecting to app..." />
+      </div>
+    )
+  }
+
+  // Show loading while checking auth and subscription
+  if (!isUserLoaded || !isAuthLoaded || convexSubscription === undefined) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <LoadingSpinner message="Checking subscription..." />
@@ -99,7 +144,7 @@ function SubscribePage() {
             <Button
               size="lg"
               className="bg-green-600 hover:bg-green-700"
-              onClick={() => navigate({ to: '/' })}
+              onClick={() => navigate({ to: '/app' })}
             >
               Continue to App
             </Button>

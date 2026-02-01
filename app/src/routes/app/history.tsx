@@ -13,7 +13,7 @@ import { LoadingSpinner } from '@/components/ui/loading'
 import { ErrorState } from '@/components/ui/error'
 import type { Id } from '../../../convex/_generated/dataModel'
 
-export const Route = createFileRoute('/_app/history')({
+export const Route = createFileRoute('/app/history')({
   component: HistoryPage,
 })
 

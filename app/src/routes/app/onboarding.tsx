@@ -13,7 +13,7 @@ import {
 import type { LivestockData, GeoFenceData } from '@/components/onboarding'
 import { useAppAuth } from '@/lib/auth'
 
-export const Route = createFileRoute('/_app/onboarding')({
+export const Route = createFileRoute('/app/onboarding')({
   component: OnboardingPage,
 })
 
@@ -74,7 +74,7 @@ function DevOnboarding({ organizationId }: { organizationId: string | null }) {
 
   const handleDevSkip = () => {
     sessionStorage.removeItem('onboardingInProgress')
-    navigate({ to: '/' })
+    navigate({ to: '/app' })
   }
 
   const handleFarmSetup = async (data: FarmData) => {
@@ -151,7 +151,7 @@ function DevOnboarding({ organizationId }: { organizationId: string | null }) {
 
     if (!createdFarmId) {
       // If no farm was created yet, just navigate to map setup
-      navigate({ to: '/', search: { onboarded: 'true', editBoundary: 'true' } })
+      navigate({ to: '/app', search: { onboarded: 'true', editBoundary: 'true' } })
       return
     }
 
@@ -187,11 +187,11 @@ function DevOnboarding({ organizationId }: { organizationId: string | null }) {
       }
 
       // Navigate to map setup - tutorial will be triggered after animal location step
-      navigate({ to: '/', search: { onboarded: 'true', editBoundary: 'true' } })
+      navigate({ to: '/app', search: { onboarded: 'true', editBoundary: 'true' } })
     } catch (err) {
       console.error('Error saving onboarding data:', err)
       // Continue to map setup even if saving fails
-      navigate({ to: '/', search: { onboarded: 'true', editBoundary: 'true' } })
+      navigate({ to: '/app', search: { onboarded: 'true', editBoundary: 'true' } })
     }
   }
 
@@ -385,7 +385,7 @@ function ClerkOnboarding() {
 
     if (!createdFarmId) {
       // If no farm was created yet, just navigate to map setup
-      navigate({ to: '/', search: { onboarded: 'true', editBoundary: 'true' } })
+      navigate({ to: '/app', search: { onboarded: 'true', editBoundary: 'true' } })
       return
     }
 
@@ -421,11 +421,11 @@ function ClerkOnboarding() {
       }
 
       // Navigate to map setup - tutorial will be triggered after animal location step
-      navigate({ to: '/', search: { onboarded: 'true', editBoundary: 'true' } })
+      navigate({ to: '/app', search: { onboarded: 'true', editBoundary: 'true' } })
     } catch (err) {
       console.error('Error saving onboarding data:', err)
       // Continue to map setup even if saving fails
-      navigate({ to: '/', search: { onboarded: 'true', editBoundary: 'true' } })
+      navigate({ to: '/app', search: { onboarded: 'true', editBoundary: 'true' } })
     }
   }
 

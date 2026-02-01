@@ -69,7 +69,7 @@ function DemoSettingsPage() {
                 Sign up to save your settings and get personalized grazing recommendations.
               </p>
             </div>
-            <Link to="/onboarding">
+            <Link to="/sign-in">
               <Button>
                 <UserPlus className="h-4 w-4 mr-2" />
                 Create Account

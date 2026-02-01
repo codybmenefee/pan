@@ -16,7 +16,7 @@ import { useFarmSettings } from '@/lib/convex/useFarmSettings'
 import { useFarmContext } from '@/lib/farm'
 import type { FarmSettings } from '@/lib/types'
 
-export const Route = createFileRoute('/_app/settings')({
+export const Route = createFileRoute('/app/settings')({
   component: SettingsPage,
 })
 

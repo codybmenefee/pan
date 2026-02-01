@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { SubscriptionTier } from '@/lib/hooks/useSubscription'
 
-export const Route = createFileRoute('/_app/upgrade')({
+export const Route = createFileRoute('/app/upgrade')({
   component: UpgradePage,
 })
 
@@ -85,7 +85,7 @@ function UpgradePage() {
     <div className="h-full overflow-auto">
       <div className="p-4 max-w-6xl mx-auto">
         <Link
-          to="/settings"
+          to="/app/settings"
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
         >
           <ArrowLeft className="h-4 w-4" />

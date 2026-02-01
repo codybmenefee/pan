@@ -50,7 +50,7 @@ export function DemoBanner() {
         </button>
 
         <Link
-          to="/onboarding"
+          to="/sign-in"
           className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-900 hover:bg-amber-800 text-white transition-colors"
         >
           <UserPlus className="h-3 w-3" />

@@ -7,7 +7,7 @@ export function MarketingHeader() {
       <div className="container mx-auto px-4">
         <div className="flex h-12 items-center justify-between">
           <Link
-            to="/marketing"
+            to="/"
             className="flex items-center space-x-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1a2429]"
           >
             <span className="text-lg font-bold text-[#FDF6E3]">OpenPasture</span>
@@ -40,7 +40,7 @@ export function MarketingHeader() {
               Technology
             </Link>
             <Link
-              to="/onboarding"
+              to="/sign-in"
               className="inline-flex items-center justify-center gap-1.5 rounded-md text-xs font-medium border border-[#075056]/30 bg-transparent px-2.5 py-1.5 text-[#D3DBDD] hover:bg-[#075056]/20 hover:text-[#FDF6E3] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1a2429]"
             >
               <LogIn className="h-3.5 w-3.5" aria-hidden="true" />
