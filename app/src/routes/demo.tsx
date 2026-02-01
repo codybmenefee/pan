@@ -9,7 +9,8 @@ import { DemoAuthProvider, useDemoAuth } from '@/lib/auth/DemoAuthProvider'
 import { SatelliteAnimationProvider } from '@/lib/satellite-animation'
 import { SatelliteCollapseAnimation } from '@/components/layout/SatelliteCollapseAnimation'
 import { useDemoSeeding } from '@/lib/convex/useDemoSeeding'
-import { TutorialProvider, TutorialOverlay } from '@/components/onboarding/tutorial'
+import { TutorialProvider } from '@/components/onboarding/tutorial'
+import { ImmersiveTutorialOverlay } from '@/components/onboarding/tutorial/immersive'
 import { isDemoDevMode } from '@/lib/demo/isDemoDevMode'
 
 export const Route = createFileRoute('/demo')({
@@ -56,7 +57,7 @@ function DemoLayoutContent() {
                 </div>
               </div>
               <SatelliteCollapseAnimation />
-              <TutorialOverlay />
+              <ImmersiveTutorialOverlay />
             </TutorialProvider>
           </SatelliteAnimationProvider>
         </BriefPanelProvider>

@@ -284,7 +284,7 @@ export const samplePaddocks = basePaddocks.map((paddock) => ({
 
 export const sampleFarm = {
   externalId: DEFAULT_FARM_EXTERNAL_ID,
-  name: 'Hillcrest Station',
+  name: 'The Other Side',
   location: '120 River Heights Drive, Columbia, Tennessee, 38401',
   totalArea: 142,
   paddockCount: samplePaddocks.length,

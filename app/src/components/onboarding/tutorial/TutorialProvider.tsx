@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
 import { TutorialContext, getTutorialCompleted, setTutorialCompleted } from './useTutorial'
 
-const TOTAL_STEPS = 5
+const TOTAL_STEPS = 11
 
 interface TutorialProviderProps {
   children: ReactNode

@@ -4,3 +4,4 @@ export { useTutorial, getTutorialCompleted, setTutorialCompleted } from './useTu
 export { ScreenshotFrame } from './ScreenshotFrame'
 export { GrassAnimation } from './GrassAnimation'
 export { TutorialProgress } from './TutorialProgress'
+export { ImmersiveTutorialOverlay } from './immersive'
