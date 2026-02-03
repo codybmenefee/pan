@@ -6,17 +6,20 @@ Job queue processor with three modes:
 - --daily: Check imagery availability + process all pending jobs
 - --single farm-id: Ad-hoc trigger for testing
 - --smart: Auto-select mode based on time of day (daily at 6 AM, hourly otherwise)
+- --loop: Run continuously, executing --smart mode every hour
 
 Usage:
-    python scheduler.py --hourly     # Process user-triggered jobs
-    python scheduler.py --daily      # Full daily run with imagery check
+    python scheduler.py --hourly     # Process user-triggered jobs (one-time)
+    python scheduler.py --daily      # Full daily run with imagery check (one-time)
     python scheduler.py --single farm-1  # Process single farm
-    python scheduler.py --smart      # Auto-select based on time
+    python scheduler.py --smart      # Auto-select based on time (one-time)
+    python scheduler.py --loop       # Run continuously, --smart every hour (for Docker)
 """
 import argparse
 import logging
 import os
 import sys
+import time
 from datetime import datetime
 from typing import Optional
 
@@ -36,6 +39,11 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# Max processing time limits (in seconds)
+MAX_HOURLY_PROCESSING_TIME = 30 * 60  # 30 minutes
+MAX_DAILY_PROCESSING_TIME = 60 * 60   # 60 minutes
+JOB_TIMEOUT = 10 * 60  # 10 minutes per job
 
 
 class Scheduler:
@@ -59,7 +67,9 @@ class Scheduler:
         Returns:
             Number of jobs processed
         """
+        start_time = time.time()
         logger.info("=== Running Hourly Mode ===")
+        logger.info(f"Max processing time: {MAX_HOURLY_PROCESSING_TIME // 60} minutes")
         logger.info("Processing boundary_update and manual jobs only")
 
         processed = 0
@@ -67,14 +77,22 @@ class Scheduler:
         # Process boundary_update jobs (highest priority)
         boundary_jobs = self.convex.get_pending_jobs(limit=10, triggered_by='boundary_update')
         logger.info(f"Found {len(boundary_jobs)} boundary_update jobs")
-        processed += self._process_jobs(boundary_jobs)
+        processed += self._process_jobs(boundary_jobs, start_time, MAX_HOURLY_PROCESSING_TIME)
+
+        # Check if we still have time for manual jobs
+        elapsed = time.time() - start_time
+        if elapsed >= MAX_HOURLY_PROCESSING_TIME:
+            logger.warning(f"Reached max processing time ({elapsed:.0f}s), stopping")
+            logger.info(f"=== Hourly Mode Complete: {processed} jobs processed ===")
+            return processed
 
         # Process manual jobs
         manual_jobs = self.convex.get_pending_jobs(limit=10, triggered_by='manual')
         logger.info(f"Found {len(manual_jobs)} manual jobs")
-        processed += self._process_jobs(manual_jobs)
+        processed += self._process_jobs(manual_jobs, start_time, MAX_HOURLY_PROCESSING_TIME)
 
-        logger.info(f"=== Hourly Mode Complete: {processed} jobs processed ===")
+        elapsed = time.time() - start_time
+        logger.info(f"=== Hourly Mode Complete: {processed} jobs processed in {elapsed:.0f}s ===")
         return processed
 
     def run_daily(self) -> int:
@@ -85,19 +103,29 @@ class Scheduler:
         Returns:
             Number of jobs processed
         """
+        start_time = time.time()
         logger.info("=== Running Daily Mode ===")
+        logger.info(f"Max processing time: {MAX_DAILY_PROCESSING_TIME // 60} minutes")
 
         # Step 1: Check imagery availability for farms not checked in 24h
         logger.info("Step 1: Checking imagery availability...")
         self._check_imagery_for_all_farms()
 
+        # Check if we have time remaining
+        elapsed = time.time() - start_time
+        if elapsed >= MAX_DAILY_PROCESSING_TIME:
+            logger.warning(f"Reached max processing time after imagery check ({elapsed:.0f}s), stopping")
+            logger.info("=== Daily Mode Complete: 0 jobs processed ===")
+            return 0
+
         # Step 2: Process all pending jobs (boundary + manual + scheduled)
         logger.info("Step 2: Processing all pending jobs...")
         all_jobs = self.convex.get_pending_jobs(limit=50)
         logger.info(f"Found {len(all_jobs)} total pending jobs")
-        processed = self._process_jobs(all_jobs)
+        processed = self._process_jobs(all_jobs, start_time, MAX_DAILY_PROCESSING_TIME)
 
-        logger.info(f"=== Daily Mode Complete: {processed} jobs processed ===")
+        elapsed = time.time() - start_time
+        logger.info(f"=== Daily Mode Complete: {processed} jobs processed in {elapsed:.0f}s ===")
         return processed
 
     def run_single(self, farm_external_id: str) -> bool:
@@ -143,6 +171,26 @@ class Scheduler:
             logger.info(f"Smart mode: {current_hour}:00 UTC, running hourly check")
             return self.run_hourly()
 
+    def run_loop(self):
+        """
+        Loop mode: Run continuously, executing smart mode every hour.
+        Designed for Docker deployments.
+        """
+        logger.info("=== Starting Loop Mode ===")
+        logger.info("Will run smart mode every hour")
+
+        while True:
+            try:
+                logger.info("--- Starting scheduled run ---")
+                self.run_smart()
+                logger.info("--- Scheduled run complete ---")
+            except Exception as e:
+                logger.error(f"Error in scheduled run: {e}", exc_info=True)
+
+            # Sleep until next hour
+            logger.info("Sleeping for 1 hour until next run...")
+            time.sleep(3600)  # 1 hour
+
     def _check_imagery_for_all_farms(self):
         """Check imagery availability for all farms that need it."""
         farms_to_check = self.convex.get_farms_needing_imagery_check()
@@ -186,12 +234,14 @@ class Scheduler:
                 logger.error(f"  Error checking imagery for {farm_id}: {e}")
                 continue
 
-    def _process_jobs(self, jobs: list[dict]) -> int:
+    def _process_jobs(self, jobs: list[dict], start_time: float, max_time: float) -> int:
         """
-        Process a list of jobs.
+        Process a list of jobs with timeout protection.
 
         Args:
             jobs: List of job documents
+            start_time: When processing started (from time.time())
+            max_time: Maximum processing time in seconds
 
         Returns:
             Number of jobs successfully processed
@@ -199,6 +249,13 @@ class Scheduler:
         processed = 0
 
         for job in jobs:
+            # Check if we've exceeded max processing time
+            elapsed = time.time() - start_time
+            if elapsed >= max_time:
+                logger.warning(f"Reached max processing time ({elapsed:.0f}s), stopping job processing")
+                logger.info(f"Remaining jobs: {len(jobs) - processed}")
+                break
+
             job_id = job['_id']
 
             # Claim the job
@@ -222,6 +279,7 @@ class Scheduler:
         Returns:
             True if successful
         """
+        job_start = time.time()
         job_id = job['_id']
         farm_id = job['farmExternalId']
         provider = job.get('provider', 'sentinel2')
@@ -268,11 +326,13 @@ class Scheduler:
                 error_message=None if valid_count > 0 else "No valid observations",
             )
 
-            logger.info(f"  Job completed: {valid_count} observations")
+            job_elapsed = time.time() - job_start
+            logger.info(f"  Job completed: {valid_count} observations in {job_elapsed:.1f}s")
             return True
 
         except Exception as e:
-            logger.error(f"  Job failed: {e}", exc_info=True)
+            job_elapsed = time.time() - job_start
+            logger.error(f"  Job failed after {job_elapsed:.1f}s: {e}", exc_info=True)
 
             # Complete the job as failed
             self.convex.complete_job(
@@ -435,10 +495,11 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python scheduler.py --hourly        # Process boundary/manual jobs
-  python scheduler.py --daily         # Full run with imagery check
+  python scheduler.py --hourly        # Process boundary/manual jobs (one-time)
+  python scheduler.py --daily         # Full run with imagery check (one-time)
   python scheduler.py --single farm-1 # Process single farm
-  python scheduler.py --smart         # Auto-select based on time
+  python scheduler.py --smart         # Auto-select based on time (one-time)
+  python scheduler.py --loop          # Run continuously every hour (for Docker)
         """
     )
 
@@ -446,12 +507,12 @@ Examples:
     group.add_argument(
         "--hourly",
         action="store_true",
-        help="Process boundary_update and manual jobs only"
+        help="Process boundary_update and manual jobs only (one-time)"
     )
     group.add_argument(
         "--daily",
         action="store_true",
-        help="Check imagery availability and process all pending jobs"
+        help="Check imagery availability and process all pending jobs (one-time)"
     )
     group.add_argument(
         "--single",
@@ -461,7 +522,12 @@ Examples:
     group.add_argument(
         "--smart",
         action="store_true",
-        help="Auto-select mode based on time (daily at 6 AM, hourly otherwise)"
+        help="Auto-select mode based on time (daily at 6 AM, hourly otherwise) (one-time)"
+    )
+    group.add_argument(
+        "--loop",
+        action="store_true",
+        help="Run continuously, executing --smart mode every hour (for Docker)"
     )
 
     args = parser.parse_args()
@@ -485,6 +551,13 @@ Examples:
             processed = scheduler.run_smart()
             sys.exit(0 if processed >= 0 else 1)
 
+        elif args.loop:
+            # Loop mode never exits (runs continuously)
+            scheduler.run_loop()
+
+    except KeyboardInterrupt:
+        logger.info("Scheduler interrupted by user")
+        sys.exit(0)
     except Exception as e:
         logger.error(f"Scheduler failed: {e}", exc_info=True)
         sys.exit(1)
