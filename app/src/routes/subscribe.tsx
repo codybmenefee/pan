@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Leaf, LogOut } from 'lucide-react'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
 import { useAppAuth } from '@/lib/auth'
+import { useAnalytics } from '@/lib/analytics'
 import { api } from '../../convex/_generated/api'
 
 export const Route = createFileRoute('/subscribe')({
@@ -36,6 +37,7 @@ function SubscribePageContent() {
   const { has, isLoaded: isAuthLoaded } = useAuth()
   const { signOut } = useClerk()
   const navigate = useNavigate()
+  const { trackSubscriptionStarted } = useAnalytics()
 
   // Check subscription status from Convex (set by webhook)
   const convexSubscription = useQuery(
@@ -77,9 +79,10 @@ function SubscribePageContent() {
   // If paywall disabled or user already has a plan, redirect to main app
   useEffect(() => {
     if (!paywallEnabled || (isSubscriptionLoaded && hasPlan)) {
+      trackSubscriptionStarted({ plan: 'early_access' })
       navigate({ to: '/app' })
     }
-  }, [paywallEnabled, isSubscriptionLoaded, hasPlan, navigate])
+  }, [paywallEnabled, isSubscriptionLoaded, hasPlan, navigate, trackSubscriptionStarted])
 
   // Show loading while redirect is in progress (user has plan)
   if (hasPlan) {

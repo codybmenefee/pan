@@ -12,6 +12,7 @@ import {
 } from '@/components/onboarding'
 import type { LivestockData, GeoFenceData } from '@/components/onboarding'
 import { useAppAuth } from '@/lib/auth'
+import { useAnalytics } from '@/lib/analytics'
 
 export const Route = createFileRoute('/app/onboarding')({
   component: OnboardingPage,
@@ -38,6 +39,7 @@ function OnboardingPage() {
 // Dev mode onboarding - doesn't use Clerk hooks
 function DevOnboarding({ organizationId }: { organizationId: string | null }) {
   const navigate = useNavigate()
+  const { trackOnboardingCompleted } = useAnalytics()
   const geocodeAddress = useAction(api.geocoding.geocodeAddress)
   const setupFarm = useMutation(api.organizations.setupFarmFromOnboarding)
   const upsertLivestock = useMutation(api.livestock.upsertLivestock)
@@ -97,7 +99,7 @@ function DevOnboarding({ organizationId }: { organizationId: string | null }) {
         return
       }
 
-      // Default paddock size of 10 hectares - users will adjust on the map
+      // Default pasture size of 10 hectares - users will adjust on the map
       await setupFarm({
         orgId: organizationId,
         name: data.name.trim(),
@@ -148,6 +150,12 @@ function DevOnboarding({ organizationId }: { organizationId: string | null }) {
   ) => {
     // Clear the onboarding-in-progress flag before navigation
     sessionStorage.removeItem('onboardingInProgress')
+
+    const hasLivestock = livestock.cows > 0 || livestock.calves > 0 || livestock.sheep > 0 || livestock.lambs > 0
+    trackOnboardingCompleted({
+      farmName: farmData.name || undefined,
+      livestockConfigured: hasLivestock,
+    })
 
     if (!createdFarmId) {
       // If no farm was created yet, just navigate to map setup
@@ -269,6 +277,7 @@ function ClerkOnboarding() {
   const { createOrganization, setActive } = useOrganizationList()
 
   const navigate = useNavigate()
+  const { trackOnboardingCompleted } = useAnalytics()
   const geocodeAddress = useAction(api.geocoding.geocodeAddress)
   const createFarmFromOrg = useMutation(api.organizations.createFarmFromOrg)
   const upsertLivestock = useMutation(api.livestock.upsertLivestock)
@@ -327,7 +336,7 @@ function ClerkOnboarding() {
 
       const org = await createOrganization({ name: data.name.trim() })
 
-      // Step 3: Create the farm in Convex (blank farm with paddockCount: 0)
+      // Step 3: Create the farm in Convex (blank farm with pastureCount: 0)
       await createFarmFromOrg({
         clerkOrgId: org.id,
         name: data.name.trim(),
@@ -382,6 +391,12 @@ function ClerkOnboarding() {
   ) => {
     // Clear the onboarding-in-progress flag before navigation
     sessionStorage.removeItem('onboardingInProgress')
+
+    const hasLivestock = livestock.cows > 0 || livestock.calves > 0 || livestock.sheep > 0 || livestock.lambs > 0
+    trackOnboardingCompleted({
+      farmName: farmData.name || undefined,
+      livestockConfigured: hasLivestock,
+    })
 
     if (!createdFarmId) {
       // If no farm was created yet, just navigate to map setup

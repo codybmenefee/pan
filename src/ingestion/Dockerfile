@@ -20,4 +20,4 @@ COPY . .
 
 EXPOSE 8080
 
-CMD ["python", "scheduler.py", "--loop"]
+CMD ["python", "scheduler.py", "--smart"]

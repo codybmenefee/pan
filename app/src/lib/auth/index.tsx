@@ -1,7 +1,8 @@
-import { createContext, useContext, useMemo, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useMemo, useCallback, useEffect, type ReactNode } from 'react'
 import { ClerkProvider, SignIn, useAuth, useOrganization, useOrganizationList } from '@clerk/clerk-react'
 import { ErrorState } from '@/components/ui/error/ErrorState'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
+import { identifyUser, setFarmGroup, resetAnalytics } from '@/lib/analytics'
 import { clerkAppearance } from './clerkTheme'
 
 export const DEV_USER_EXTERNAL_ID = 'dev-user-1'
@@ -64,6 +65,23 @@ function ClerkAuthBridge({ children }: { children: ReactNode }) {
     isOrgLoaded,
     membershipCount: userMemberships?.data?.length
   })
+
+  // Link PostHog anonymous visitor to Clerk user on sign-in
+  useEffect(() => {
+    if (!isLoaded) return
+    if (isSignedIn && userId) {
+      identifyUser(userId)
+    } else {
+      resetAnalytics()
+    }
+  }, [isLoaded, isSignedIn, userId])
+
+  // Group by farm (Clerk organization) for farm-level metrics
+  useEffect(() => {
+    if (organization?.id) {
+      setFarmGroup(organization.id, { name: organization.name })
+    }
+  }, [organization?.id, organization?.name])
 
   const organizationList = useMemo<OrganizationInfo[]>(() => {
     if (!userMemberships?.data) return []
