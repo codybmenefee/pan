@@ -10,53 +10,53 @@ export const timeConstraint: ArticleContent = {
       content: `Most grazing management failures are **timing errors**, not spatial errors.
 
 **Spatial errors** (less common):
-- Moving to the wrong paddock entirely
-- Fencing that doesn't match paddock boundaries
+- Moving to the wrong pasture entirely
+- Fencing that doesn't match pasture boundaries
 - Infrastructure in the wrong location
 
 **Timing errors** (most common):
-- Returning to a paddock before adequate recovery
-- Staying in a section too long, depleting regrowth capacity
+- Returning to a pasture before adequate recovery
+- Staying in a paddock too long, depleting regrowth capacity
 - Missing the optimal grazing window when forage is most nutritious
 
-A farmer can have perfect paddock layout and still degrade land through poor timing. Conversely, adequate timing with imperfect layout often produces acceptable results.
+A farmer can have perfect pasture layout and still degrade land through poor timing. Conversely, adequate timing with imperfect layout often produces acceptable results.
 
-The platform focuses on timing: which paddock today, which section, how long before moving.`,
+The platform focuses on timing: which pasture today, which paddock, how long before moving.`,
     },
     {
       heading: 'The Cognitive Scaling Problem',
       content: `Human cognition handles complexity well up to a point, then fails rapidly.
 
-**Small operation (5 paddocks)**
-- 5 paddocks with ~5 key variables each = 25 data points
-- Farmer visits all paddocks regularly
+**Small operation (5 pastures)**
+- 5 pastures with ~5 key variables each = 25 data points
+- Farmer visits all pastures regularly
 - Mental model stays current
 - Intuitive decisions work
 
-**Medium operation (20 paddocks)**
-- 20 paddocks × 5 variables = 100 data points
-- Some paddocks not visited for weeks
+**Medium operation (20 pastures)**
+- 20 pastures × 5 variables = 100 data points
+- Some pastures not visited for weeks
 - Mental model lags reality
 - Errors increase, especially under stress
 
-**Large operation (50+ paddocks)**
+**Large operation (50+ pastures)**
 - 250+ data points
 - Impossible to hold complete picture
 - Decisions become reactive, not proactive
 - Systematic optimization impossible
 
-This isn't a criticism of farmers—it's a fundamental constraint of human working memory. The same farmer who excels at 5 paddocks struggles at 50 not because of skill but because of cognitive architecture.`,
+This isn't a criticism of farmers—it's a fundamental constraint of human working memory. The same farmer who excels at 5 pastures struggles at 50 not because of skill but because of cognitive architecture.`,
     },
     {
       heading: 'Decision Surface Expansion',
       content: `The complexity isn't just the number of data points—it's the interaction between decisions.
 
 Today's grazing choice affects:
-- Tomorrow's options (one fewer paddock available)
-- Next week's options (recovery timing of today's paddock)
+- Tomorrow's options (one fewer pasture available)
+- Next week's options (recovery timing of today's pasture)
 - Next month's options (cumulative utilization patterns)
 
-For a 20-paddock farm with 4 possible section choices per paddock, the decision tree for one week is: 20 × 4 × 19 × 4 × 18 × 4... = millions of paths.
+For a 20-pasture farm with 4 possible paddock choices per pasture, the decision tree for one week is: 20 × 4 × 19 × 4 × 18 × 4... = millions of paths.
 
 Humans navigate this by heuristics and habits. But heuristics:
 - Miss non-obvious optimal paths
@@ -85,16 +85,16 @@ The platform targets this middle zone. By automating the **data aggregation and 
       content: `The platform attacks the timing problem through:
 
 **Continuous Data Integration**
-Satellite imagery updates independent of farmer visits. The system knows paddock conditions even for areas not recently walked.
+Satellite imagery updates independent of farmer visits. The system knows pasture conditions even for areas not recently walked.
 
 **Automated Tracking**
-Rest days calculate automatically from grazing event records. No need to remember when each paddock was last grazed.
+Rest days calculate automatically from grazing event records. No need to remember when each pasture was last grazed.
 
 **Daily Recommendations**
 The system produces a decision every day, ensuring no decision is delayed by distraction or workload.
 
 **Temporal Reasoning**
-The AI considers not just current state but projected future state. Will this paddock be ready next week? Is utilization getting uneven?
+The AI considers not just current state but projected future state. Will this pasture be ready next week? Is utilization getting uneven?
 
 **Consistent Execution**
 No fatigue, no off days, no distraction from other priorities. The system maintains attention that humans cannot sustain.

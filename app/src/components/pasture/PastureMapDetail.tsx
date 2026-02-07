@@ -2,28 +2,28 @@ import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import type { Paddock } from '@/lib/types'
+import type { Pasture } from '@/lib/types'
 
-interface PaddockMapDetailProps {
-  paddock: Paddock
+interface PastureMapDetailProps {
+  pasture: Pasture
 }
 
-const statusColors: Record<Paddock['status'], string> = {
+const statusColors: Record<Pasture['status'], string> = {
   ready: '#22c55e',
   almost_ready: '#f59e0b',
   recovering: '#3b82f6',
   grazed: '#71717a',
 }
 
-export function PaddockMapDetail({ paddock }: PaddockMapDetailProps) {
+export function PastureMapDetail({ pasture }: PastureMapDetailProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
 
   useEffect(() => {
     if (!mapContainer.current) return
 
-    // Calculate bounds from the paddock geometry
-    const coords = paddock.geometry.geometry.coordinates[0]
+    // Calculate bounds from the pasture geometry
+    const coords = pasture.geometry.geometry.coordinates[0]
     const lngs = coords.map(c => c[0])
     const lats = coords.map(c => c[1])
     const bounds = new maplibregl.LngLatBounds(
@@ -62,30 +62,30 @@ export function PaddockMapDetail({ paddock }: PaddockMapDetailProps) {
     map.current.on('load', () => {
       if (!map.current) return
 
-      // Add paddock polygon
-      map.current.addSource('paddock', {
+      // Add pasture polygon
+      map.current.addSource('pasture', {
         type: 'geojson',
-        data: paddock.geometry
+        data: pasture.geometry
       })
 
       // Fill layer
       map.current.addLayer({
-        id: 'paddock-fill',
+        id: 'pasture-fill',
         type: 'fill',
-        source: 'paddock',
+        source: 'pasture',
         paint: {
-          'fill-color': statusColors[paddock.status],
+          'fill-color': statusColors[pasture.status],
           'fill-opacity': 0.3
         }
       })
 
       // Border layer
       map.current.addLayer({
-        id: 'paddock-border',
+        id: 'pasture-border',
         type: 'line',
-        source: 'paddock',
+        source: 'pasture',
         paint: {
-          'line-color': statusColors[paddock.status],
+          'line-color': statusColors[pasture.status],
           'line-width': 3
         }
       })
@@ -94,16 +94,16 @@ export function PaddockMapDetail({ paddock }: PaddockMapDetailProps) {
     return () => {
       map.current?.remove()
     }
-  }, [paddock])
+  }, [pasture])
 
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base font-medium">Paddock Location</CardTitle>
+        <CardTitle className="text-base font-medium">Pasture Location</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        <div 
-          ref={mapContainer} 
+        <div
+          ref={mapContainer}
           className="h-[200px] w-full rounded-b-lg"
         />
       </CardContent>

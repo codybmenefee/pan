@@ -6,36 +6,36 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import type { PaddockAlternative } from '@/lib/types'
+import type { PastureAlternative } from '@/lib/types'
 import { useGeometry } from '@/lib/geometry'
 
 interface FeedbackModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  alternatives: PaddockAlternative[]
-  onSubmit: (alternativePaddockId: string) => void
+  alternatives: PastureAlternative[]
+  onSubmit: (alternativePastureId: string) => void
 }
 
 const quickReasons = [
   'Infrastructure issue',
   'Water access problem',
   'Weather concern',
-  'Prefer different paddock',
+  'Prefer different pasture',
 ]
 
 export function FeedbackModal({ open, onOpenChange, alternatives, onSubmit }: FeedbackModalProps) {
-  const { getPaddockById } = useGeometry()
+  const { getPastureById } = useGeometry()
   const [selectedReason, setSelectedReason] = useState<string | null>(null)
-  const [selectedPaddock, setSelectedPaddock] = useState<string | null>(null)
+  const [selectedPasture, setSelectedPasture] = useState<string | null>(null)
   const [notes, setNotes] = useState('')
 
   const handleSubmit = () => {
-    if (selectedPaddock) {
-      onSubmit(selectedPaddock)
+    if (selectedPasture) {
+      onSubmit(selectedPasture)
     }
     // Reset state
     setSelectedReason(null)
-    setSelectedPaddock(null)
+    setSelectedPasture(null)
     setNotes('')
   }
 
@@ -84,22 +84,22 @@ export function FeedbackModal({ open, onOpenChange, alternatives, onSubmit }: Fe
             <p className="text-sm font-medium mb-3">Select alternative</p>
             <div className="space-y-2">
               {alternatives.map((alt) => {
-                const paddock = getPaddockById(alt.paddockId)
-                if (!paddock) return null
+                const pasture = getPastureById(alt.pastureId)
+                if (!pasture) return null
                 return (
                   <button
-                    key={alt.paddockId}
-                    onClick={() => setSelectedPaddock(alt.paddockId)}
+                    key={alt.pastureId}
+                    onClick={() => setSelectedPasture(alt.pastureId)}
                     className={`w-full flex items-center justify-between rounded-md border px-4 py-3 text-left transition-colors ${
-                      selectedPaddock === alt.paddockId
+                      selectedPasture === alt.pastureId
                         ? 'border-primary bg-primary/10'
                         : 'border-border hover:border-primary/50'
                     }`}
                   >
                     <div>
-                      <p className="font-medium">{paddock.name}</p>
+                      <p className="font-medium">{pasture.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        Paddock {paddock.id.replace('p', '')}
+                        Pasture {pasture.id.replace('p', '')}
                       </p>
                     </div>
                     <span className="text-sm text-muted-foreground">
@@ -109,9 +109,9 @@ export function FeedbackModal({ open, onOpenChange, alternatives, onSubmit }: Fe
                 )
               })}
               <button
-                onClick={() => setSelectedPaddock('skip')}
+                onClick={() => setSelectedPasture('skip')}
                 className={`w-full rounded-md border px-4 py-3 text-left transition-colors ${
-                  selectedPaddock === 'skip'
+                  selectedPasture === 'skip'
                     ? 'border-primary bg-primary/10'
                     : 'border-border hover:border-primary/50'
                 }`}
@@ -126,7 +126,7 @@ export function FeedbackModal({ open, onOpenChange, alternatives, onSubmit }: Fe
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!selectedPaddock}>
+          <Button onClick={handleSubmit} disabled={!selectedPasture}>
             Confirm
           </Button>
         </div>

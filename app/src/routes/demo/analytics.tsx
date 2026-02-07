@@ -10,33 +10,33 @@ import {
   RestPeriodChart,
   AIPartnershipChart,
 } from '@/components/analytics'
-import { samplePaddocks } from '../../../convex/seedData'
+import { samplePastures } from '../../../convex/seedData'
 
 export const Route = createFileRoute('/demo/analytics')({
   component: DemoAnalyticsPage,
 })
 
-// Generate recovery data from sample paddocks
+// Generate recovery data from sample pastures
 function generateRecoveryData() {
-  return samplePaddocks.map(paddock => {
+  return samplePastures.map(pasture => {
     // Calculate recovery percentage based on rest days (target 21 days = 100%)
-    const recoveryPct = Math.min(100, Math.round((paddock.restDays / 21) * 100))
+    const recoveryPct = Math.min(100, Math.round((pasture.restDays / 21) * 100))
 
     return {
-      paddockId: paddock.externalId,
-      paddockName: paddock.name,
-      currentNdvi: paddock.ndvi,
+      pastureId: pasture.externalId,
+      pastureName: pasture.name,
+      currentNdvi: pasture.ndvi,
       recoveryPct,
-      restDays: paddock.restDays,
+      restDays: pasture.restDays,
       lastGrazed: null,
-      status: paddock.status,
+      status: pasture.status,
     }
   })
 }
 
-// Generate rest period distribution matching demo paddock rest days
+// Generate rest period distribution matching demo pasture rest days
 function generateRestPeriodData() {
-  // Buckets based on actual demo paddock rest days: 3, 5, 12, 14, 16, 19, 24, 28
+  // Buckets based on actual demo pasture rest days: 3, 5, 12, 14, 16, 19, 24, 28
   const buckets = [
     { label: '0-7 days', count: 2, isTarget: false },      // p5 (3d), p8 (5d)
     { label: '8-14 days', count: 2, isTarget: false },     // p6 (12d), p1 (14d)
@@ -48,7 +48,7 @@ function generateRestPeriodData() {
 
   return {
     buckets,
-    avgRestPeriod: 15, // Average of demo paddock rest days
+    avgRestPeriod: 15, // Average of demo pasture rest days
     totalEvents: 8,
   }
 }
@@ -119,7 +119,7 @@ function DemoAnalyticsPage() {
     ? Math.round(recoveryData.reduce((sum, p) => sum + p.recoveryPct, 0) / recoveryData.length)
     : 0
 
-  const readyPaddocks = recoveryData.filter(p => p.recoveryPct >= 80).length
+  const readyPastures = recoveryData.filter(p => p.recoveryPct >= 80).length
 
   return (
     <div className="h-full overflow-auto">
@@ -139,19 +139,19 @@ function DemoAnalyticsPage() {
             title="Avg Rest Period"
             value={`${restPeriodData.avgRestPeriod} days`}
             trendDirection={restPeriodData.avgRestPeriod >= 21 ? 'up' : 'down'}
-            tooltip="Average days paddocks rest between grazing events. Target: 21-45 days for optimal regrowth."
+            tooltip="Average days pastures rest between grazing events. Target: 21-45 days for optimal regrowth."
           />
           <MetricCard
             title="Avg Recovery"
             value={`${avgRecovery}%`}
             trendDirection={avgRecovery >= 60 ? 'up' : avgRecovery >= 40 ? 'stable' : 'down'}
-            tooltip="Average NDVI recovery across all paddocks since last graze."
+            tooltip="Average NDVI recovery across all pastures since last graze."
           />
           <MetricCard
-            title="Ready Paddocks"
-            value={`${readyPaddocks} of ${recoveryData.length}`}
-            trendDirection={readyPaddocks > 0 ? 'up' : 'stable'}
-            tooltip="Paddocks with 80%+ recovery, ready for grazing."
+            title="Ready Pastures"
+            value={`${readyPastures} of ${recoveryData.length}`}
+            trendDirection={readyPastures > 0 ? 'up' : 'stable'}
+            tooltip="Pastures with 80%+ recovery, ready for grazing."
           />
           <MetricCard
             title="AI Approval Rate"
@@ -175,7 +175,7 @@ function DemoAnalyticsPage() {
             <div>
               <h3 className="font-medium">Get insights from your own farm data</h3>
               <p className="text-sm text-muted-foreground mt-1">
-                Sign up to track NDVI trends, paddock recovery, and AI recommendation accuracy for your farm.
+                Sign up to track NDVI trends, pasture recovery, and AI recommendation accuracy for your farm.
               </p>
             </div>
             <Link to="/sign-in">

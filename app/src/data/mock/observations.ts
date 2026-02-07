@@ -135,28 +135,28 @@ export const observations: ExtendedObservation[] = [
   createObservation('obs-p8-12', 'p8', '2025-01-16', 0.19, 0.11, -0.18, 10),
 ]
 
-export function getObservationsForPaddock(paddockId: string): ExtendedObservation[] {
-  return observations.filter(o => o.paddockId === paddockId).sort((a, b) => 
+export function getObservationsForPasture(pastureId: string): ExtendedObservation[] {
+  return observations.filter(o => o.paddockId === pastureId).sort((a, b) =>
     new Date(a.date).getTime() - new Date(b.date).getTime()
   )
 }
 
-export function getLatestObservation(paddockId: string): ExtendedObservation | undefined {
-  const paddockObs = getObservationsForPaddock(paddockId)
-  return paddockObs[paddockObs.length - 1]
+export function getLatestObservation(pastureId: string): ExtendedObservation | undefined {
+  const pastureObs = getObservationsForPasture(pastureId)
+  return pastureObs[pastureObs.length - 1]
 }
 
-export function calculateNdviTrend(paddockId: string): number {
-  const obs = getObservationsForPaddock(paddockId)
+export function calculateNdviTrend(pastureId: string): number {
+  const obs = getObservationsForPasture(pastureId)
   if (obs.length < 2) return 0
-  
+
   const recent = obs.slice(-3)
   const earlier = obs.slice(-6, -3)
-  
+
   if (recent.length === 0 || earlier.length === 0) return 0
-  
+
   const recentAvg = recent.reduce((sum, o) => sum + o.ndviMean, 0) / recent.length
   const earlierAvg = earlier.reduce((sum, o) => sum + o.ndviMean, 0) / earlier.length
-  
+
   return Number((recentAvg - earlierAvg).toFixed(3))
 }

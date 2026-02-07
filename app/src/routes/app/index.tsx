@@ -18,8 +18,8 @@ import { BoundarySavedDialog } from '@/components/map/BoundarySavedDialog'
 import type { NoGrazeZone, WaterSource } from '@/lib/types'
 import { MorningBrief } from '@/components/brief/MorningBrief'
 import { getFormattedDate } from '@/data/mock/plan'
+import { PastureEditDrawer } from '@/components/map/PastureEditDrawer'
 import { PaddockEditDrawer } from '@/components/map/PaddockEditDrawer'
-import { SectionEditDrawer } from '@/components/map/SectionEditDrawer'
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
 import { FloatingPanel } from '@/components/ui/floating-panel'
 import { Button } from '@/components/ui/button'
@@ -36,7 +36,7 @@ import { useFarmSettings } from '@/lib/convex/useFarmSettings'
 import { useAvailableDates, useAvailableTileDates } from '@/lib/hooks/useSatelliteTiles'
 import { useTutorial, getTutorialCompleted } from '@/components/onboarding/tutorial'
 import type { Feature, Polygon } from 'geojson'
-import type { Paddock, Section } from '@/lib/types'
+import type { Pasture, Paddock } from '@/lib/types'
 
 const searchSchema = z.object({
   showWelcome: z.string().optional(),
@@ -46,17 +46,17 @@ const searchSchema = z.object({
   setAnimalLocation: z.string().optional(),
 })
 
-type DrawEntityType = 'paddock' | 'section' | 'noGrazeZone' | 'waterPoint' | 'waterPolygon'
+type DrawEntityType = 'pasture' | 'paddock' | 'noGrazeZone' | 'waterPoint' | 'waterPolygon'
 
 // Simplified edit drawer state using typed feature IDs
 interface EditDrawerState {
   open: boolean
-  // Typed feature ID in format "entityType:entityId" (e.g., "paddock:abc123")
+  // Typed feature ID in format "entityType:entityId" (e.g., "pasture:abc123")
   featureId: string | null
   // Optional geometry for newly created entities
   geometry?: Feature<Polygon>
-  // Parent paddock ID for sections (needed for plan sections not in geometry context)
-  paddockId?: string
+  // Parent pasture ID for paddocks (needed for plan paddocks not in geometry context)
+  pastureId?: string
 }
 
 function GISRoute() {
@@ -68,9 +68,9 @@ function GISRoute() {
   const hasFarmBoundary = activeFarm?.geometry != null
   const { plan } = useTodayPlan(activeFarmId || '')
   const {
+    getPastureById,
     getPaddockById,
-    getSectionById,
-    addPaddock,
+    addPasture,
     saveChanges,
     pendingChanges,
     getNoGrazeZoneById,
@@ -84,9 +84,9 @@ function GISRoute() {
   const mapRef = useRef<FarmMapHandle>(null)
   const [mapInstance, setMapInstance] = useState<ReturnType<FarmMapHandle['getMap']>>(null)
 
-  // Track when we need to save after creating a paddock during onboarding
+  // Track when we need to save after creating a pasture during onboarding
   const [pendingOnboardingSave, setPendingOnboardingSave] = useState<{
-    paddockId: string
+    pastureId: string
     geometry: Feature<Polygon>
   } | null>(null)
 
@@ -122,9 +122,9 @@ function GISRoute() {
     featureId: null,
   })
   // Drawing entity type - for creating NEW entities via draw mode
-  const [drawEntityType, setDrawEntityType] = useState<DrawEntityType>('paddock')
-  // Track when user has explicitly entered edit mode for a section
-  const [sectionEditModeActive, setSectionEditModeActive] = useState(false)
+  const [drawEntityType, setDrawEntityType] = useState<DrawEntityType>('pasture')
+  // Track when user has explicitly entered edit mode for a paddock
+  const [paddockEditModeActive, setPaddockEditModeActive] = useState(false)
 
   // Derived state from the typed feature ID
   const parsedFeatureId = useMemo(() => {
@@ -132,11 +132,11 @@ function GISRoute() {
     return parseTypedFeatureId(editDrawerState.featureId)
   }, [editDrawerState.featureId])
 
-  const selectedEntityType = parsedFeatureId?.entityType as 'paddock' | 'section' | undefined
+  const selectedEntityType = parsedFeatureId?.entityType as 'pasture' | 'paddock' | undefined
   const selectedEntityId = parsedFeatureId?.entityId
 
-  // Track whether we're actively editing a section (user clicked "Edit Section" button)
-  const isEditingSection = selectedEntityType === 'section' && sectionEditModeActive
+  // Track whether we're actively editing a paddock (user clicked "Edit Paddock" button)
+  const isEditingPaddock = selectedEntityType === 'paddock' && paddockEditModeActive
 
   // Track when we're intentionally completing the boundary edit (to prevent re-triggering)
   const boundaryCompleteRef = useRef(false)
@@ -157,34 +157,34 @@ function GISRoute() {
   // Track if we've already processed the onboarding boundary save
   const onboardingProcessedRef = useRef(false)
 
-  // Effect to save paddock after it's been added during onboarding
+  // Effect to save pasture after it's been added during onboarding
   // This ensures saveChanges has access to the updated pendingChanges
   useEffect(() => {
     if (!pendingOnboardingSave) return
 
-    const { paddockId, geometry } = pendingOnboardingSave
+    const { pastureId, geometry } = pendingOnboardingSave
 
     const doSave = async () => {
-      console.log('[Onboarding Save Effect] Saving paddock:', paddockId)
+      console.log('[Onboarding Save Effect] Saving pasture:', pastureId)
       try {
         await saveChanges()
         console.log('[Onboarding Save Effect] Save completed successfully')
 
-        // Focus on the new paddock
+        // Focus on the new pasture
         mapRef.current?.focusOnGeometry(geometry, 100)
 
-        // Keep the daily plan closed during paddock editing step
+        // Keep the daily plan closed during pasture editing step
         setBriefOpen(false)
 
         toast.success('Farm boundary saved!', {
-          description: 'Now position your paddock on the map.',
+          description: 'Now position your pasture on the map.',
         })
 
-        // Navigate to paddock editing step
+        // Navigate to pasture editing step
         navigate({ to: '/app', search: { editPaddock: 'true' } })
       } catch (err) {
-        console.error('[Onboarding Save Effect] Error saving paddock:', err)
-        toast.error('Failed to save paddock')
+        console.error('[Onboarding Save Effect] Error saving pasture:', err)
+        toast.error('Failed to save pasture')
       } finally {
         setPendingOnboardingSave(null)
       }
@@ -204,7 +204,7 @@ function GISRoute() {
   const handleBoundarySaved = useCallback(async (_geometry: Feature<Polygon>) => {
     console.log('[handleBoundarySaved] Called, onboarded:', search.onboarded, 'processed:', onboardingProcessedRef.current)
 
-    // If this is post-onboarding, create a centered paddock
+    // If this is post-onboarding, create a centered pasture
     if (search.onboarded === 'true' && !onboardingProcessedRef.current) {
       onboardingProcessedRef.current = true
 
@@ -212,11 +212,11 @@ function GISRoute() {
       console.log('[handleBoundarySaved] Map instance:', !!map)
       if (!map) {
         console.error('[handleBoundarySaved] No map instance available!')
-        toast.error('Could not create paddock - map not ready')
+        toast.error('Could not create pasture - map not ready')
         return
       }
 
-      // Create a 100px × 100px paddock centered on screen
+      // Create a 100px × 100px pasture centered on screen
       const container = map.getContainer()
       const centerX = container.clientWidth / 2
       const centerY = container.clientHeight / 2
@@ -238,7 +238,7 @@ function GISRoute() {
         bottomRight: { lng: bottomRight.lng, lat: bottomRight.lat }
       })
 
-      const paddockGeometry: Feature<Polygon> = {
+      const pastureGeometry: Feature<Polygon> = {
         type: 'Feature',
         properties: {},
         geometry: {
@@ -253,31 +253,31 @@ function GISRoute() {
         },
       }
 
-      console.log('[handleBoundarySaved] Paddock geometry created:', JSON.stringify(paddockGeometry.geometry.coordinates))
+      console.log('[handleBoundarySaved] Pasture geometry created:', JSON.stringify(pastureGeometry.geometry.coordinates))
 
       try {
-        const paddockId = addPaddock(paddockGeometry, {
-          name: 'Main Paddock',
+        const pastureId = addPasture(pastureGeometry, {
+          name: 'Main Pasture',
           status: 'ready',
           ndvi: 0.45,
           restDays: 14,
           waterAccess: 'None',
         })
 
-        console.log('[handleBoundarySaved] Created paddock with ID:', paddockId)
+        console.log('[handleBoundarySaved] Created pasture with ID:', pastureId)
 
         // Trigger save via effect - this ensures saveChanges has updated pendingChanges
-        setPendingOnboardingSave({ paddockId, geometry: paddockGeometry })
+        setPendingOnboardingSave({ pastureId, geometry: pastureGeometry })
       } catch (err) {
-        console.error('[handleBoundarySaved] Error creating paddock:', err)
-        toast.error('Failed to create paddock')
+        console.error('[handleBoundarySaved] Error creating pasture:', err)
+        toast.error('Failed to create pasture')
       }
     } else {
       // For non-onboarding boundary edits, show the satellite refresh dialog
       console.log('[handleBoundarySaved] Opening satellite refresh dialog')
       setBoundarySavedDialogOpen(true)
     }
-  }, [search.onboarded, addPaddock])
+  }, [search.onboarded, addPasture])
 
   const handleBoundaryCancel = useCallback(() => {
     // Mark that we're intentionally canceling to prevent effect re-triggering
@@ -301,9 +301,9 @@ function GISRoute() {
 
   const [layers, setLayers] = useState({
     ndviHeat: false,
-    paddocks: true,
+    pastures: true,
     labels: true,
-    sections: true,
+    paddocks: true,
   })
 
   // RGB satellite toggle is persisted in settings
@@ -364,16 +364,16 @@ function GISRoute() {
   // Plan modify mode state
   const [planModifyMode, setPlanModifyMode] = useState<{
     active: boolean
-    sectionGeometry: Feature<Polygon>
-    paddockId: string
+    paddockGeometry: Feature<Polygon>
+    pastureId: string
   } | null>(null)
 
-  // Extract today's section from plan
-  const todaysSection = useMemo<Section | null>(() => {
+  // Extract today's paddock from plan
+  const todaysPaddock = useMemo<Paddock | null>(() => {
     if (plan?.sectionGeometry) {
       return {
         id: plan._id,
-        paddockId: plan.primaryPaddockExternalId || '',
+        pastureId: plan.primaryPaddockExternalId || '',
         date: plan.date,
         geometry: {
           type: 'Feature' as const,
@@ -387,52 +387,52 @@ function GISRoute() {
     return null
   }, [plan])
 
-  // Get the paddock for clipping the section
-  const sectionPaddock = useMemo(() => {
-    if (!todaysSection?.paddockId) return undefined
-    return getPaddockById(todaysSection.paddockId)
-  }, [getPaddockById, todaysSection])
+  // Get the pasture for clipping the paddock
+  const paddockPasture = useMemo(() => {
+    if (!todaysPaddock?.pastureId) return undefined
+    return getPastureById(todaysPaddock.pastureId)
+  }, [getPastureById, todaysPaddock])
 
-  // Check if a section has a pending delete
-  const sectionHasPendingDelete = useCallback((sectionId: string) => {
+  // Check if a paddock has a pending delete
+  const paddockHasPendingDelete = useCallback((paddockId: string) => {
     return pendingChanges.some(
-      (c) => !c.synced && c.entityType === 'section' && c.changeType === 'delete' && c.id === sectionId
+      (c) => !c.synced && c.entityType === 'paddock' && c.changeType === 'delete' && c.id === paddockId
     )
   }, [pendingChanges])
 
-  // Clip section to paddock bounds (returns null if section has pending delete)
-  const clippedSectionGeometry = useMemo(() => {
-    if (!todaysSection) return null
-    // Don't render section if it has a pending delete
-    if (sectionHasPendingDelete(todaysSection.id)) return null
-    if (!sectionPaddock) return todaysSection.geometry
-    const clipped = clipPolygonToPolygon(todaysSection.geometry, sectionPaddock.geometry)
-    return clipped ?? sectionPaddock.geometry
-  }, [todaysSection, sectionPaddock, sectionHasPendingDelete])
+  // Clip paddock to pasture bounds (returns null if paddock has pending delete)
+  const clippedPaddockGeometry = useMemo(() => {
+    if (!todaysPaddock) return null
+    // Don't render paddock if it has a pending delete
+    if (paddockHasPendingDelete(todaysPaddock.id)) return null
+    if (!paddockPasture) return todaysPaddock.geometry
+    const clipped = clipPolygonToPolygon(todaysPaddock.geometry, paddockPasture.geometry)
+    return clipped ?? paddockPasture.geometry
+  }, [todaysPaddock, paddockPasture, paddockHasPendingDelete])
 
   const toggleLayer = (layer: keyof typeof layers) => {
     setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }))
   }
 
   const handleEditRequest = useCallback((request: {
-    entityType: 'paddock' | 'section' | 'noGrazeZone' | 'waterPolygon'
+    entityType: 'pasture' | 'paddock' | 'noGrazeZone' | 'waterPolygon'
+    pastureId?: string
     paddockId?: string
-    sectionId?: string
     noGrazeZoneId?: string
     waterSourceId?: string
     geometry?: Feature<Polygon>
   }) => {
     console.log('[handleEditRequest]', request)
 
-    // If creating a new paddock with geometry (double-click on empty space)
-    if (request.entityType === 'paddock' && request.geometry && !request.paddockId) {
-      const newId = addPaddock(request.geometry)
+    // If creating a new pasture with geometry (double-click on empty space)
+    if (request.entityType === 'pasture' && request.geometry && !request.pastureId) {
+      const newId = addPasture(request.geometry)
       setEditDrawerState({
         open: true,
-        featureId: createTypedFeatureId('paddock', newId),
+        featureId: createTypedFeatureId('pasture', newId),
         geometry: request.geometry,
       })
-      setDrawEntityType('paddock')
+      setDrawEntityType('pasture')
       return
     }
 
@@ -458,37 +458,37 @@ function GISRoute() {
       return
     }
 
-    // Opening existing paddock or section - use typed feature ID
-    if (request.entityType === 'paddock' && request.paddockId) {
+    // Opening existing pasture or paddock - use typed feature ID
+    if (request.entityType === 'pasture' && request.pastureId) {
+      setEditDrawerState({
+        open: true,
+        featureId: createTypedFeatureId('pasture', request.pastureId),
+        geometry: request.geometry,
+      })
+      setDrawEntityType('pasture')
+    } else if (request.entityType === 'paddock' && request.paddockId) {
       setEditDrawerState({
         open: true,
         featureId: createTypedFeatureId('paddock', request.paddockId),
         geometry: request.geometry,
+        pastureId: request.pastureId,
       })
       setDrawEntityType('paddock')
-    } else if (request.entityType === 'section' && request.sectionId) {
-      setEditDrawerState({
-        open: true,
-        featureId: createTypedFeatureId('section', request.sectionId),
-        geometry: request.geometry,
-        paddockId: request.paddockId,
-      })
-      setDrawEntityType('section')
     }
-  }, [addPaddock, getNoGrazeZoneById, getWaterSourceById])
+  }, [addPasture, getNoGrazeZoneById, getWaterSourceById])
 
   const closeEditDrawer = useCallback(() => {
     setEditDrawerState({
       open: false,
       featureId: null,
     })
-    setSectionEditModeActive(false)
+    setPaddockEditModeActive(false)
   }, [])
 
-  // Handle entering edit mode for a section (from the "Update Section" button)
-  const handleEnterSectionEditMode = useCallback(() => {
-    setSectionEditModeActive(true)
-    setDrawEntityType('section')
+  // Handle entering edit mode for a paddock (from the "Update Paddock" button)
+  const handleEnterPaddockEditMode = useCallback(() => {
+    setPaddockEditModeActive(true)
+    setDrawEntityType('paddock')
   }, [])
 
   const handleNoGrazeZoneClick = useCallback((zoneId: string) => {
@@ -517,8 +517,8 @@ function GISRoute() {
     setSelectedWaterSource(null)
   }, [deleteWaterSource])
 
-  const handleAddPaddock = useCallback(() => {
-    setDrawEntityType('paddock')
+  const handleAddPasture = useCallback(() => {
+    setDrawEntityType('pasture')
     // Start drawing polygon after a short delay to ensure state is updated
     setTimeout(() => {
       mapRef.current?.setDrawMode('draw_polygon')
@@ -605,7 +605,7 @@ function GISRoute() {
     }
   }, [dragState])
 
-  const handleZoomToSection = useCallback((geometry: Geometry) => {
+  const handleZoomToPaddock = useCallback((geometry: Geometry) => {
     if (geometry.type === 'Polygon') {
       const feature: Feature<Polygon> = {
         type: 'Feature',
@@ -617,18 +617,18 @@ function GISRoute() {
   }, [])
 
   // Plan modify mode callbacks
-  const handleEnterModifyMode = useCallback((geometry: Geometry, paddockId: string) => {
-    // Zoom to section
-    handleZoomToSection(geometry)
+  const handleEnterModifyMode = useCallback((geometry: Geometry, pastureId: string) => {
+    // Zoom to paddock
+    handleZoomToPaddock(geometry)
     // Enable modify mode
     if (geometry.type === 'Polygon') {
       setPlanModifyMode({
         active: true,
-        sectionGeometry: { type: 'Feature', properties: {}, geometry } as Feature<Polygon>,
-        paddockId,
+        paddockGeometry: { type: 'Feature', properties: {}, geometry } as Feature<Polygon>,
+        pastureId,
       })
     }
-  }, [handleZoomToSection])
+  }, [handleZoomToPaddock])
 
   const handleSaveModification = useCallback(async (_feedback: string) => {
     // Submit feedback via existing mechanism (future: integrate with submitFeedback)
@@ -639,23 +639,23 @@ function GISRoute() {
     setPlanModifyMode(null)
   }, [])
 
-  // Get the selected paddock for the edit drawer
-  const selectedPaddock: Paddock | undefined = useMemo(() => {
-    if (selectedEntityType === 'paddock' && selectedEntityId) {
-      return getPaddockById(selectedEntityId)
+  // Get the selected pasture for the edit drawer
+  const selectedPasture: Pasture | undefined = useMemo(() => {
+    if (selectedEntityType === 'pasture' && selectedEntityId) {
+      return getPastureById(selectedEntityId)
     }
     return undefined
-  }, [selectedEntityType, selectedEntityId, getPaddockById])
+  }, [selectedEntityType, selectedEntityId, getPastureById])
 
-  // Get the parent paddock ID for sections
-  // Falls back to editDrawerState.paddockId for plan sections not in geometry context
-  const parentPaddockIdForSection = useMemo(() => {
-    if (selectedEntityType === 'section' && selectedEntityId) {
-      const section = getSectionById(selectedEntityId)
-      return section?.paddockId ?? editDrawerState.paddockId
+  // Get the parent pasture ID for paddocks
+  // Falls back to editDrawerState.pastureId for plan paddocks not in geometry context
+  const parentPastureIdForPaddock = useMemo(() => {
+    if (selectedEntityType === 'paddock' && selectedEntityId) {
+      const paddock = getPaddockById(selectedEntityId)
+      return paddock?.pastureId ?? editDrawerState.pastureId
     }
     return undefined
-  }, [selectedEntityType, selectedEntityId, getSectionById, editDrawerState.paddockId])
+  }, [selectedEntityType, selectedEntityId, getPaddockById, editDrawerState.pastureId])
 
   if (isLoading) {
     return (
@@ -685,30 +685,30 @@ function GISRoute() {
         onNoGrazeZoneClick={search.setAnimalLocation !== 'true' ? handleNoGrazeZoneClick : undefined}
         onWaterSourceClick={search.setAnimalLocation !== 'true' ? handleWaterSourceClick : undefined}
         showNdviHeat={layers.ndviHeat}
-        showPaddocks={layers.paddocks}
+        showPastures={layers.pastures}
         showLabels={layers.labels}
-        showSections={layers.sections}
+        showPaddocks={layers.paddocks}
         showRGBSatellite={showRGBSatellite}
         editable={search.setAnimalLocation !== 'true'}
         editMode={search.setAnimalLocation !== 'true'}
         entityType={drawEntityType}
-        parentPaddockId={parentPaddockIdForSection}
-        initialSectionFeature={
-          isEditingSection && editDrawerState.geometry && selectedEntityId && !sectionHasPendingDelete(selectedEntityId)
+        parentPastureId={parentPastureIdForPaddock}
+        initialPaddockFeature={
+          isEditingPaddock && editDrawerState.geometry && selectedEntityId && !paddockHasPendingDelete(selectedEntityId)
             ? editDrawerState.geometry
-            : clippedSectionGeometry ?? undefined
+            : clippedPaddockGeometry ?? undefined
         }
-        initialSectionId={
-          isEditingSection && selectedEntityId && !sectionHasPendingDelete(selectedEntityId)
+        initialPaddockId={
+          isEditingPaddock && selectedEntityId && !paddockHasPendingDelete(selectedEntityId)
             ? selectedEntityId
-            : (todaysSection && !sectionHasPendingDelete(todaysSection.id) ? todaysSection.id : undefined)
+            : (todaysPaddock && !paddockHasPendingDelete(todaysPaddock.id) ? todaysPaddock.id : undefined)
         }
-        initialPaddockId={selectedEntityType === 'paddock' ? selectedEntityId : undefined}
+        initialPastureId={selectedEntityType === 'pasture' ? selectedEntityId : undefined}
         showToolbar={false}
-        selectedSectionId={
+        selectedPaddockId={
           editDrawerState.open &&
-          selectedEntityType === 'section' &&
-          !isEditingSection
+          selectedEntityType === 'paddock' &&
+          !isEditingPaddock
             ? selectedEntityId
             : undefined
         }
@@ -731,7 +731,7 @@ function GISRoute() {
         />
       )}
 
-      {/* Paddock Position Step - shown during onboarding after boundary is set */}
+      {/* Pasture Position Step - shown during onboarding after boundary is set */}
       {search.editPaddock === 'true' && (
         <PaddockPositionStep
           onComplete={() => {
@@ -743,7 +743,7 @@ function GISRoute() {
         />
       )}
 
-      {/* Animal Location Step - shown during onboarding after paddocks exist */}
+      {/* Animal Location Step - shown during onboarding after pastures exist */}
       {search.setAnimalLocation === 'true' && activeFarmId && (
         <AnimalLocationStep
           farmExternalId={activeFarmId}
@@ -860,7 +860,7 @@ function GISRoute() {
 
       {/* Add menu - top right */}
       <MapAddMenu
-        onAddPaddock={handleAddPaddock}
+        onAddPasture={handleAddPasture}
         onAddNoGrazeZone={handleAddNoGrazeZone}
         onAddWaterSource={handleAddWaterSource}
         onDragStart={handleDragStart}
@@ -870,7 +870,7 @@ function GISRoute() {
       {planModifyMode?.active && (
         <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-20">
           <Button
-            onClick={() => handleSaveModification('Section adjusted')}
+            onClick={() => handleSaveModification('Paddock adjusted')}
             className="shadow-lg gap-2"
           >
             <Save className="h-4 w-4" />
@@ -886,15 +886,15 @@ function GISRoute() {
         title="Daily Plan"
         subtitle={getFormattedDate()}
         headerActions={
-          todaysSection && !sectionHasPendingDelete(todaysSection.id) && (
+          todaysPaddock && !paddockHasPendingDelete(todaysPaddock.id) && (
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handleZoomToSection(todaysSection.geometry.geometry)}
+              onClick={() => handleZoomToPaddock(todaysPaddock.geometry.geometry)}
               className="gap-1 h-5 text-[10px] px-1.5"
             >
               <Focus className="h-3 w-3" />
-              <span className="hidden sm:inline">View Section</span>
+              <span className="hidden sm:inline">View Paddock</span>
             </Button>
           )
         }
@@ -909,7 +909,7 @@ function GISRoute() {
           farmExternalId={activeFarmId}
           compact
           onClose={() => setBriefOpen(false)}
-          onZoomToSection={handleZoomToSection}
+          onZoomToPaddock={handleZoomToPaddock}
           onEnterModifyMode={handleEnterModifyMode}
           modifyModeActive={planModifyMode?.active ?? false}
           onSaveModification={handleSaveModification}
@@ -927,18 +927,18 @@ function GISRoute() {
         />
       </div>
 
-      {/* Paddock Edit Modal */}
-      {selectedEntityType === 'paddock' && selectedPaddock && (
-        <PaddockEditDrawer
-          paddock={selectedPaddock}
+      {/* Pasture Edit Modal */}
+      {selectedEntityType === 'pasture' && selectedPasture && (
+        <PastureEditDrawer
+          pasture={selectedPasture}
           open={editDrawerState.open}
           onClose={closeEditDrawer}
         />
       )}
 
-      {/* Section Edit Drawer - right side */}
+      {/* Paddock Edit Drawer - right side */}
       <Drawer
-        open={editDrawerState.open && selectedEntityType === 'section'}
+        open={editDrawerState.open && selectedEntityType === 'paddock'}
         onOpenChange={(open) => {
           if (!open) closeEditDrawer()
         }}
@@ -951,15 +951,15 @@ function GISRoute() {
           width={360}
           showCloseButton={false}
           showOverlay={false}
-          ariaLabel="Grazing Section"
+          ariaLabel="Grazing Paddock"
         >
-          {selectedEntityType === 'section' && selectedEntityId && editDrawerState.geometry ? (
-            <SectionEditDrawer
-              sectionId={selectedEntityId}
-              paddockId={parentPaddockIdForSection || ''}
+          {selectedEntityType === 'paddock' && selectedEntityId && editDrawerState.geometry ? (
+            <PaddockEditDrawer
+              paddockId={selectedEntityId}
+              pastureId={parentPastureIdForPaddock || ''}
               geometry={editDrawerState.geometry}
-              isEditMode={isEditingSection}
-              onEnterEditMode={handleEnterSectionEditMode}
+              isEditMode={isEditingPaddock}
+              onEnterEditMode={handleEnterPaddockEditMode}
               onClose={closeEditDrawer}
             />
           ) : null}

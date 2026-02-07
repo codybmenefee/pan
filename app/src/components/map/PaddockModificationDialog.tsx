@@ -28,7 +28,7 @@ const QUICK_REASONS = [
   'Other',
 ] as const
 
-interface SectionModificationDialogProps {
+interface PaddockModificationDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   planId: string
@@ -46,7 +46,7 @@ interface SectionModificationDialogProps {
   userId?: string
 }
 
-export function SectionModificationDialog({
+export function PaddockModificationDialog({
   open,
   onOpenChange,
   planId,
@@ -56,13 +56,13 @@ export function SectionModificationDialog({
   modifiedGeometry,
   onComplete,
   userId,
-}: SectionModificationDialogProps) {
+}: PaddockModificationDialogProps) {
   const [selectedReasons, setSelectedReasons] = useState<string[]>([])
   const [rationale, setRationale] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const { format } = useAreaUnit()
-  const recordModification = useMutation(api.intelligence.recordSectionModification)
+  const recordModification = useMutation(api.intelligence.recordPaddockModification)
 
   const areaChange = modifiedAreaHectares - originalAreaHectares
   const areaChangePercent = originalAreaHectares > 0
@@ -142,7 +142,7 @@ export function SectionModificationDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md" showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle>Section Modified</DialogTitle>
+          <DialogTitle>Paddock Modified</DialogTitle>
           <DialogDescription>
             Help improve future AI suggestions by sharing why you changed the grazing area.
           </DialogDescription>

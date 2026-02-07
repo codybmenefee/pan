@@ -16,7 +16,7 @@ export function parseTypedFeatureId(typedId: string): { entityType: EntityType; 
   if (colonIndex === -1) return null
   const entityType = typedId.slice(0, colonIndex) as EntityType
   const entityId = typedId.slice(colonIndex + 1)
-  if (!['paddock', 'section', 'noGrazeZone', 'waterPoint', 'waterPolygon'].includes(entityType)) {
+  if (!['pasture', 'paddock', 'noGrazeZone', 'waterPoint', 'waterPolygon'].includes(entityType)) {
     return null
   }
   return { entityType, entityId }
@@ -40,8 +40,8 @@ export interface UseMapDrawOptions {
   onFeatureDeleted?: (entityType: EntityType, entityId: string) => void
   // Drawing mode entity type (for creating new entities)
   drawingEntityType?: EntityType
-  // Parent paddock ID (for creating sections)
-  parentPaddockId?: string
+  // Parent pasture ID (for creating paddocks)
+  parentPastureId?: string
 }
 
 export interface UseMapDrawReturn {
@@ -154,7 +154,7 @@ export function useMapDraw({
   onFeatureUpdated,
   onFeatureDeleted,
   drawingEntityType,
-  parentPaddockId,
+  parentPastureId,
 }: UseMapDrawOptions): UseMapDrawReturn {
   const drawRef = useRef<MapboxDraw | null>(null)
   const [draw, setDraw] = useState<MapboxDraw | null>(null)
@@ -168,20 +168,20 @@ export function useMapDraw({
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
 
   const {
+    addPasture,
+    updatePasture,
+    deletePasture,
     addPaddock,
     updatePaddock,
     deletePaddock,
-    addSection,
-    updateSection,
-    deleteSection,
     addNoGrazeZone,
     updateNoGrazeZone,
     deleteNoGrazeZone,
     addWaterSource,
     updateWaterSource,
     deleteWaterSource,
-    getPaddockById,
-    getSectionsByPaddockId,
+    getPastureById,
+    getPaddocksByPastureId,
   } = useGeometry()
 
   // Initialize MapboxDraw
@@ -236,10 +236,10 @@ export function useMapDraw({
 
       let newId: string
 
-      if (entityType === 'paddock' && feature.geometry.type === 'Polygon') {
-        newId = addPaddock(feature as Feature<Polygon>)
-      } else if (entityType === 'section' && parentPaddockId && feature.geometry.type === 'Polygon') {
-        newId = addSection(parentPaddockId, feature as Feature<Polygon>)
+      if (entityType === 'pasture' && feature.geometry.type === 'Polygon') {
+        newId = addPasture(feature as Feature<Polygon>)
+      } else if (entityType === 'paddock' && parentPastureId && feature.geometry.type === 'Polygon') {
+        newId = addPaddock(parentPastureId, feature as Feature<Polygon>)
       } else if (entityType === 'noGrazeZone' && feature.geometry.type === 'Polygon') {
         newId = addNoGrazeZone(feature as Feature<Polygon>)
       } else if (entityType === 'waterPoint' && feature.geometry.type === 'Point') {
@@ -278,35 +278,35 @@ export function useMapDraw({
 
         const { entityType, entityId } = parsed
 
-        if (entityType === 'paddock' && feature.geometry.type === 'Polygon') {
-          const previousPaddock = getPaddockById(entityId)
+        if (entityType === 'pasture' && feature.geometry.type === 'Polygon') {
+          const previousPasture = getPastureById(entityId)
           const nextGeometry = feature as Feature<Polygon>
-          updatePaddock(entityId, feature as Feature<Polygon>)
-          if (previousPaddock) {
-            const previousGeometry = previousPaddock.geometry
+          updatePasture(entityId, feature as Feature<Polygon>)
+          if (previousPasture) {
+            const previousGeometry = previousPasture.geometry
             const translation = getTranslationDelta(previousGeometry, nextGeometry)
             const shouldTranslate = e.action === 'move' || (e.action !== 'change_coordinates' && translation)
 
             if (shouldTranslate && translation) {
-              const sections = getSectionsByPaddockId(entityId)
-              sections.forEach((section) => {
-                const moved = translatePolygon(section.geometry, translation.deltaLng, translation.deltaLat)
-                updateSection(section.id, moved)
+              const paddocks = getPaddocksByPastureId(entityId)
+              paddocks.forEach((paddock) => {
+                const moved = translatePolygon(paddock.geometry, translation.deltaLng, translation.deltaLat)
+                updatePaddock(paddock.id, moved)
               })
             } else {
-              const sections = getSectionsByPaddockId(entityId)
-              sections.forEach((section) => {
-                const clipped = clipPolygonToPolygon(section.geometry, nextGeometry)
+              const paddocks = getPaddocksByPastureId(entityId)
+              paddocks.forEach((paddock) => {
+                const clipped = clipPolygonToPolygon(paddock.geometry, nextGeometry)
                 if (clipped) {
-                  updateSection(section.id, clipped)
+                  updatePaddock(paddock.id, clipped)
                 } else {
-                  deleteSection(section.id)
+                  deletePaddock(paddock.id)
                 }
               })
             }
           }
-        } else if (entityType === 'section' && feature.geometry.type === 'Polygon') {
-          updateSection(entityId, feature as Feature<Polygon>)
+        } else if (entityType === 'paddock' && feature.geometry.type === 'Polygon') {
+          updatePaddock(entityId, feature as Feature<Polygon>)
         } else if (entityType === 'noGrazeZone' && feature.geometry.type === 'Polygon') {
           console.log('[useMapDraw] handleUpdate - noGrazeZone:', { entityId, hasPolygonGeometry: feature.geometry.type === 'Polygon' })
           updateNoGrazeZone(entityId, feature as Feature<Polygon>)
@@ -337,10 +337,10 @@ export function useMapDraw({
         const { entityType, entityId } = parsed
         console.log('[useMapDraw] Deleting feature:', { typedId, entityType, entityId })
 
-        if (entityType === 'paddock') {
+        if (entityType === 'pasture') {
+          deletePasture(entityId)
+        } else if (entityType === 'paddock') {
           deletePaddock(entityId)
-        } else if (entityType === 'section') {
-          deleteSection(entityId)
         } else if (entityType === 'noGrazeZone') {
           console.log('[useMapDraw] Calling deleteNoGrazeZone:', entityId)
           deleteNoGrazeZone(entityId)
@@ -401,21 +401,21 @@ export function useMapDraw({
   }, [
     map,
     drawingEntityType,
-    parentPaddockId,
+    parentPastureId,
+    addPasture,
+    updatePasture,
+    deletePasture,
     addPaddock,
     updatePaddock,
     deletePaddock,
-    addSection,
-    updateSection,
-    deleteSection,
     addNoGrazeZone,
     updateNoGrazeZone,
     deleteNoGrazeZone,
     addWaterSource,
     updateWaterSource,
     deleteWaterSource,
-    getPaddockById,
-    getSectionsByPaddockId,
+    getPastureById,
+    getPaddocksByPastureId,
     onFeatureCreated,
     onFeatureUpdated,
     onFeatureDeleted,
@@ -492,10 +492,10 @@ export function useMapDraw({
         const { entityType, entityId } = parsed
         console.log('[useMapDraw] Manually deleting:', { typedId, entityType, entityId })
 
-        if (entityType === 'paddock') {
+        if (entityType === 'pasture') {
+          deletePasture(entityId)
+        } else if (entityType === 'paddock') {
           deletePaddock(entityId)
-        } else if (entityType === 'section') {
-          deleteSection(entityId)
         } else if (entityType === 'noGrazeZone') {
           console.log('[useMapDraw] Calling deleteNoGrazeZone:', entityId)
           deleteNoGrazeZone(entityId)
@@ -506,7 +506,7 @@ export function useMapDraw({
         onFeatureDeleted?.(entityType, entityId)
       })
     }
-  }, [selectedFeatureIds, deletePaddock, deleteSection, deleteNoGrazeZone, deleteWaterSource, onFeatureDeleted])
+  }, [selectedFeatureIds, deletePasture, deletePaddock, deleteNoGrazeZone, deleteWaterSource, onFeatureDeleted])
 
   const selectFeature = useCallback((typedId: string) => {
     if (drawRef.current) {

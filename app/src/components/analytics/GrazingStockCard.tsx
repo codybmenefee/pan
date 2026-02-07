@@ -81,8 +81,8 @@ function TrendIndicator({ trend }: { trend: 'up' | 'down' | 'stable' }) {
 }
 
 export function GrazingStockCard({ data, className }: GrazingStockCardProps) {
-  // Sort paddocks by reserve days (lowest first to highlight concerns)
-  const sortedPaddocks = [...data.byPaddock].sort(
+  // Sort pastures by reserve days (lowest first to highlight concerns)
+  const sortedPastures = [...data.byPasture].sort(
     (a, b) => a.reserveDays - b.reserveDays
   )
 
@@ -97,7 +97,7 @@ export function GrazingStockCard({ data, className }: GrazingStockCardProps) {
               <HelpCircle className="h-3.5 w-3.5 text-muted-foreground/60 hover:text-muted-foreground cursor-help transition-colors" />
             </TooltipTrigger>
             <TooltipContent className="max-w-72" side="top">
-              Your pasture "savings account" - how many days of grazing you have banked across paddocks. Think of it like a financial reserve: higher reserves mean more flexibility during drought or slow growth periods.
+              Your pasture "savings account" - how many days of grazing you have banked across pastures. Think of it like a financial reserve: higher reserves mean more flexibility during drought or slow growth periods.
             </TooltipContent>
           </Tooltip>
         </CardTitle>
@@ -114,7 +114,7 @@ export function GrazingStockCard({ data, className }: GrazingStockCardProps) {
                     <HelpCircle className="h-3 w-3 text-muted-foreground/60 hover:text-muted-foreground cursor-help transition-colors" />
                   </TooltipTrigger>
                   <TooltipContent className="max-w-64" side="top">
-                    Combined grazing days available across all paddocks. This tells you how long you could sustain your herd if no new forage grew - your buffer against weather uncertainty.
+                    Combined grazing days available across all pastures. This tells you how long you could sustain your herd if no new forage grew - your buffer against weather uncertainty.
                   </TooltipContent>
                 </Tooltip>
               </div>
@@ -155,12 +155,12 @@ export function GrazingStockCard({ data, className }: GrazingStockCardProps) {
           </div>
         </div>
 
-        {/* Paddock breakdown table */}
+        {/* Pasture breakdown table */}
         <div className="rounded-lg border">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Paddock</TableHead>
+                <TableHead>Pasture</TableHead>
                 <TableHead className="text-right">
                   <div className="flex items-center justify-end gap-1">
                     Reserve
@@ -169,7 +169,7 @@ export function GrazingStockCard({ data, className }: GrazingStockCardProps) {
                         <HelpCircle className="h-3 w-3 text-muted-foreground/60 hover:text-muted-foreground cursor-help transition-colors" />
                       </TooltipTrigger>
                       <TooltipContent className="max-w-56" side="top">
-                        Estimated grazing days remaining in this paddock based on current biomass and typical consumption rates.
+                        Estimated grazing days remaining in this pasture based on current biomass and typical consumption rates.
                       </TooltipContent>
                     </Tooltip>
                   </div>
@@ -203,20 +203,20 @@ export function GrazingStockCard({ data, className }: GrazingStockCardProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedPaddocks.map((paddock) => (
-                <TableRow key={paddock.paddockId}>
+              {sortedPastures.map((pasture) => (
+                <TableRow key={pasture.pastureId}>
                   <TableCell className="font-medium">
-                    {paddock.paddockName}
+                    {pasture.pastureName}
                   </TableCell>
                   <TableCell className="text-right">
-                    {paddock.reserveDays} days
+                    {pasture.reserveDays} days
                   </TableCell>
                   <TableCell className="text-center">
-                    <StatusBadge status={paddock.status} />
+                    <StatusBadge status={pasture.status} />
                   </TableCell>
                   <TableCell className="text-center">
                     <div className="flex justify-center">
-                      <TrendIndicator trend={paddock.trend} />
+                      <TrendIndicator trend={pasture.trend} />
                     </div>
                   </TableCell>
                 </TableRow>

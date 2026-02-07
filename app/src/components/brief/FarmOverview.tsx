@@ -12,7 +12,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 // HelpCircle removed - was unused
-import type { Paddock, PaddockStatus } from '@/lib/types'
+import type { Pasture, PastureStatus } from '@/lib/types'
 import { useGeometry } from '@/lib/geometry'
 import { useFarm } from '@/lib/convex/useFarm'
 import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
@@ -21,7 +21,7 @@ type StatusGroup = 'ready' | 'recovering' | 'grazed'
 
 const statusGroupConfig: Record<StatusGroup, {
   label: string
-  statuses: PaddockStatus[]
+  statuses: PastureStatus[]
   bgClass: string
   textClass: string
   badgeClass: string
@@ -33,7 +33,7 @@ const statusGroupConfig: Record<StatusGroup, {
     bgClass: 'bg-green-500/10',
     textClass: 'text-green-600 dark:text-green-400',
     badgeClass: 'bg-green-500/20 text-green-700 dark:text-green-300',
-    tooltip: 'Paddocks with sufficient forage recovery (NDVI above threshold) and adequate rest period. These are your options for the next grazing rotation.',
+    tooltip: 'Pastures with sufficient forage recovery (NDVI above threshold) and adequate rest period. These are your options for the next grazing rotation.',
   },
   recovering: {
     label: 'Recovering',
@@ -41,7 +41,7 @@ const statusGroupConfig: Record<StatusGroup, {
     bgClass: 'bg-amber-500/10',
     textClass: 'text-amber-600 dark:text-amber-400',
     badgeClass: 'bg-amber-500/20 text-amber-700 dark:text-amber-300',
-    tooltip: 'Paddocks rebuilding forage after grazing. Plants are restoring root reserves and regrowing leaf area. Avoid grazing until ready.',
+    tooltip: 'Pastures rebuilding forage after grazing. Plants are restoring root reserves and regrowing leaf area. Avoid grazing until ready.',
   },
   grazed: {
     label: 'Recently Grazed',
@@ -49,16 +49,16 @@ const statusGroupConfig: Record<StatusGroup, {
     bgClass: 'bg-red-500/10',
     textClass: 'text-red-600 dark:text-red-400',
     badgeClass: 'bg-red-500/20 text-red-700 dark:text-red-300',
-    tooltip: 'Paddocks grazed within the last week. Need the most recovery time before returning. Re-grazing too soon damages root systems.',
+    tooltip: 'Pastures grazed within the last week. Need the most recovery time before returning. Re-grazing too soon damages root systems.',
   },
 }
 
-function getPaddocksByGroup(group: StatusGroup, paddocks: Paddock[]): Paddock[] {
+function getPasturesByGroup(group: StatusGroup, pastures: Pasture[]): Pasture[] {
   const config = statusGroupConfig[group]
-  return paddocks.filter(p => config.statuses.includes(p.status))
+  return pastures.filter(p => config.statuses.includes(p.status))
 }
 
-function getStatusLabel(status: PaddockStatus): string {
+function getStatusLabel(status: PastureStatus): string {
   switch (status) {
     case 'ready': return 'Ready'
     case 'almost_ready': return 'Almost Ready'
@@ -68,13 +68,13 @@ function getStatusLabel(status: PaddockStatus): string {
 }
 
 export function FarmOverview() {
-  const { paddocks } = useGeometry()
+  const { pastures } = useGeometry()
   const { farm } = useFarm()
   const { format } = useAreaUnit()
-  const counts = paddocks.reduce((acc, paddock) => {
-    acc[paddock.status] = (acc[paddock.status] || 0) + 1
+  const counts = pastures.reduce((acc, pasture) => {
+    acc[pasture.status] = (acc[pasture.status] || 0) + 1
     return acc
-  }, {} as Record<PaddockStatus, number>)
+  }, {} as Record<PastureStatus, number>)
   const [openGroup, setOpenGroup] = useState<StatusGroup | null>(null)
 
   const groupCounts = {
@@ -83,7 +83,7 @@ export function FarmOverview() {
     grazed: counts.grazed || 0,
   }
 
-  const selectedPaddocks = openGroup ? getPaddocksByGroup(openGroup, paddocks) : []
+  const selectedPastures = openGroup ? getPasturesByGroup(openGroup, pastures) : []
   const selectedConfig = openGroup ? statusGroupConfig[openGroup] : null
 
   return (
@@ -99,7 +99,7 @@ export function FarmOverview() {
           </div>
 
           <div className="text-[10px] xl:text-xs text-muted-foreground">
-            {farm?.paddockCount ?? paddocks.length} paddocks / {farm?.totalArea ? format(farm.totalArea) : '—'}
+            {farm?.paddockCount ?? pastures.length} pastures / {farm?.totalArea ? format(farm.totalArea) : '\u2014'}
           </div>
 
           <div className="grid grid-cols-3 gap-1 xl:gap-1.5 text-center">
@@ -136,28 +136,28 @@ export function FarmOverview() {
             <DialogTitle>{selectedConfig?.label}</DialogTitle>
           </DialogHeader>
           <div className="space-y-2 max-h-64 overflow-y-auto">
-            {selectedPaddocks.length === 0 ? (
+            {selectedPastures.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
-                No paddocks in this status
+                No pastures in this status
               </p>
             ) : (
-              selectedPaddocks.map((paddock) => (
+              selectedPastures.map((pasture) => (
                 <div
-                  key={paddock.id}
+                  key={pasture.id}
                   className="flex items-center justify-between p-2 rounded-md bg-muted/50"
                 >
                   <div>
-                    <p className="text-sm font-medium">{paddock.name}</p>
+                    <p className="text-sm font-medium">{pasture.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {format(paddock.area)} / {paddock.restDays} days rest
+                      {format(pasture.area)} / {pasture.restDays} days rest
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <span className={`text-xs px-1.5 py-0.5 rounded ${selectedConfig?.badgeClass}`}>
-                      {getStatusLabel(paddock.status)}
+                      {getStatusLabel(pasture.status)}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      NDVI: {paddock.ndvi.toFixed(2)}
+                      NDVI: {pasture.ndvi.toFixed(2)}
                     </span>
                   </div>
                 </div>

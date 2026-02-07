@@ -1,7 +1,7 @@
-import type { 
-  FarmMetrics, 
-  RotationEntry, 
-  FarmNdviTrend, 
+import type {
+  FarmMetrics,
+  RotationEntry,
+  FarmNdviTrend,
   RecommendationAccuracy,
   MovementMetrics,
   GrazingStock,
@@ -18,96 +18,96 @@ export const farmMetrics: FarmMetrics = {
   healthTrend: 'stable',
 }
 
-// Section-level metrics
-export interface SectionMetrics {
-  totalSections: number
-  avgSectionSize: number
-  avgSectionsPerPaddock: number
-  paddockUtilization: number // % of paddock area typically covered
+// Paddock-level metrics
+export interface PaddockMetrics {
+  totalPaddocks: number
+  avgPaddockSize: number
+  avgPaddocksPerPasture: number
+  pastureUtilization: number // % of pasture area typically covered
 }
 
-export const sectionMetrics: SectionMetrics = {
-  totalSections: 47,
-  avgSectionSize: 3.8,
-  avgSectionsPerPaddock: 4.2,
-  paddockUtilization: 92, // 92% of paddock area covered before transition
+export const paddockMetrics: PaddockMetrics = {
+  totalPaddocks: 47,
+  avgPaddockSize: 3.8,
+  avgPaddocksPerPasture: 4.2,
+  pastureUtilization: 92, // 92% of pasture area covered before transition
 }
 
-// Extended rotation entry with section counts
+// Extended rotation entry with paddock counts
 export interface ExtendedRotationEntry extends RotationEntry {
-  sectionCounts: number[] // Number of sections grazed per week (0 if not grazed)
+  paddockCounts: number[] // Number of paddocks grazed per week (0 if not grazed)
 }
 
-// Weekly rotation data for the last 6 weeks with section granularity
+// Weekly rotation data for the last 6 weeks with paddock granularity
 export const rotationData: ExtendedRotationEntry[] = [
   {
-    paddockId: 'p4',
-    paddockName: 'East Ridge',
+    pastureId: 'p4',
+    pastureName: 'East Ridge',
     weeklyData: [true, false, false, true, false, false],
-    sectionCounts: [4, 0, 0, 3, 0, 0],
+    paddockCounts: [4, 0, 0, 3, 0, 0],
   },
   {
-    paddockId: 'p2',
-    paddockName: 'North Flat',
+    pastureId: 'p2',
+    pastureName: 'North Flat',
     weeklyData: [false, true, false, false, true, false],
-    sectionCounts: [0, 4, 0, 0, 5, 0],
+    paddockCounts: [0, 4, 0, 0, 5, 0],
   },
   {
-    paddockId: 'p5',
-    paddockName: 'Creek Bend',
+    pastureId: 'p5',
+    pastureName: 'Creek Bend',
     weeklyData: [false, false, true, false, false, true],
-    sectionCounts: [0, 0, 4, 0, 0, 4],
+    paddockCounts: [0, 0, 4, 0, 0, 4],
   },
   {
-    paddockId: 'p1',
-    paddockName: 'South Valley',
+    pastureId: 'p1',
+    pastureName: 'South Valley',
     weeklyData: [true, false, false, true, false, false],
-    sectionCounts: [5, 0, 0, 4, 0, 0],
+    paddockCounts: [5, 0, 0, 4, 0, 0],
   },
   {
-    paddockId: 'p6',
-    paddockName: 'West Slope',
+    pastureId: 'p6',
+    pastureName: 'West Slope',
     weeklyData: [false, true, false, false, true, false],
-    sectionCounts: [0, 5, 0, 0, 4, 0],
+    paddockCounts: [0, 5, 0, 0, 4, 0],
   },
   {
-    paddockId: 'p3',
-    paddockName: 'Top Block',
+    pastureId: 'p3',
+    pastureName: 'Top Block',
     weeklyData: [false, false, true, false, false, false],
-    sectionCounts: [0, 0, 3, 0, 0, 0],
+    paddockCounts: [0, 0, 3, 0, 0, 0],
   },
   {
-    paddockId: 'p7',
-    paddockName: 'Creek Side',
+    pastureId: 'p7',
+    pastureName: 'Creek Side',
     weeklyData: [false, false, false, true, false, true],
-    sectionCounts: [0, 0, 0, 6, 0, 5],
+    paddockCounts: [0, 0, 0, 6, 0, 5],
   },
   {
-    paddockId: 'p8',
-    paddockName: 'Lower Paddock',
+    pastureId: 'p8',
+    pastureName: 'Lower Paddock',
     weeklyData: [true, false, true, false, true, false],
-    sectionCounts: [7, 0, 6, 0, 7, 0],
+    paddockCounts: [7, 0, 6, 0, 7, 0],
   },
 ]
 
-// Paddock utilization rates (% of paddock covered before moving)
-export interface PaddockUtilization {
-  paddockId: string
-  paddockName: string
+// Pasture utilization rates (% of pasture covered before moving)
+export interface PastureUtilization {
+  pastureId: string
+  pastureName: string
   avgUtilization: number // percentage
-  avgSections: number
+  avgPaddocks: number
   trend: 'up' | 'down' | 'stable'
 }
 
-export const paddockUtilization: PaddockUtilization[] = [
-  { paddockId: 'p4', paddockName: 'East Ridge', avgUtilization: 95, avgSections: 4, trend: 'stable' },
-  { paddockId: 'p2', paddockName: 'North Flat', avgUtilization: 88, avgSections: 4, trend: 'up' },
-  { paddockId: 'p5', paddockName: 'Creek Bend', avgUtilization: 85, avgSections: 4, trend: 'down' },
-  { paddockId: 'p1', paddockName: 'South Valley', avgUtilization: 92, avgSections: 5, trend: 'stable' },
-  { paddockId: 'p6', paddockName: 'West Slope', avgUtilization: 90, avgSections: 5, trend: 'up' },
-  { paddockId: 'p3', paddockName: 'Top Block', avgUtilization: 78, avgSections: 3, trend: 'down' },
-  { paddockId: 'p7', paddockName: 'Creek Side', avgUtilization: 94, avgSections: 6, trend: 'up' },
-  { paddockId: 'p8', paddockName: 'Lower Paddock', avgUtilization: 96, avgSections: 7, trend: 'stable' },
+export const pastureUtilization: PastureUtilization[] = [
+  { pastureId: 'p4', pastureName: 'East Ridge', avgUtilization: 95, avgPaddocks: 4, trend: 'stable' },
+  { pastureId: 'p2', pastureName: 'North Flat', avgUtilization: 88, avgPaddocks: 4, trend: 'up' },
+  { pastureId: 'p5', pastureName: 'Creek Bend', avgUtilization: 85, avgPaddocks: 4, trend: 'down' },
+  { pastureId: 'p1', pastureName: 'South Valley', avgUtilization: 92, avgPaddocks: 5, trend: 'stable' },
+  { pastureId: 'p6', pastureName: 'West Slope', avgUtilization: 90, avgPaddocks: 5, trend: 'up' },
+  { pastureId: 'p3', pastureName: 'Top Block', avgUtilization: 78, avgPaddocks: 3, trend: 'down' },
+  { pastureId: 'p7', pastureName: 'Creek Side', avgUtilization: 94, avgPaddocks: 6, trend: 'up' },
+  { pastureId: 'p8', pastureName: 'Lower Paddock', avgUtilization: 96, avgPaddocks: 7, trend: 'stable' },
 ]
 
 // Farm-wide NDVI trend over time (monthly averages)
@@ -131,24 +131,24 @@ export const recommendationAccuracy: RecommendationAccuracy = {
 export function getWeekLabels(): string[] {
   const labels: string[] = []
   const now = new Date()
-  
+
   for (let i = 5; i >= 0; i--) {
     const weekStart = new Date(now)
     weekStart.setDate(now.getDate() - (i * 7))
     labels.push(`Wk ${6 - i}`)
   }
-  
+
   return labels
 }
 
-// Movement metrics (section rotations + paddock transitions)
+// Movement metrics (paddock rotations + pasture transitions)
 export const movementMetrics: MovementMetrics = {
   ytd: 47, // Total movements since Jan 1
   ytdTrend: 12, // 12% more than same period last year
   mtd: 8, // Movements this month
   mtdTrend: -5, // 5% fewer than same period last month
-  currentPaddock: 3, // Day 3 in current paddock
-  currentPaddockTotal: 5, // 5 days planned total
+  currentPasture: 3, // Day 3 in current pasture
+  currentPastureTotal: 5, // 5 days planned total
 }
 
 // Grazing Stock (Pasture Savings Account)
@@ -159,10 +159,10 @@ export const grazingStock: GrazingStock = {
   farmTrend: 'stable',
   lastUpdated: '2026-01-16',
   assumptionNote: 'Assumes zero precipitation and growth stall from today',
-  byPaddock: [
+  byPasture: [
     {
-      paddockId: 'p4',
-      paddockName: 'East Ridge',
+      pastureId: 'p4',
+      pastureName: 'East Ridge',
       reserveDays: 12,
       status: 'abundant',
       trend: 'up',
@@ -170,8 +170,8 @@ export const grazingStock: GrazingStock = {
       dailyConsumption: 200, // kg/ha per day
     },
     {
-      paddockId: 'p2',
-      paddockName: 'North Flat',
+      pastureId: 'p2',
+      pastureName: 'North Flat',
       reserveDays: 8,
       status: 'healthy',
       trend: 'stable',
@@ -179,8 +179,8 @@ export const grazingStock: GrazingStock = {
       dailyConsumption: 200,
     },
     {
-      paddockId: 'p5',
-      paddockName: 'Creek Bend',
+      pastureId: 'p5',
+      pastureName: 'Creek Bend',
       reserveDays: 4,
       status: 'low',
       trend: 'down',
@@ -188,8 +188,8 @@ export const grazingStock: GrazingStock = {
       dailyConsumption: 200,
     },
     {
-      paddockId: 'p1',
-      paddockName: 'South Valley',
+      pastureId: 'p1',
+      pastureName: 'South Valley',
       reserveDays: 6,
       status: 'healthy',
       trend: 'stable',
@@ -197,8 +197,8 @@ export const grazingStock: GrazingStock = {
       dailyConsumption: 200,
     },
     {
-      paddockId: 'p6',
-      paddockName: 'West Slope',
+      pastureId: 'p6',
+      pastureName: 'West Slope',
       reserveDays: 3,
       status: 'critical',
       trend: 'down',
@@ -206,8 +206,8 @@ export const grazingStock: GrazingStock = {
       dailyConsumption: 200,
     },
     {
-      paddockId: 'p3',
-      paddockName: 'Top Block',
+      pastureId: 'p3',
+      pastureName: 'Top Block',
       reserveDays: 5,
       status: 'low',
       trend: 'stable',
@@ -215,8 +215,8 @@ export const grazingStock: GrazingStock = {
       dailyConsumption: 200,
     },
     {
-      paddockId: 'p7',
-      paddockName: 'Creek Side',
+      pastureId: 'p7',
+      pastureName: 'Creek Side',
       reserveDays: 2,
       status: 'critical',
       trend: 'down',
@@ -224,8 +224,8 @@ export const grazingStock: GrazingStock = {
       dailyConsumption: 200,
     },
     {
-      paddockId: 'p8',
-      paddockName: 'Lower Paddock',
+      pastureId: 'p8',
+      pastureName: 'Lower Paddock',
       reserveDays: 2,
       status: 'critical',
       trend: 'stable',

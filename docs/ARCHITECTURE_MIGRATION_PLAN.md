@@ -25,11 +25,11 @@ This document defines the target architecture, migration path, and implementatio
 Clerk Organization
     │
     ├── Farm (geographic + operational unit)
-    │   ├── Paddocks
-    │   ├── Zones (sub-paddock areas)
+    │   ├── Pastures
+    │   ├── Zones (sub-pasture areas)
     │   ├── Observations (satellite + farmer)
     │   ├── Plans (daily grazing recommendations)
-    │   └── Settings (farm-wide + per-paddock overrides)
+    │   └── Settings (farm-wide + per-pasture overrides)
     │
     └── Members
         ├── Owner (full access)
@@ -45,17 +45,17 @@ Farmer-provided qualitative data stored for agent context:
 |-------|------|-------------|
 | `farmId` | `id('farms')` | Reference to farm |
 | `authorId` | `id('users')` | Author (from Clerk) |
-| `level` | `'farm' \| 'paddock' \| 'zone'` | Granularity of observation |
-| `targetId` | `string` | ID of target (paddockId, zoneId, or farmId) |
+| `level` | `'farm' \| 'pasture' \| 'zone'` | Granularity of observation |
+| `targetId` | `string` | ID of target (pastureId, zoneId, or farmId) |
 | `content` | `string` | Unstructured text |
 | `tags` | `string[]` | Optional tags for filtering |
 | `createdAt` | `string` | ISO timestamp |
 
-### Sub-Paddock Zones
+### Sub-Pasture Zones
 
 ```typescript
 zones: defineTable({
-  paddockId: v.id('paddocks'),
+  pastureId: v.id('pastures'),
   name: v.string(),
   type: v.union('water', 'shade', 'feeding', 'mineral', 'other'),
   geometry: polygonFeature,
@@ -75,7 +75,7 @@ The agent is invoked via triggers that assemble context differently:
 |---------|--------|-------------------|
 | `morning_brief` | Daily cron (6 AM) | Overnight weather + latest satellite + farmer notes + yesterday's plan status |
 | `observation_refresh` | Manual button | Latest satellite pass + farmer notes |
-| `weather_alert` | External API | Forecast + affected paddocks + recommended actions |
+| `weather_alert` | External API | Forecast + affected pastures + recommended actions |
 | `plan_execution` | User approval | Executed plan status + results + feedback request |
 
 ### Context Assembly Pipeline
@@ -96,7 +96,7 @@ The agent is invoked via triggers that assemble context differently:
 │                         ▼                                    │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │ Farm: Geometry, Settings, Team Members, Demo Status  │   │
-│  │ Paddocks: Geometry, Status, History, Zones           │   │
+│  │ Pastures: Geometry, Status, History, Zones           │   │
 │  │ Observations: Satellite (latest), Farmer (recent 5)  │   │
 │  │ Plans: Today's Plan, History, Feedback               │   │
 │  │ Weather: Current + 7-day forecast                    │   │
@@ -144,8 +144,8 @@ The agent is invoked via triggers that assemble context differently:
 
 | Category | Tools | Purpose |
 |----------|-------|---------|
-| Data fetch | `getFarmGeometry`, `getPaddockStatus`, `getRecentObservations`, `getWeather` | Retrieve farm state |
-| Action | `createPlan`, `updatePaddockSettings`, `requestVirtualFence` | Modify farm state |
+| Data fetch | `getFarmGeometry`, `getPastureStatus`, `getRecentObservations`, `getWeather` | Retrieve farm state |
+| Action | `createPlan`, `updatePastureSettings`, `requestVirtualFence` | Modify farm state |
 | Meta | `getAvailableTools`, `getAgentMemory`, `explainReasoning` | Agent self-awareness |
 
 ### Agent Gateway (Custom Lightweight)
@@ -210,15 +210,15 @@ export async function POST(request: Request) {
 farmSettings: {
   minNDVIThreshold: 0.4,
   minRestPeriodDays: 21,
-  defaultSectionPct: 0.20,
-  // Per-paddock overrides stored in paddock record
+  defaultPaddockPct: 0.20,
+  // Per-pasture overrides stored in pasture record
 }
 
-// Per-paddock overrides
-paddocks: {
+// Per-pasture overrides
+pastures: {
   // ... other fields
-  overrideMinNDVIThreshold: 0.35,  // Override for this paddock
-  overrideMinRestPeriodDays: 28,   // Override for this paddock
+  overrideMinNDVIThreshold: 0.35,  // Override for this pasture
+  overrideMinRestPeriodDays: 28,   // Override for this pasture
 }
 ```
 
@@ -226,7 +226,7 @@ paddocks: {
 
 | Type | Source | Storage |
 |------|--------|---------|
-| Satellite | Sentinel-2, PlanetScope | `observations` table (per-paddock NDVI stats) |
+| Satellite | Sentinel-2, PlanetScope | `observations` table (per-pasture NDVI stats) |
 | Farmer | Manual entry | `farmerObservations` table (unstructured text) |
 
 ---
@@ -254,7 +254,7 @@ paddocks: {
 | File | Change |
 |------|--------|
 | `app/convex/schema.ts` | Add `farmerObservations` table |
-| `app/convex/schema.ts` | Add `zones` table (sub-paddock) |
+| `app/convex/schema.ts` | Add `zones` table (sub-pasture) |
 | `app/convex/schema.ts` | Add settings overrides pattern |
 | `app/convex/schema.ts` | Add `weatherHistory` table |
 
@@ -282,7 +282,7 @@ paddocks: {
 | File | Change |
 |------|--------|
 | `app/convex/seedData.ts` | Pre-seeded farm with sample data |
-| `app/convex/seedData.ts` | Sample farmer observations ("grass looking good in north paddock") |
+| `app/convex/seedData.ts` | Sample farmer observations ("grass looking good in north pasture") |
 | `app/convex/seedData.ts` | Sample weather history |
 | `app/src/routes/demo.tsx` | New: Demo farm exploration UI |
 
@@ -300,13 +300,13 @@ paddocks: {
 - [ ] Agent gateway with auth, rate limiting, Braintrust logging
 - [ ] Morning brief trigger (daily cron)
 - [ ] Demo farm pre-seeded for new users
-- [ ] All existing paddock drawing/editing preserved
+- [ ] All existing pasture drawing/editing preserved
 
 ---
 
 ### Phase 2: Multi-Farm + Zones + Charts (Weeks 5-8)
 
-**Goal:** Team support, sub-paddock zones, time-series analytics
+**Goal:** Team support, sub-pasture zones, time-series analytics
 
 #### 2.1 Multi-Tenancy
 
@@ -331,8 +331,8 @@ paddocks: {
 
 | File | Change |
 |------|--------|
-| `app/src/components/charts/NdviTimeSeries.tsx` | New: Per-paddock NDVI trends |
-| `app/src/components/charts/PaddockStatusChart.tsx` | New: Status distribution |
+| `app/src/components/charts/NdviTimeSeries.tsx` | New: Per-pasture NDVI trends |
+| `app/src/components/charts/PastureStatusChart.tsx` | New: Status distribution |
 | `app/src/components/charts/WeatherChart.tsx` | New: Weather overlay |
 | `app/src/routes/analytics.tsx` | New: Analytics dashboard |
 
@@ -346,8 +346,8 @@ paddocks: {
 
 **Phase 2 Deliverables:**
 - [ ] Organizations (farms) with team members
-- [ ] Sub-paddock zones (water, shade, feeding areas)
-- [ ] NDVI time-series charts per paddock
+- [ ] Sub-pasture zones (water, shade, feeding areas)
+- [ ] NDVI time-series charts per pasture
 - [ ] Observation timeline selector with cloud-free indicators
 - [ ] Demo Farm continues to work
 
@@ -400,9 +400,9 @@ paddocks: {
 
 ---
 
-## Preserved: Paddock Drawing Functionality
+## Preserved: Pasture Drawing Functionality
 
-The existing paddock drawing and editing implementation is **fully preserved** across all phases:
+The existing pasture drawing and editing implementation is **fully preserved** across all phases:
 
 | Feature | Location | Status |
 |---------|----------|--------|
@@ -411,7 +411,7 @@ The existing paddock drawing and editing implementation is **fully preserved** a
 | Multi-Selection | `selectedFeatureIds` array | ✓ Retained |
 | Save/Cancel/Undo | `DrawingToolbar` + Convex mutations | ✓ Retained |
 | Geometry Validation | `clipPolygonToPolygon` | ✓ Retained |
-| Section Rendering | AI-generated grazing sections | ✓ Retained |
+| Paddock Rendering | AI-generated grazing paddocks | ✓ Retained |
 
 ---
 
@@ -463,7 +463,7 @@ app/
     ├── components/
     │   ├── charts/
     │   │   ├── NdviTimeSeries.tsx    # New
-    │   │   ├── PaddockStatusChart.tsx  # New
+    │   │   ├── PastureStatusChart.tsx  # New
     │   │   └── WeatherChart.tsx      # New
     │   ├── map/
     │   │   └── ObservationSelector.tsx  # New
@@ -534,7 +534,7 @@ app/
 - [ ] Agent generates morning brief automatically
 - [ ] All agent runs logged to Braintrust
 - [ ] New users see Demo Farm on first sign-up
-- [ ] No regressions in paddock editing
+- [ ] No regressions in pasture editing
 
 ### Phase 2 Success
 
@@ -560,7 +560,7 @@ app/
 
 | Field | Type | Required? |
 |-------|------|-----------|
-| Level | Radio: Farm / Paddock / Zone | Yes |
+| Level | Radio: Farm / Pasture / Zone | Yes |
 | Target | Dropdown (based on level) | Yes |
 | Content | Textarea | Yes |
 | Tags | Multi-select or freeform | No |
@@ -571,16 +571,16 @@ app/
 SYSTEM: You are a grazing intelligence agent for Hillcrest Station.
 
 FARM DATA:
-- 7 paddocks, 320 hectares total
+- 7 pastures, 320 hectares total
 - Current weather: 22°C, 0.2mm rain overnight
-- NDVI range: 0.32 (Paddock G) to 0.61 (Paddock A)
+- NDVI range: 0.32 (Pasture G) to 0.61 (Pasture A)
 
 FARMER OBSERVATIONS (last 5):
-- "Water trough in Paddock B is leaking, fixed yesterday" - 2024-01-20
-- "Grass looking good in north paddock" - 2024-01-19  [Agent: This refers to Paddock A]
-- "Cattle seem to be favoring the shade zone in Paddock C" - 2024-01-18
-- "Noticed some weeds near the fence line in Paddock E" - 2024-01-17
-- "Lime spread on Paddock D last week" - 2024-01-15
+- "Water trough in Pasture B is leaking, fixed yesterday" - 2024-01-20
+- "Grass looking good in north pasture" - 2024-01-19  [Agent: This refers to Pasture A]
+- "Cattle seem to be favoring the shade zone in Pasture C" - 2024-01-18
+- "Noticed some weeds near the fence line in Pasture E" - 2024-01-17
+- "Lime spread on Pasture D last week" - 2024-01-15
 
 TRIGGER: morning_brief
 

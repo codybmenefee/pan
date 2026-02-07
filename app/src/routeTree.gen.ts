@@ -32,7 +32,7 @@ import { Route as PublicMarketingRouteImport } from './routes/_public/marketing'
 import { Route as PublicInvestorsRouteImport } from './routes/_public/investors'
 import { Route as PublicDocsRouteImport } from './routes/_public/docs'
 import { Route as PublicDocsIndexRouteImport } from './routes/_public/docs/index'
-import { Route as AppPaddocksIdRouteImport } from './routes/app/paddocks/$id'
+import { Route as AppPasturesIdRouteImport } from './routes/app/pastures/$id'
 import { Route as PublicDocsCategoryArticleRouteImport } from './routes/_public/docs/$category.$article'
 
 const SubscribeRoute = SubscribeRouteImport.update({
@@ -149,9 +149,9 @@ const PublicDocsIndexRoute = PublicDocsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PublicDocsRoute,
 } as any)
-const AppPaddocksIdRoute = AppPaddocksIdRouteImport.update({
-  id: '/paddocks/$id',
-  path: '/paddocks/$id',
+const AppPasturesIdRoute = AppPasturesIdRouteImport.update({
+  id: '/pastures/$id',
+  path: '/pastures/$id',
   getParentRoute: () => AppRoute,
 } as any)
 const PublicDocsCategoryArticleRoute =
@@ -183,7 +183,7 @@ export interface FileRoutesByFullPath {
   '/demo/settings': typeof DemoSettingsRoute
   '/app/': typeof AppIndexRoute
   '/demo/': typeof DemoIndexRoute
-  '/app/paddocks/$id': typeof AppPaddocksIdRoute
+  '/app/pastures/$id': typeof AppPasturesIdRoute
   '/docs/': typeof PublicDocsIndexRoute
   '/docs/$category/$article': typeof PublicDocsCategoryArticleRoute
 }
@@ -206,7 +206,7 @@ export interface FileRoutesByTo {
   '/demo/settings': typeof DemoSettingsRoute
   '/app': typeof AppIndexRoute
   '/demo': typeof DemoIndexRoute
-  '/app/paddocks/$id': typeof AppPaddocksIdRoute
+  '/app/pastures/$id': typeof AppPasturesIdRoute
   '/docs': typeof PublicDocsIndexRoute
   '/docs/$category/$article': typeof PublicDocsCategoryArticleRoute
 }
@@ -234,7 +234,7 @@ export interface FileRoutesById {
   '/demo/settings': typeof DemoSettingsRoute
   '/app/': typeof AppIndexRoute
   '/demo/': typeof DemoIndexRoute
-  '/app/paddocks/$id': typeof AppPaddocksIdRoute
+  '/app/pastures/$id': typeof AppPasturesIdRoute
   '/_public/docs/': typeof PublicDocsIndexRoute
   '/_public/docs/$category/$article': typeof PublicDocsCategoryArticleRoute
 }
@@ -262,7 +262,7 @@ export interface FileRouteTypes {
     | '/demo/settings'
     | '/app/'
     | '/demo/'
-    | '/app/paddocks/$id'
+    | '/app/pastures/$id'
     | '/docs/'
     | '/docs/$category/$article'
   fileRoutesByTo: FileRoutesByTo
@@ -285,7 +285,7 @@ export interface FileRouteTypes {
     | '/demo/settings'
     | '/app'
     | '/demo'
-    | '/app/paddocks/$id'
+    | '/app/pastures/$id'
     | '/docs'
     | '/docs/$category/$article'
   id:
@@ -312,7 +312,7 @@ export interface FileRouteTypes {
     | '/demo/settings'
     | '/app/'
     | '/demo/'
-    | '/app/paddocks/$id'
+    | '/app/pastures/$id'
     | '/_public/docs/'
     | '/_public/docs/$category/$article'
   fileRoutesById: FileRoutesById
@@ -489,11 +489,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicDocsIndexRouteImport
       parentRoute: typeof PublicDocsRoute
     }
-    '/app/paddocks/$id': {
-      id: '/app/paddocks/$id'
-      path: '/paddocks/$id'
-      fullPath: '/app/paddocks/$id'
-      preLoaderRoute: typeof AppPaddocksIdRouteImport
+    '/app/pastures/$id': {
+      id: '/app/pastures/$id'
+      path: '/pastures/$id'
+      fullPath: '/app/pastures/$id'
+      preLoaderRoute: typeof AppPasturesIdRouteImport
       parentRoute: typeof AppRoute
     }
     '/_public/docs/$category/$article': {
@@ -547,7 +547,7 @@ interface AppRouteChildren {
   AppSettingsRoute: typeof AppSettingsRoute
   AppUpgradeRoute: typeof AppUpgradeRoute
   AppIndexRoute: typeof AppIndexRoute
-  AppPaddocksIdRoute: typeof AppPaddocksIdRoute
+  AppPasturesIdRoute: typeof AppPasturesIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -558,7 +558,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsRoute: AppSettingsRoute,
   AppUpgradeRoute: AppUpgradeRoute,
   AppIndexRoute: AppIndexRoute,
-  AppPaddocksIdRoute: AppPaddocksIdRoute,
+  AppPasturesIdRoute: AppPasturesIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

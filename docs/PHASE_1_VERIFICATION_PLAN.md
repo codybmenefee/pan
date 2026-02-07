@@ -48,7 +48,7 @@ Before starting verification, ensure:
    - `farmerObservations`
    - `zones`
    - `weatherHistory`
-5. Verify `paddocks` table has new fields:
+5. Verify `pastures` table has new fields:
    - `overrideMinNDVIThreshold` (optional)
    - `overrideMinRestPeriodDays` (optional)
 
@@ -63,8 +63,8 @@ Before starting verification, ensure:
 
 Test queries:
 - `farmerObservations:listByFarm` - should return empty array initially
-- `zones:listByPaddock` - should return empty array initially
-- `paddocks:get` - should show optional override fields as `undefined`
+- `zones:listByPasture` - should return empty array initially
+- `pastures:get` - should show optional override fields as `undefined`
 
 **Expected Result**: Functions execute without errors, return empty arrays or null for optional fields.
 
@@ -105,10 +105,10 @@ Test queries:
 #### 2.3 Test via Frontend (if UI implemented)
 
 1. Open app in browser
-2. Navigate to farm or paddock view
+2. Navigate to farm or pasture view
 3. Look for "Add Observation" button or form
 4. Create observation:
-   - Level: Farm/Paddock/Zone
+   - Level: Farm/Pasture/Zone
    - Content: "Test observation from UI"
    - Tags: ["test"]
 5. Submit form
@@ -123,12 +123,12 @@ Test queries:
 
 #### 3.1 Create Zone via Convex Dashboard
 
-1. Get a paddock ID from your farm
+1. Get a pasture ID from your farm
 2. Run mutation: `zones:create`
 3. Use test data:
 ```json
 {
-  "paddockId": "<paddock-id>",
+  "pastureId": "<pasture-id>",
   "name": "Water Trough #1",
   "type": "water",
   "geometry": {
@@ -146,7 +146,7 @@ Test queries:
 #### 3.2 Query Zones
 
 Test queries:
-- `zones:listByPaddock` with `paddockId`
+- `zones:listByPasture` with `pastureId`
 - `zones:get` with zone ID
 
 **Expected Result**: Queries return created zone with correct geometry.
@@ -302,7 +302,7 @@ Or test Convex function directly:
 
 **Expected Result**: Returns structured context with:
 - Farm geometry and settings
-- Paddocks with status
+- Pastures with status
 - Recent observations (satellite + farmer)
 - Plans history
 
@@ -323,7 +323,7 @@ If `BRAINTRUST_API_KEY` is set:
 
 Test individual tools (if exposed via API):
 - `getFarmGeometry`
-- `getPaddockStatus`
+- `getPastureStatus`
 - `getRecentObservations`
 - `createPlan`
 
@@ -342,10 +342,10 @@ Verify file exists: `app/src/components/observations/FarmerObservationInput.tsx`
 #### 7.2 Test Component Rendering
 
 1. Start frontend: `cd app && npm run dev`
-2. Navigate to farm or paddock view
+2. Navigate to farm or pasture view
 3. Look for observation input component
 4. Verify form fields:
-   - Level selector (Farm/Paddock/Zone)
+   - Level selector (Farm/Pasture/Zone)
    - Target dropdown (populated based on level)
    - Content textarea
    - Tags input
@@ -355,8 +355,8 @@ Verify file exists: `app/src/components/observations/FarmerObservationInput.tsx`
 #### 7.3 Test Observation Creation
 
 1. Fill out form:
-   - Select level: "Paddock"
-   - Select target paddock
+   - Select level: "Pasture"
+   - Select target pasture
    - Enter content: "Test observation from UI"
    - Add tags: ["test", "ui"]
 2. Submit form
@@ -404,7 +404,7 @@ Verify hooks exist and work:
 
 4. **Check Frontend**:
    - Refresh app
-   - Navigate to paddock detail view
+   - Navigate to pasture detail view
    - Verify latest observation data displays
    - Check NDVI values, dates, etc.
 
@@ -427,8 +427,8 @@ Verify hooks exist and work:
 
 #### 9.1 Test Existing Features
 
-- [ ] Farm/paddock map rendering
-- [ ] Paddock detail views
+- [ ] Farm/pasture map rendering
+- [ ] Pasture detail views
 - [ ] Existing agent (`grazingAgentDirect.ts`) still works
 - [ ] Plan approval flows
 - [ ] User authentication
@@ -501,7 +501,7 @@ Phase 1 is verified when:
 ### Observations Not Appearing in Frontend
 
 1. Check Convex queries are correct
-2. Verify React hooks are using correct farm/paddock IDs
+2. Verify React hooks are using correct farm/pasture IDs
 3. Check browser console for errors
 4. Verify Convex deployment URL matches frontend config
 
@@ -516,7 +516,7 @@ Phase 1 is verified when:
 
 After Phase 1 verification:
 
-1. **Phase 2**: Implement intelligence layer (paddock scoring, plan generation)
+1. **Phase 2**: Implement intelligence layer (pasture scoring, plan generation)
 2. **Phase 3**: Enhance agent gateway with full tool execution
 3. **Phase 4**: Add weather history integration
 4. **Phase 5**: Build zones UI for creating/managing zones

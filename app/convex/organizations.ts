@@ -139,14 +139,14 @@ export const deleteFarm = mutation({
       return { deleted: false, reason: 'not_found' }
     }
 
-    // Delete all paddocks
-    const paddocks = await ctx.db
+    // Delete all pastures
+    const pastures = await ctx.db
       .query('paddocks')
       .withIndex('by_farm', (q) => q.eq('farmId', farm._id))
       .collect()
 
-    for (const paddock of paddocks) {
-      await ctx.db.delete(paddock._id)
+    for (const pasture of pastures) {
+      await ctx.db.delete(pasture._id)
     }
 
     // Delete all observations

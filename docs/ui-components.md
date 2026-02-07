@@ -15,7 +15,7 @@ This document catalogs all UI components in the Grazing Intelligence application
 3. [Screens Yet to Build](#screens-yet-to-build)
    - [Settings Screen](#settings-screen)
    - [History View](#history-view)
-   - [Paddock Detail View](#paddock-detail-view)
+   - [Pasture Detail View](#pasture-detail-view)
    - [Analytics Dashboard](#analytics-dashboard)
    - [Onboarding Flow](#onboarding-flow)
    - [Error States](#error-states)
@@ -39,7 +39,7 @@ Collapsible navigation sidebar with farm branding and navigation links.
 |                       |
 |  [ ] Dashboard        |
 |  [ ] Map              |
-|  [ ] Paddocks         |
+|  [ ] Pastures         |
 |  [ ] History          |
 |  [ ] Settings         |
 |                       |
@@ -91,8 +91,8 @@ Main orchestrator component for the daily brief screen.
 |  MORNING BRIEF                           | FARM OVERVIEW  |
 |  +---------------------------------+     | - Clearview    |
 |  | BriefCard                       |     | - 450 ha       |
-|  | - Recommendation                |     | - 8 paddocks   |
-|  | - PaddockMiniMap               |     +----------------+
+|  | - Recommendation                |     | - 8 pastures   |
+|  | - PastureMiniMap               |     +----------------+
 |  | - Confidence                    |     |                |
 |  | - Reasoning                     |     | DATA STATUS    |
 |  | - [Approve] [Modify]           |     | - Sentinel-2   |
@@ -122,8 +122,8 @@ Primary recommendation card with visual movement indicator.
 **Props:**
 | Prop | Type | Description |
 |------|------|-------------|
-| `currentPaddockId` | string | Where livestock currently are |
-| `paddock` | Paddock | Target paddock object |
+| `currentPastureId` | string | Where livestock currently are |
+| `pasture` | Pasture | Target pasture object |
 | `confidence` | number | 0-100 confidence score |
 | `reasoning` | string[] | List of reasons for recommendation |
 | `onApprove` | () => void | Approve button handler |
@@ -131,7 +131,7 @@ Primary recommendation card with visual movement indicator.
 
 ---
 
-#### `PaddockMiniMap.tsx`
+#### `PastureMiniMap.tsx`
 Compact SVG visualization of farm layout with movement indicators.
 
 ```
@@ -149,17 +149,17 @@ Compact SVG visualization of farm layout with movement indicators.
 **Props:**
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `currentPaddockId` | string | - | Paddock where livestock are now |
-| `targetPaddockId` | string | - | Recommended destination paddock |
-| `highlightedPaddockId` | string | - | Optional hover/selected highlight |
+| `currentPastureId` | string | - | Pasture where livestock are now |
+| `targetPastureId` | string | - | Recommended destination pasture |
+| `highlightedPastureId` | string | - | Optional hover/selected highlight |
 | `size` | 'sm' \| 'md' \| 'lg' | 'md' | Component size variant |
-| `showLabels` | boolean | false | Show paddock name labels |
+| `showLabels` | boolean | false | Show pasture name labels |
 | `className` | string | - | Additional CSS classes |
 
 **Features:**
 - Auto-calculates bounding box from GeoJSON
-- Color-coded paddocks by status (ready/almost_ready/recovering/grazed)
-- Animated pulsing dot on target paddock
+- Color-coded pastures by status (ready/almost_ready/recovering/grazed)
+- Animated pulsing dot on target pasture
 - SVG arrow showing movement direction
 - Legend with "Now" and "Move" indicators
 - Dark/light mode aware colors
@@ -182,25 +182,25 @@ Confidence: 87%
 ---
 
 #### `AlternativeCard.tsx`
-Compact card for alternative paddock recommendations.
+Compact card for alternative pasture recommendations.
 
 **Props:**
 | Prop | Type | Description |
 |------|------|-------------|
-| `currentPaddockId` | string | Current livestock location |
-| `paddock` | Paddock | Alternative paddock object |
+| `currentPastureId` | string | Current livestock location |
+| `pasture` | Pasture | Alternative pasture object |
 | `confidence` | number | 0-100 confidence score |
 
 ---
 
 #### `FarmOverview.tsx`
-Sidebar card displaying farm metadata and paddock status summary.
+Sidebar card displaying farm metadata and pasture status summary.
 
 **Props:**
 | Prop | Type | Description |
 |------|------|-------------|
 | `farm` | Farm | Farm object with name, location, area |
-| `paddocks` | Paddock[] | Array of paddocks for status counts |
+| `pastures` | Pasture[] | Array of pastures for status counts |
 
 ---
 
@@ -220,8 +220,8 @@ Full-screen state shown after plan approval with execution instructions.
 +--------------------------------------------------+
 |                                                  |
 |  +-----------------------+  +------------------+ |
-|  | TARGET PADDOCK        |  | MOVEMENT MAP     | |
-|  | East Ridge            |  | [PaddockMiniMap] | |
+|  | TARGET PASTURE        |  | MOVEMENT MAP     | |
+|  | East Ridge            |  | [PastureMiniMap] | |
 |  | - 52 hectares         |  |                  | |
 |  | - NDVI: 0.58          |  |                  | |
 |  | - Ready to graze      |  |                  | |
@@ -239,8 +239,8 @@ Full-screen state shown after plan approval with execution instructions.
 **Props:**
 | Prop | Type | Description |
 |------|------|-------------|
-| `paddock` | Paddock | Approved target paddock |
-| `currentPaddockId` | string | Current livestock location |
+| `pasture` | Pasture | Approved target pasture |
+| `currentPastureId` | string | Current livestock location |
 | `approvedAt` | string | ISO timestamp of approval |
 | `confidence` | number | Plan confidence score |
 | `wasModified` | boolean | Whether plan was modified before approval |
@@ -258,7 +258,7 @@ Modal dialog for capturing feedback when modifying a plan.
 |  What's the issue?                       |
 |  [Weather] [Ground] [Livestock] [Other]  |
 |                                          |
-|  Alternative Paddocks:                   |
+|  Alternative Pastures:                   |
 |  +----------+ +----------+ +----------+  |
 |  | Option 1 | | Option 2 | | Option 3 |  |
 |  +----------+ +----------+ +----------+  |
@@ -278,7 +278,7 @@ Modal dialog for capturing feedback when modifying a plan.
 | `open` | boolean | Modal visibility state |
 | `onClose` | () => void | Close handler |
 | `onConfirm` | (feedback: FeedbackData) => void | Submit handler |
-| `alternatives` | PlanAlternative[] | Alternative paddock options |
+| `alternatives` | PlanAlternative[] | Alternative pasture options |
 
 ---
 
@@ -291,13 +291,13 @@ Main map screen orchestrator.
 
 ```
 +----------------------------------------------------------+
-|  [Satellite] [NDVI Heat] [Paddocks] [Labels]             |
+|  [Satellite] [NDVI Heat] [Pastures] [Labels]             |
 +----------------------------------------------------------+
 |                                                          |
 |                    +------------------+                  |
 |                    |                  |                  |
-|     [ Map with     |   PaddockPanel   |                  |
-|       paddock      |   (when clicked) |                  |
+|     [ Map with     |   PasturePanel   |                  |
+|       pasture      |   (when clicked) |                  |
 |       polygons ]   |                  |                  |
 |                    +------------------+                  |
 |                                                          |
@@ -307,8 +307,8 @@ Main map screen orchestrator.
 **Props:** None
 
 **State:**
-- `selectedPaddockId`: string | null
-- `mapStyle`: 'satellite' | 'ndvi' | 'paddocks' | 'labels'
+- `selectedPastureId`: string | null
+- `mapStyle`: 'satellite' | 'ndvi' | 'pastures' | 'labels'
 
 ---
 
@@ -318,15 +318,15 @@ MapLibre GL JS wrapper component.
 **Props:**
 | Prop | Type | Description |
 |------|------|-------------|
-| `paddocks` | Paddock[] | Paddock polygons to render |
-| `selectedPaddockId` | string \| null | Currently selected paddock |
-| `onPaddockClick` | (id: string) => void | Paddock click handler |
+| `pastures` | Pasture[] | Pasture polygons to render |
+| `selectedPastureId` | string \| null | Currently selected pasture |
+| `onPastureClick` | (id: string) => void | Pasture click handler |
 | `mapStyle` | string | Current map style mode |
 
 ---
 
-#### `PaddockPanel.tsx`
-Slide-in panel for paddock details.
+#### `PasturePanel.tsx`
+Slide-in panel for pasture details.
 
 ```
 +------------------+
@@ -344,7 +344,7 @@ Slide-in panel for paddock details.
 **Props:**
 | Prop | Type | Description |
 |------|------|-------------|
-| `paddock` | Paddock \| null | Selected paddock to display |
+| `pasture` | Pasture \| null | Selected pasture to display |
 | `onClose` | () => void | Close panel handler |
 
 ---
@@ -382,7 +382,7 @@ These are standard shadcn/ui components:
 | Path | Component | Description |
 |------|-----------|-------------|
 | `/` | `MorningBrief` | Daily brief dashboard (home) |
-| `/map` | `MapView` | Full map view with paddock interaction |
+| `/map` | `MapView` | Full map view with pasture interaction |
 
 ---
 
@@ -426,7 +426,7 @@ These are standard shadcn/ui components:
 |                                                          |
 |  DATA MANAGEMENT                                         |
 |  +------------------------------------------------------+|
-|  | [Export Farm Data]  [Import Paddocks]  [Reset]       ||
+|  | [Export Farm Data]  [Import Pastures]  [Reset]       ||
 |  +------------------------------------------------------+|
 |                                                          |
 |                              [Cancel]  [Save Changes]    |
@@ -468,9 +468,9 @@ These are standard shadcn/ui components:
 |  |         West Slope - Approved - 91% confidence       ||
 |  +------------------------------------------------------+|
 |                                                          |
-|  PADDOCK PERFORMANCE                                     |
+|  PASTURE PERFORMANCE                                     |
 |  +------------------------------------------------------+|
-|  | Paddock      | Uses | Avg Rest | Avg NDVI | Trend   ||
+|  | Pasture      | Uses | Avg Rest | Avg NDVI | Trend   ||
 |  |--------------|------|----------|----------|---------|
 |  | East Ridge   |  4   | 26 days  |   0.52   |   ^     ||
 |  | North Flats  |  5   | 21 days  |   0.48   |   -     ||
@@ -484,15 +484,15 @@ These are standard shadcn/ui components:
 **Components needed:**
 - `HistoryTimeline` - Vertical timeline of grazing events
 - `HistoryEventCard` - Individual event with status
-- `PerformanceTable` - Paddock statistics table
+- `PerformanceTable` - Pasture statistics table
 - `DateRangeSelector` - Period filter dropdown
 - `TrendIndicator` - Up/down/stable arrow icons
 
 ---
 
-### Paddock Detail View
+### Pasture Detail View
 
-**Route:** `/paddocks/:id`
+**Route:** `/pastures/:id`
 
 ```
 +----------------------------------------------------------+
@@ -501,7 +501,7 @@ These are standard shadcn/ui components:
 |                                                          |
 |  +---------------------------+  +----------------------+ |
 |  |                           |  | STATUS               | |
-|  |   [ Paddock Map View ]    |  | Ready to graze       | |
+|  |   [ Pasture Map View ]    |  | Ready to graze       | |
 |  |   with boundaries         |  |                      | |
 |  |   highlighted             |  | Area: 52 ha          | |
 |  |                           |  | Perimeter: 3.2 km    | |
@@ -541,8 +541,8 @@ These are standard shadcn/ui components:
 ```
 
 **Components needed:**
-- `PaddockHeader` - Name, edit, back navigation
-- `PaddockMapDetail` - Larger map view with single paddock
+- `PastureHeader` - Name, edit, back navigation
+- `PastureMapDetail` - Larger map view with single pasture
 - `NDVIChart` - Time series line chart (use Recharts)
 - `GrazingHistoryTable` - Past grazing events
 - `ObservationTable` - Current satellite metrics
@@ -567,7 +567,7 @@ These are standard shadcn/ui components:
 |  | +15% MoM   | | -2 days    | | +5%        | | stable | |
 |  +------------+ +------------+ +------------+ +--------+ |
 |                                                          |
-|  PADDOCK ROTATION HEATMAP                                |
+|  PASTURE ROTATION HEATMAP                                |
 |  +------------------------------------------------------+|
 |  |          | Wk1 | Wk2 | Wk3 | Wk4 | Wk5 | Wk6 |       ||
 |  |----------|-----|-----|-----|-----|-----|-----|       ||
@@ -600,7 +600,7 @@ These are standard shadcn/ui components:
 
 **Components needed:**
 - `MetricCard` - KPI card with value and trend
-- `RotationHeatmap` - Grid showing paddock usage over time
+- `RotationHeatmap` - Grid showing pasture usage over time
 - `FarmNDVIChart` - Farm-wide vegetation trend
 - `AccuracyChart` - Horizontal bar chart for recommendation stats
 - `DateRangeSelector` - Period filter
@@ -650,24 +650,24 @@ STEP 2: Farm Setup
 |                              [Back]  [Continue]          |
 +----------------------------------------------------------+
 
-STEP 3: Draw Paddocks
+STEP 3: Draw Pastures
 +----------------------------------------------------------+
 |                                                          |
-|  Define your paddocks                       Step 3 of 4  |
+|  Define your pastures                       Step 3 of 4  |
 |  --------------------------------------------------------|
 |                                                          |
 |  +----------------------------------------------------+  |
 |  |                                                    |  |
 |  |     [ Map with drawing tools ]                     |  |
 |  |                                                    |  |
-|  |     Draw polygons to define paddock boundaries.    |  |
+|  |     Draw polygons to define pasture boundaries.    |  |
 |  |     Click to add points, double-click to finish.   |  |
 |  |                                                    |  |
 |  +----------------------------------------------------+  |
 |                                                          |
-|  PADDOCKS DEFINED: 3                                     |
+|  PASTURES DEFINED: 3                                     |
 |  +------------------+ +------------------+ +----------+  |
-|  | Paddock 1        | | Paddock 2        | | + Add    |  |
+|  | Pasture 1        | | Pasture 2        | | + Add    |  |
 |  | 45 ha            | | 52 ha            | |          |  |
 |  +------------------+ +------------------+ +----------+  |
 |                                                          |
@@ -686,7 +686,7 @@ STEP 4: Confirmation
 |  | Farm: Clearview Farm                               |  |
 |  | Location: Canterbury, NZ                           |  |
 |  | Area: 450 hectares                                 |  |
-|  | Paddocks: 8 defined                                |  |
+|  | Pastures: 8 defined                                |  |
 |  +----------------------------------------------------+  |
 |                                                          |
 |  We'll start analyzing satellite imagery for your        |
@@ -701,8 +701,8 @@ STEP 4: Confirmation
 **Components needed:**
 - `OnboardingStep` - Step container with progress indicator
 - `FarmSetupForm` - Basic farm info inputs
-- `PaddockDrawingTool` - Map with polygon drawing
-- `PaddockList` - List of drawn paddocks
+- `PastureDrawingTool` - Map with polygon drawing
+- `PastureList` - List of drawn pastures
 - `OnboardingComplete` - Summary and CTA
 
 ---
@@ -800,7 +800,7 @@ INITIAL DATA FETCH
 |                                                          |
 |           [spinner]                                      |
 |                                                          |
-|           Analyzing your paddocks...                     |
+|           Analyzing your pastures...                     |
 |                                                          |
 |     Fetching latest satellite imagery                    |
 |     Computing vegetation indices                         |
@@ -826,7 +826,7 @@ Located in `src/data/mock/`
 | File | Exports | Description |
 |------|---------|-------------|
 | `farm.ts` | `mockFarm` | Farm metadata |
-| `paddocks.ts` | `paddocks`, `getPaddockById()` | Paddock array with GeoJSON |
+| `pastures.ts` | `pastures`, `getPastureById()` | Pasture array with GeoJSON |
 | `plan.ts` | `todaysPlan` | Current day's grazing plan |
 | `observations.ts` | `observations` | Historical NDVI observations |
 
@@ -842,10 +842,10 @@ interface Farm {
   name: string
   location: string
   totalArea: number
-  paddockCount: number
+  pastureCount: number
 }
 
-interface Paddock {
+interface Pasture {
   id: string
   name: string
   status: 'ready' | 'almost_ready' | 'recovering' | 'grazed'
@@ -858,8 +858,8 @@ interface Paddock {
 interface Plan {
   id: string
   date: string
-  currentPaddockId: string
-  recommendedPaddockId: string
+  currentPastureId: string
+  recommendedPastureId: string
   confidence: number
   reasoning: string[]
   alternatives: PlanAlternative[]
@@ -871,7 +871,7 @@ interface Plan {
 type PlanStatus = 'pending' | 'approved' | 'modified'
 
 interface PlanAlternative {
-  paddockId: string
+  pastureId: string
   confidence: number
 }
 ```
@@ -884,7 +884,7 @@ Priority order for building remaining screens:
 
 1. **Loading States** - Essential for production feel
 2. **Error States** - Handle edge cases gracefully
-3. **Paddock Detail View** - Deeper dive into individual paddocks
+3. **Pasture Detail View** - Deeper dive into individual pastures
 4. **History View** - Track decisions over time
 5. **Settings Screen** - User customization
 6. **Analytics Dashboard** - Farm performance insights
@@ -892,6 +892,6 @@ Priority order for building remaining screens:
 
 Each screen should follow the established patterns:
 - Use shadcn/ui primitives where possible
-- Custom SVG for specialized visualizations (like PaddockMiniMap)
+- Custom SVG for specialized visualizations (like PastureMiniMap)
 - Dark/light mode support via CSS variables
 - Mock data in separate files for easy Convex integration

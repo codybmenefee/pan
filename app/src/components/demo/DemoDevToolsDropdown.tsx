@@ -25,7 +25,7 @@ export function DemoDevToolsDropdown() {
   const clearGrazingEvents = useMutation(api.intelligence.clearGrazingEvents)
   const resetSettings = useMutation(api.settings.resetSettings)
   const setupTutorialDemo = useMutation(api.farms.setupTutorialDemo)
-  const backdateSections = useMutation(api.intelligence.backdateSections)
+  const backdatePaddocks = useMutation(api.intelligence.backdatePaddocks)
   const regenerateDemoHistory = useMutation(api.demo.regenerateDemoHistory)
 
   // In dev mode, operate on source farm (farm-1) to edit demo source data
@@ -81,7 +81,7 @@ export function DemoDevToolsDropdown() {
   const handleSetupTutorialDemo = async () => {
     try {
       const result = await setupTutorialDemo({ farmExternalId: effectiveFarmId ?? undefined })
-      toast.success(`Tutorial demo setup complete! ${result.paddocksUpdated} paddocks updated.`)
+      toast.success(`Tutorial demo setup complete! ${result.pasturesUpdated} pastures updated.`)
       // Refresh the page to show updated data
       window.location.reload()
     } catch (error) {
@@ -101,15 +101,15 @@ export function DemoDevToolsDropdown() {
     window.location.reload()
   }
 
-  const handleBackdateSections = async () => {
+  const handleBackdatePaddocks = async () => {
     try {
-      const result = await backdateSections({ farmExternalId: effectiveFarmId ?? undefined })
-      toast.success(`Sections backdated by 1 day (${result.updated} sections updated)`)
+      const result = await backdatePaddocks({ farmExternalId: effectiveFarmId ?? undefined })
+      toast.success(`Paddocks backdated by 1 day (${result.updated} paddocks updated)`)
       // Refresh to show updated dates
       window.location.reload()
     } catch (error) {
-      toast.error('Failed to backdate sections')
-      console.error('Backdate sections error:', error)
+      toast.error('Failed to backdate paddocks')
+      console.error('Backdate paddocks error:', error)
     }
   }
 
@@ -194,9 +194,9 @@ export function DemoDevToolsDropdown() {
           <Calendar className="h-3.5 w-3.5 mr-2" />
           Delete Today's Plan
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleBackdateSections}>
+        <DropdownMenuItem onClick={handleBackdatePaddocks}>
           <History className="h-3.5 w-3.5 mr-2" />
-          Backdate Sections (-1 day)
+          Backdate Paddocks (-1 day)
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleRegenerateDemoHistory}>

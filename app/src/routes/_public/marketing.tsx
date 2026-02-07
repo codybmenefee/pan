@@ -29,7 +29,7 @@ function MarketingPage() {
           'Override with one tap when conditions change',
         ]}
         screenshotSrc="/marketing/daily-brief.png"
-        screenshotAlt="Daily Brief panel showing AI-recommended paddock with confidence score and reasoning"
+        screenshotAlt="Daily Brief panel showing AI-recommended pasture with confidence score and reasoning"
         badge="Available now"
       />
 
@@ -43,7 +43,7 @@ function MarketingPage() {
           'Identify problem areas before they spread',
         ]}
         screenshotSrc="/marketing/ndvi-map.png"
-        screenshotAlt="Map showing NDVI vegetation health overlay with paddock sections highlighted"
+        screenshotAlt="Map showing NDVI vegetation health overlay with grazing paddocks highlighted"
         reverse
         badge="Available now"
       />
@@ -51,14 +51,14 @@ function MarketingPage() {
       {/* Product Showcase: Analytics Dashboard */}
       <ProductShowcase
         title="Track Recovery, Optimize Timing"
-        description="Monitor rest periods, recovery rates, and AI approval trends. Identify which paddocks are thriving and which need attention."
+        description="Monitor rest periods, recovery rates, and AI approval trends. Identify which pastures are thriving and which need attention."
         bullets={[
-          'Real-time paddock status tracking',
+          'Real-time pasture status tracking',
           'Historical grazing patterns and recovery',
           'Data-driven insights for better rotation',
         ]}
         screenshotSrc="/marketing/paddock-status.png"
-        screenshotAlt="Analytics dashboard showing paddock metrics and recovery tracking"
+        screenshotAlt="Analytics dashboard showing pasture metrics and recovery tracking"
         badge="Available now"
       />
 

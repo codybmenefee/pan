@@ -36,37 +36,37 @@ const PROMPT_VERSION = "v2.0.0-ndvi-grid" // Track prompt changes for comparison
 // to avoid bundler issues. The logger and wrapped Anthropic client are passed
 // as parameters to this function.
 
-const GRAZING_SYSTEM_PROMPT = `You are a grazing intelligence specialist. Your role is to recommend daily grazing sections based on satellite-derived NDVI (vegetation) data.
+const GRAZING_SYSTEM_PROMPT = `You are a grazing intelligence specialist. Your role is to recommend daily grazing paddocks (daily strips) based on satellite-derived NDVI (vegetation) data.
 
 ## YOUR TASK
 Analyze the NDVI heat map grid and create a grazing plan by calling the tools.
 
 ## READING THE NDVI GRID
-The grid shows NDVI values sampled across the paddock:
+The grid shows NDVI values sampled across the pasture:
 - Higher values (0.60-0.80+) = healthy green vegetation (TARGET THESE)
 - Medium values (0.40-0.60) = moderate vegetation
 - Lower values (<0.40) = sparse vegetation (AVOID)
 
 Use the coordinate reference to convert grid cells to polygon vertices.
 
-## SECTION PLACEMENT PRIORITY (follow this order)
-1. ADJACENCY FIRST: New section MUST share an edge with the most recent section
+## PADDOCK PLACEMENT PRIORITY (follow this order)
+1. ADJACENCY FIRST: New paddock MUST share an edge with the most recent paddock
 2. NDVI SECOND: Within adjacent area, target cells with NDVI 0.60+
 3. Shape: Avoid skinny strips - draw reasonably-shaped polygons
-4. Size: Approximately 20% of paddock area
-5. Overlap: Up to 5% overlap with previous sections is acceptable
+4. Size: Approximately 20% of pasture area
+5. Overlap: Up to 5% overlap with previous paddocks is acceptable
 
-IMPORTANT: Only place a section away from the previous section if:
-- This is the first section in the paddock (no previous sections exist)
-- The paddock has been fully grazed and is starting a new rotation
+IMPORTANT: Only place a paddock away from the previous paddock if:
+- This is the first paddock in the pasture (no previous paddocks exist)
+- The pasture has been fully grazed and is starting a new rotation
 
 ## CRITICAL RULES
-- You MUST ALWAYS create a section geometry - animals must eat somewhere every day
+- You MUST ALWAYS create a paddock geometry - animals must eat somewhere every day
 - You MUST call createPlanWithSection AND finalizePlan tools. The tools are your output mechanism - not text.
-- NEVER recommend "rest" - always select a paddock and draw a section, even if conditions aren't ideal
-- If the current paddock has low NDVI, find the best alternative paddock or continue in current paddock with appropriate justification
-- Always output valid GeoJSON Polygon for section geometry
-- Calculate section centroid as [lng, lat]`
+- NEVER recommend "rest" - always select a pasture and draw a paddock, even if conditions aren't ideal
+- If the current pasture has low NDVI, find the best alternative pasture or continue in current pasture with appropriate justification
+- Always output valid GeoJSON Polygon for paddock geometry
+- Calculate paddock centroid as [lng, lat]`
 
 interface PlanGenerationResult {
   success: boolean
@@ -90,7 +90,7 @@ async function runGrazingAgentCore(
   ctx: ActionCtx,
   farmExternalId: string,
   farmName: string,
-  activePaddockId: string | null,
+  activePastureId: string | null,
   settings: { minNDVIThreshold: number; minRestPeriod: number },
   anthropicClient: any,
   tracer?: OTelTracer
@@ -98,17 +98,17 @@ async function runGrazingAgentCore(
     log('START - Input', {
       farmExternalId,
       farmName,
-      activePaddockId,
+      activePastureId,
       settings,
     })
 
     // Fetch all data upfront in parallel
     const dataFetchStart = Date.now()
-    const [allPaddocks, currentPaddock, currentPaddockSections, currentGrazedPercentage] = await Promise.all([
-      ctx.runQuery(api.grazingAgentTools.getAllPaddocksWithObservations, { farmExternalId }),
-      ctx.runQuery(api.grazingAgentTools.getPaddockData, { farmExternalId }),
-      ctx.runQuery(api.grazingAgentTools.getPreviousSections, { farmExternalId, paddockId: activePaddockId ?? undefined }),
-      ctx.runQuery(api.grazingAgentTools.calculatePaddockGrazedPercentage, { farmExternalId, paddockId: activePaddockId || 'p1' }),
+    const [allPastures, currentPasture, currentPasturePaddocks, currentGrazedPercentage] = await Promise.all([
+      ctx.runQuery(api.grazingAgentTools.getAllPasturesWithObservations, { farmExternalId }),
+      ctx.runQuery(api.grazingAgentTools.getPastureData, { farmExternalId }),
+      ctx.runQuery(api.grazingAgentTools.getPreviousPaddocks, { farmExternalId, paddockId: activePastureId ?? undefined }),
+      ctx.runQuery(api.grazingAgentTools.calculatePastureGrazedPercentage, { farmExternalId, paddockId: activePastureId || 'p1' }),
     ])
 
     // Data fetching complete
@@ -116,19 +116,19 @@ async function runGrazingAgentCore(
 
   log('Data fetched', {
     dataFetchDurationMs: dataFetchDuration,
-    allPaddocksCount: allPaddocks?.length,
-    currentPaddock: {
-      id: currentPaddock?.externalId,
-      name: currentPaddock?.name,
-      ndviMean: currentPaddock?.ndviMean,
-      restDays: currentPaddock?.restDays,
-      area: currentPaddock?.area,
+    allPasturesCount: allPastures?.length,
+    currentPasture: {
+      id: currentPasture?.externalId,
+      name: currentPasture?.name,
+      ndviMean: currentPasture?.ndviMean,
+      restDays: currentPasture?.restDays,
+      area: currentPasture?.area,
     },
-    previousSectionsCount: currentPaddockSections?.length,
+    previousPaddocksCount: currentPasturePaddocks?.length,
     currentGrazedPercentage,
   })
 
-  const currentNdvi = currentPaddock?.ndviMean ?? 0
+  const currentNdvi = currentPasture?.ndviMean ?? 0
   const threshold = settings.minNDVIThreshold
 
   log('Decision logic', {
@@ -137,13 +137,13 @@ async function runGrazingAgentCore(
     comparison: currentNdvi >= threshold ? 'meets threshold' : 'below threshold',
   })
 
-  let targetPaddock: any = currentPaddock
+  let targetPasture: any = currentPasture
   let recommendation = "graze"
-  
-  // Always select a paddock - never recommend rest
+
+  // Always select a pasture - never recommend rest
   if (currentNdvi < threshold) {
-    // Find best alternative paddock (prefer those meeting threshold, but use best available if none)
-    const alternativesAboveThreshold = allPaddocks?.filter((p: any) => p.ndviMean >= threshold) ?? []
+    // Find best alternative pasture (prefer those meeting threshold, but use best available if none)
+    const alternativesAboveThreshold = allPastures?.filter((p: any) => p.ndviMean >= threshold) ?? []
     log('Current NDVI below threshold', { alternativesAboveThreshold: alternativesAboveThreshold.length })
 
     if (alternativesAboveThreshold.length > 0) {
@@ -152,87 +152,87 @@ async function runGrazingAgentCore(
         if (b.ndviMean !== a.ndviMean) return b.ndviMean - a.ndviMean
         return b.restDays - a.restDays
       })
-      targetPaddock = alternativesAboveThreshold[0]
+      targetPasture = alternativesAboveThreshold[0]
       recommendation = "move"
-      log('DECISION: Move to alternative paddock (meets threshold)', {
-        paddockId: targetPaddock?.externalId,
-        name: targetPaddock?.name,
-        ndviMean: targetPaddock?.ndviMean,
-        restDays: targetPaddock?.restDays,
+      log('DECISION: Move to alternative pasture (meets threshold)', {
+        pastureId: targetPasture?.externalId,
+        name: targetPasture?.name,
+        ndviMean: targetPasture?.ndviMean,
+        restDays: targetPasture?.restDays,
       })
     } else {
-      // No paddocks meet threshold - find best available (highest NDVI)
-      const allSorted = [...(allPaddocks || [])].sort((a: any, b: any) => {
+      // No pastures meet threshold - find best available (highest NDVI)
+      const allSorted = [...(allPastures || [])].sort((a: any, b: any) => {
         if (b.ndviMean !== a.ndviMean) return b.ndviMean - a.ndviMean
         return b.restDays - a.restDays
       })
       const bestAvailable = allSorted[0]
 
-      if (bestAvailable && bestAvailable.externalId !== currentPaddock?.externalId) {
-        targetPaddock = bestAvailable
+      if (bestAvailable && bestAvailable.externalId !== currentPasture?.externalId) {
+        targetPasture = bestAvailable
         recommendation = "move"
-        log('DECISION: Move to best available paddock (below threshold but best option)', {
-          paddockId: targetPaddock?.externalId,
-          name: targetPaddock?.name,
-          ndviMean: targetPaddock?.ndviMean,
-          restDays: targetPaddock?.restDays,
+        log('DECISION: Move to best available pasture (below threshold but best option)', {
+          pastureId: targetPasture?.externalId,
+          name: targetPasture?.name,
+          ndviMean: targetPasture?.ndviMean,
+          restDays: targetPasture?.restDays,
         })
       } else {
-        // Stay in current paddock - it's the best available
+        // Stay in current pasture - it's the best available
         recommendation = "graze"
-        log('DECISION: Continue in current paddock (best available, below threshold)', {
-          paddockId: currentPaddock?.externalId,
+        log('DECISION: Continue in current pasture (best available, below threshold)', {
+          pastureId: currentPasture?.externalId,
           ndviMean: currentNdvi,
-          note: 'Will create section with low NDVI warning in justification',
+          note: 'Will create paddock with low NDVI warning in justification',
         })
       }
     }
   } else {
-    log('DECISION: Graze in current paddock - NDVI meets threshold')
+    log('DECISION: Graze in current pasture - NDVI meets threshold')
   }
 
   // Runtime assertion: Never allow "rest" recommendation (old code path)
-  if (recommendation === "rest" || !targetPaddock) {
-    throw new Error(`CRITICAL: Old code path detected! recommendation="${recommendation}", targetPaddock=${targetPaddock ? 'exists' : 'null'}. This should never happen - all paths must select a paddock and create a section.`)
+  if (recommendation === "rest" || !targetPasture) {
+    throw new Error(`CRITICAL: Old code path detected! recommendation="${recommendation}", targetPasture=${targetPasture ? 'exists' : 'null'}. This should never happen - all paths must select a pasture and create a paddock.`)
   }
 
-  // Ensure targetPaddock has geometry - if it came from currentPaddock, fetch from allPaddocks
-  if (targetPaddock && !targetPaddock.geometry) {
-    const paddockWithGeometry = allPaddocks?.find((p: any) => p.externalId === targetPaddock.externalId)
-    if (paddockWithGeometry) {
-      targetPaddock.geometry = paddockWithGeometry.geometry
+  // Ensure targetPasture has geometry - if it came from currentPasture, fetch from allPastures
+  if (targetPasture && !targetPasture.geometry) {
+    const pastureWithGeometry = allPastures?.find((p: any) => p.externalId === targetPasture.externalId)
+    if (pastureWithGeometry) {
+      targetPasture.geometry = pastureWithGeometry.geometry
     }
   }
 
-  // Fetch previous sections for the target paddock (may be different from current)
-  const previousSections = targetPaddock?.externalId === currentPaddock?.externalId
-    ? currentPaddockSections
-    : await ctx.runQuery(api.grazingAgentTools.getPreviousSections, { farmExternalId, paddockId: targetPaddock?.externalId })
-  
-  // Fetch grazed percentage for target paddock
-  const grazedPercentage = targetPaddock?.externalId === currentPaddock?.externalId
-    ? currentGrazedPercentage
-    : await ctx.runQuery(api.grazingAgentTools.calculatePaddockGrazedPercentage, { farmExternalId, paddockId: targetPaddock?.externalId || 'p1' })
+  // Fetch previous paddocks for the target pasture (may be different from current)
+  const previousPaddocks = targetPasture?.externalId === currentPasture?.externalId
+    ? currentPasturePaddocks
+    : await ctx.runQuery(api.grazingAgentTools.getPreviousPaddocks, { farmExternalId, paddockId: targetPasture?.externalId })
 
-  log('Target paddock data', {
-    targetPaddockId: targetPaddock?.externalId,
-    targetPaddockName: targetPaddock?.name,
-    previousSectionsCount: previousSections?.length,
+  // Fetch grazed percentage for target pasture
+  const grazedPercentage = targetPasture?.externalId === currentPasture?.externalId
+    ? currentGrazedPercentage
+    : await ctx.runQuery(api.grazingAgentTools.calculatePastureGrazedPercentage, { farmExternalId, paddockId: targetPasture?.externalId || 'p1' })
+
+  log('Target pasture data', {
+    targetPastureId: targetPasture?.externalId,
+    targetPastureName: targetPasture?.name,
+    previousPaddocksCount: previousPaddocks?.length,
     grazedPercentage,
-    targetNdvi: targetPaddock?.ndviMean,
-    meetsThreshold: (targetPaddock?.ndviMean ?? 0) >= threshold,
-    hasGeometry: !!targetPaddock?.geometry,
-    geometryType: targetPaddock?.geometry?.type,
-    geometryCoordinatesCount: targetPaddock?.geometry?.geometry?.coordinates?.[0]?.length || targetPaddock?.geometry?.coordinates?.[0]?.length || 0,
+    targetNdvi: targetPasture?.ndviMean,
+    meetsThreshold: (targetPasture?.ndviMean ?? 0) >= threshold,
+    hasGeometry: !!targetPasture?.geometry,
+    geometryType: targetPasture?.geometry?.type,
+    geometryCoordinatesCount: targetPasture?.geometry?.geometry?.coordinates?.[0]?.length || targetPasture?.geometry?.coordinates?.[0]?.length || 0,
   })
 
-  // Fetch NDVI grid for the target paddock
-  log('Fetching NDVI grid for target paddock...')
+  // Fetch NDVI grid for the target pasture
+  log('Fetching NDVI grid for target pasture...')
   let ndviGridText = 'NDVI grid unavailable - using aggregate paddock NDVI values'
   try {
     const ndviGrid = await ctx.runAction(api.ndviGrid.generateNDVIGrid, {
       farmExternalId,
-      paddockExternalId: targetPaddock?.externalId || 'p1',
+      paddockExternalId: targetPasture?.externalId || 'p1',
     })
     if (ndviGrid.hasData) {
       ndviGridText = ndviGrid.gridText
@@ -246,13 +246,13 @@ async function runGrazingAgentCore(
     // Continue with aggregate NDVI values
   }
 
-  // Get most recent section for adjacency guidance
-  const mostRecentSection = previousSections && previousSections.length > 0
-    ? previousSections[0] // Already sorted by date descending
+  // Get most recent paddock for adjacency guidance
+  const mostRecentPaddock = previousPaddocks && previousPaddocks.length > 0
+    ? previousPaddocks[0] // Already sorted by date descending
     : null
 
-  // Build data quality warnings section if any paddocks have warnings
-  const dataQualityWarnings = allPaddocks
+  // Build data quality warnings section if any pastures have warnings
+  const dataQualityWarnings = allPastures
     ?.filter((p: any) => p.dataQualityWarning)
     .map((p: any) => `- ${p.name}: ${p.dataQualityWarning}`) ?? []
 
@@ -260,9 +260,9 @@ async function runGrazingAgentCore(
     ? `## DATA QUALITY WARNINGS
 ${dataQualityWarnings.join('\n')}
 
-IMPORTANT: When paddock data has quality warnings:
-- Avoid recommending paddock moves based solely on NDVI from stale observations
-- Prefer keeping livestock in current paddock if uncertain about alternative conditions
+IMPORTANT: When pasture data has quality warnings:
+- Avoid recommending pasture moves based solely on NDVI from stale observations
+- Prefer keeping livestock in current pasture if uncertain about alternative conditions
 - Note data quality concerns in your sectionJustification
 - Consider lower confidence score when using fallback data
 
@@ -271,39 +271,39 @@ IMPORTANT: When paddock data has quality warnings:
 
   const prompt = `Generate today's grazing plan for farm "${farmName}".
 ${qualitySection}
-## ACTIVE PADDOCK: ${targetPaddock?.name} (${targetPaddock?.externalId})
-- Total Area: ${targetPaddock?.area} hectares
-- Target Section: ~20% = ${Math.round((targetPaddock?.area ?? 0) * 0.2 * 10) / 10} hectares
+## ACTIVE PASTURE: ${targetPasture?.name} (${targetPasture?.externalId})
+- Total Area: ${targetPasture?.area} hectares
+- Target Paddock: ~20% = ${Math.round((targetPasture?.area ?? 0) * 0.2 * 10) / 10} hectares
 - Already Grazed: ${grazedPercentage}%
-- Aggregate NDVI: ${targetPaddock?.ndviMean} (threshold: ${threshold})
+- Aggregate NDVI: ${targetPasture?.ndviMean} (threshold: ${threshold})
 
 ## NDVI HEAT MAP GRID
-Use this grid to identify HIGH-NDVI cells (0.60+) for section placement:
+Use this grid to identify HIGH-NDVI cells (0.60+) for paddock placement:
 
 ${ndviGridText}
 
-## PADDOCK BOUNDARY (section MUST stay within):
-${JSON.stringify(targetPaddock?.geometry, null, 2)}
+## PASTURE BOUNDARY (paddock MUST stay within):
+${JSON.stringify(targetPasture?.geometry, null, 2)}
 
-${mostRecentSection ? `## MOST RECENT SECTION (draw adjacent to this):
-- Date: ${mostRecentSection.date}
-- Area: ${mostRecentSection.area} hectares
-- Geometry: ${JSON.stringify(mostRecentSection.geometry)}
-` : '## NO PREVIOUS SECTIONS - paddock is fresh, draw anywhere within bounds'}
+${mostRecentPaddock ? `## MOST RECENT PADDOCK (draw adjacent to this):
+- Date: ${mostRecentPaddock.date}
+- Area: ${mostRecentPaddock.area} hectares
+- Geometry: ${JSON.stringify(mostRecentPaddock.geometry)}
+` : '## NO PREVIOUS PADDOCKS - pasture is fresh, draw anywhere within bounds'}
 
-${previousSections && previousSections.length > 1 ? `## OTHER PREVIOUS SECTIONS (avoid >5% overlap):
-${JSON.stringify(previousSections.slice(1).map((s: any) => ({ date: s.date, area: s.area })), null, 2)}
+${previousPaddocks && previousPaddocks.length > 1 ? `## OTHER PREVIOUS PADDOCKS (avoid >5% overlap):
+${JSON.stringify(previousPaddocks.slice(1).map((s: any) => ({ date: s.date, area: s.area })), null, 2)}
 ` : ''}
 
-## SECTION DRAWING INSTRUCTIONS
+## PADDOCK DRAWING INSTRUCTIONS
 1. Study the NDVI grid above - identify cells with values 0.60+ (high vegetation)
-2. ${mostRecentSection ? 'CRITICAL: New section MUST share an edge with the previous section. Start from where livestock finished yesterday.' : 'First section in paddock - draw in highest-NDVI area'}
+2. ${mostRecentPaddock ? 'CRITICAL: New paddock MUST share an edge with the previous paddock. Start from where livestock finished yesterday.' : 'First paddock in pasture - draw in highest-NDVI area'}
 3. Use the grid coordinates to convert cell positions to polygon vertices
-4. Section MUST be entirely within the paddock boundary
-5. Target ~${Math.round((targetPaddock?.area ?? 0) * 0.2 * 10) / 10} hectares (20% of paddock)
+4. Paddock MUST be entirely within the pasture boundary
+5. Target ~${Math.round((targetPasture?.area ?? 0) * 0.2 * 10) / 10} hectares (20% of pasture)
 
-## ALL PADDOCKS (for context):
-${JSON.stringify(allPaddocks?.map((p: any) => ({
+## ALL PASTURES (for context):
+${JSON.stringify(allPastures?.map((p: any) => ({
   externalId: p.externalId,
   name: p.name,
   ndviMean: p.ndviMean,
@@ -314,15 +314,15 @@ ${JSON.stringify(allPaddocks?.map((p: any) => ({
 
 ## REQUIRED TOOL CALL - createPlanWithSection:
 - farmExternalId: "${farmExternalId}"
-- targetPaddockId: "${targetPaddock?.externalId}"
+- targetPaddockId: "${targetPasture?.externalId}"
 - sectionGeometry: GeoJSON Polygon targeting high-NDVI cells from the grid
-- sectionAreaHectares: ${Math.round((targetPaddock?.area ?? 0) * 0.2 * 10) / 10}
-- sectionCentroid: [lng, lat] center of your section
+- sectionAreaHectares: ${Math.round((targetPasture?.area ?? 0) * 0.2 * 10) / 10}
+- sectionCentroid: [lng, lat] center of your paddock
 - sectionAvgNdvi: Estimate based on grid cells covered
 - sectionJustification: Explain which grid cells you targeted and why
 - paddockGrazedPercentage: ${grazedPercentage}
 - confidence: ${recommendation === 'move' ? 0.55 : 0.75}
-- reasoning: ["Targeted high-NDVI cells at Row/Col...", "Adjacent to previous section...", ...]
+- reasoning: ["Targeted high-NDVI cells at Row/Col...", "Adjacent to previous paddock...", ...]
 
 CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
 
@@ -332,7 +332,7 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
     prompt,
     tools: {
       createPlanWithSection: tool({
-        description: "Create or update a grazing plan with section geometry and justification. You MUST always provide sectionGeometry - animals must eat somewhere every day.",
+        description: "Create or update a grazing plan with paddock geometry and justification. You MUST always provide sectionGeometry - animals must eat somewhere every day.",
         inputSchema: z.object({
           farmExternalId: z.string(),
           targetPaddockId: z.string(),
@@ -364,7 +364,7 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
         metadata: {
           farmExternalId,
           farmName,
-          activePaddockId: activePaddockId || "none",
+          activePastureId: activePastureId || "none",
           promptVersion: PROMPT_VERSION,
           model: GRAZING_AGENT_MODEL,
         },
@@ -400,8 +400,8 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
       metadata: {
         farmExternalId,
         farmName,
-        activePaddockId: activePaddockId || 'none',
-        targetPaddockId: targetPaddock?.externalId,
+        activePastureId: activePastureId || 'none',
+        targetPastureId: targetPasture?.externalId,
         promptVersion: PROMPT_VERSION,
       },
     })
@@ -434,21 +434,21 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
               parentSpanId: llmSpanId,
               toolName: toolCall.toolName,
               input: args,
-              error: 'sectionGeometry is required - animals must eat somewhere',
+              error: 'sectionGeometry (paddock geometry) is required - animals must eat somewhere',
               durationMs: Date.now() - toolStartTime,
             })
 
-            throw new Error('sectionGeometry is required - animals must eat somewhere. The agent must always create a section, even if conditions are not ideal.')
+            throw new Error('sectionGeometry (paddock geometry) is required - animals must eat somewhere. The agent must always create a paddock, even if conditions are not ideal.')
           }
 
           // === NDVI VALIDATION ===
           // Validate section NDVI before saving to ensure high-quality sections
           let sectionNDVI = { mean: 0, meetsThreshold: false, threshold: threshold }
           try {
-            log('Validating section NDVI...')
-            sectionNDVI = await ctx.runAction(api.ndviGrid.calculateSectionNDVI, {
+            log('Validating paddock NDVI...')
+            sectionNDVI = await ctx.runAction(api.ndviGrid.calculatePaddockNDVI, {
               farmExternalId,
-              paddockExternalId: args.targetPaddockId || targetPaddock?.externalId || 'p1',
+              paddockExternalId: args.targetPaddockId || targetPasture?.externalId || 'p1',
               sectionGeometry: args.sectionGeometry,
             })
 
@@ -469,7 +469,7 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
               durationMs: Date.now() - toolStartTime,
             })
 
-            log('Section NDVI validation', {
+            log('Paddock NDVI validation', {
               mean: sectionNDVI.mean,
               threshold: sectionNDVI.threshold,
               meetsThreshold: sectionNDVI.meetsThreshold,
@@ -480,9 +480,9 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
               args.sectionAvgNdvi = sectionNDVI.mean
             }
 
-            // Add warning to justification if section doesn't meet threshold
+            // Add warning to justification if paddock doesn't meet threshold
             if (!sectionNDVI.meetsThreshold && sectionNDVI.mean > 0) {
-              const warningNote = ` [NDVI Warning: Section average ${sectionNDVI.mean.toFixed(2)} is below threshold ${sectionNDVI.threshold}. Consider reviewing grid placement.]`
+              const warningNote = ` [NDVI Warning: Paddock average ${sectionNDVI.mean.toFixed(2)} is below threshold ${sectionNDVI.threshold}. Consider reviewing grid placement.]`
               args.sectionJustification = (args.sectionJustification || '') + warningNote
               log('Added NDVI warning to justification')
             }
@@ -491,7 +491,7 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
             // Continue with section creation even if NDVI validation fails
           }
 
-              const planId = await ctx.runMutation(api.grazingAgentTools.createPlanWithSection, args as any)
+              const planId = await ctx.runMutation(api.grazingAgentTools.createPlanWithPaddock, args as any)
               createdPlanId = planId
 
               // Log successful tool call to Braintrust
@@ -585,7 +585,7 @@ export async function runGrazingAgent(
   ctx: ActionCtx,
   farmExternalId: string,
   farmName: string,
-  activePaddockId: string | null,
+  activePastureId: string | null,
   settings: { minNDVIThreshold: number; minRestPeriod: number },
   logger?: any, // Braintrust logger passed from action
   wrappedAnthropic?: any, // Wrapped Anthropic client passed from action
@@ -596,7 +596,7 @@ export async function runGrazingAgent(
 
   // If no logger provided, run without Braintrust logging
   if (!logger) {
-    return await runGrazingAgentCore(ctx, farmExternalId, farmName, activePaddockId, settings, anthropicClient, tracer)
+    return await runGrazingAgentCore(ctx, farmExternalId, farmName, activePastureId, settings, anthropicClient, tracer)
   }
   
   // Run with Braintrust logging
@@ -606,7 +606,7 @@ export async function runGrazingAgent(
       input: sanitizeForBraintrust({
         farmExternalId,
         farmName,
-        activePaddockId,
+        activePastureId,
         settings: {
           minNDVIThreshold: settings.minNDVIThreshold,
           minRestPeriod: settings.minRestPeriod,
@@ -619,7 +619,7 @@ export async function runGrazingAgent(
     })
 
     // Call core function and wrap result logging
-    const result = await runGrazingAgentCore(ctx, farmExternalId, farmName, activePaddockId, settings, anthropicClient, tracer)
+    const result = await runGrazingAgentCore(ctx, farmExternalId, farmName, activePastureId, settings, anthropicClient, tracer)
     
     // Log final result (sanitize to remove Convex internal fields)
     rootSpan.log({
@@ -631,5 +631,5 @@ export async function runGrazingAgent(
     })
 
     return result
-  }, { name: 'Grazing Agent', metadata: { farmExternalId, farmName, activePaddockId } })
+  }, { name: 'Grazing Agent', metadata: { farmExternalId, farmName, activePastureId } })
 }

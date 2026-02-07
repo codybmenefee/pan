@@ -52,11 +52,11 @@ export const getMostRecentGrazingEvent = query({
       .query('grazingEvents')
       .withIndex('by_farm', (q: any) => q.eq('farmExternalId', args.farmExternalId))
       .collect()
-    
+
     if (events.length === 0) {
       return null
     }
-    
+
     return events.reduce((latest: any, event: any) => {
       if (!latest || new Date(event.date) > new Date(latest.date)) {
         return event
@@ -67,18 +67,18 @@ export const getMostRecentGrazingEvent = query({
 })
 
 
-export const getPaddocksForFarm = query({
+export const getPasturesForFarm = query({
   args: { farmExternalId: v.string() },
   handler: async (ctx, args) => {
     const farm = await ctx.db
       .query('farms')
       .withIndex('by_externalId', (q: any) => q.eq('externalId', args.farmExternalId))
       .first()
-    
+
     if (!farm) {
       return []
     }
-    
+
     return await ctx.db
       .query('paddocks')
       .withIndex('by_farm', (q: any) => q.eq('farmId', farm._id))
@@ -192,10 +192,10 @@ export const getPlanGenerationData = query({
 
     const todayPlan = existingPlan.find((p: any) => p.date === args.date)
     if (todayPlan) {
-      return { existingPlanId: todayPlan._id, observations: null, grazingEvents: null, settings: null, farm: null, mostRecentGrazingEvent: null, paddocks: null }
+      return { existingPlanId: todayPlan._id, observations: null, grazingEvents: null, settings: null, farm: null, mostRecentGrazingEvent: null, pastures: null }
     }
 
-    const [observations, grazingEvents, settings, farm, mostRecentGrazingEvent, paddocks] = await Promise.all([
+    const [observations, grazingEvents, settings, farm, mostRecentGrazingEvent, pastures] = await Promise.all([
       ctx.db.query('observations').withIndex('by_farm', (q: any) => q.eq('farmExternalId', args.farmExternalId)).collect(),
       ctx.db.query('grazingEvents').withIndex('by_farm', (q: any) => q.eq('farmExternalId', args.farmExternalId)).collect(),
       ctx.db.query('farmSettings').withIndex('by_farm', (q: any) => q.eq('farmExternalId', args.farmExternalId)).first(),
@@ -217,7 +217,7 @@ export const getPlanGenerationData = query({
       })(),
     ])
 
-    return { existingPlanId: null, observations, grazingEvents, settings, farm, mostRecentGrazingEvent, paddocks }
+    return { existingPlanId: null, observations, grazingEvents, settings, farm, mostRecentGrazingEvent, pastures }
   },
 })
 
@@ -303,7 +303,7 @@ export const listAllPlansForFarm = query({
       date: p.date,
       status: p.status,
       confidenceScore: p.confidenceScore,
-      primaryPaddock: p.primaryPaddockExternalId,
+      primaryPasture: p.primaryPaddockExternalId,
     }))
   },
 })
@@ -388,11 +388,11 @@ export const deleteAllFallbackPlans = mutation({
 })
 
 
-export const getAllSections = query({
+export const getAllPaddocks = query({
   args: { farmExternalId: v.optional(v.string()) },
   handler: async (ctx, args): Promise<{
     id: string
-    paddockId: string
+    pastureId: string
     date: string
     geometry: any
     targetArea: number
@@ -400,7 +400,7 @@ export const getAllSections = query({
   }[]> => {
     const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
 
-    log.debug('getAllSections START', { farmExternalId })
+    log.debug('getAllPaddocks START', { farmExternalId })
     const startTime = Date.now()
 
     const plans = await ctx.db
@@ -408,45 +408,45 @@ export const getAllSections = query({
       .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
       .collect()
 
-    log.debug('getAllSections found plans', { count: plans.length })
+    log.debug('getAllPaddocks found plans', { count: plans.length })
 
-    const sections = []
-    let plansWithSections = 0
-    let plansWithoutSections = 0
+    const paddocks = []
+    let plansWithPaddocks = 0
+    let plansWithoutPaddocks = 0
 
     for (const plan of plans) {
-      const hasSection = !!plan.sectionGeometry
-      log.debug('getAllSections plan', {
+      const hasPaddock = !!plan.sectionGeometry
+      log.debug('getAllPaddocks plan', {
         planId: plan._id.toString(),
         date: plan.date,
-        paddockId: plan.primaryPaddockExternalId,
-        hasSectionGeometry: hasSection,
+        pastureId: plan.primaryPaddockExternalId,
+        hasPaddockGeometry: hasPaddock,
         status: plan.status,
-        sectionArea: plan.sectionAreaHectares,
+        paddockArea: plan.sectionAreaHectares,
       })
-      
-      if (hasSection) {
-        plansWithSections++
-        sections.push({
+
+      if (hasPaddock) {
+        plansWithPaddocks++
+        paddocks.push({
           id: plan._id.toString(),
-          paddockId: plan.primaryPaddockExternalId ?? '',
+          pastureId: plan.primaryPaddockExternalId ?? '',
           date: plan.date,
           geometry: plan.sectionGeometry,
           targetArea: plan.sectionAreaHectares ?? 0,
           reasoning: plan.reasoning ?? [],
         })
       } else {
-        plansWithoutSections++
+        plansWithoutPaddocks++
       }
     }
 
-    const sorted = sections.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    const sorted = paddocks.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     const duration = Date.now() - startTime
 
-    log.debug('getAllSections END', {
-      sectionsCount: sorted.length,
-      plansWithSections,
-      plansWithoutSections,
+    log.debug('getAllPaddocks END', {
+      paddocksCount: sorted.length,
+      plansWithPaddocks,
+      plansWithoutPaddocks,
       duration: `${duration}ms`,
     })
 
@@ -488,7 +488,7 @@ export const getFarmContext = query({
       throw new Error(`Farm not found: ${args.farmId}`)
     }
 
-    const [settings, paddocks, observations, farmerObservations, plans] =
+    const [settings, pastures, observations, farmerObservations, plans] =
       await Promise.all([
         ctx.db
           .query('farmSettings')
@@ -517,7 +517,7 @@ export const getFarmContext = query({
     return {
       farm,
       settings,
-      paddocks,
+      pastures,
       observations,
       farmerObservations,
       plans,
@@ -527,10 +527,10 @@ export const getFarmContext = query({
 
 
 /**
- * Update the section geometry of a plan.
- * This is called when the user edits section vertices on the map.
+ * Update the paddock geometry of a plan.
+ * This is called when the user edits paddock vertices on the map.
  */
-export const updatePlanSectionGeometry = mutation({
+export const updatePlanPaddockGeometry = mutation({
   args: {
     planId: v.id('plans'),
     sectionGeometry: v.object({
@@ -568,7 +568,7 @@ export const updatePlanSectionGeometry = mutation({
         sectionAreaHectares = Math.round(area * HECTARES_PER_SQUARE_METER * 10) / 10
       }
     } catch (e) {
-      log.error('Error calculating area in updatePlanSectionGeometry', { error: String(e) })
+      log.error('Error calculating area in updatePlanPaddockGeometry', { error: String(e) })
     }
 
     await ctx.db.patch(args.planId, {
@@ -578,7 +578,7 @@ export const updatePlanSectionGeometry = mutation({
       updatedAt: new Date().toISOString(),
     })
 
-    log.debug('Updated plan section geometry', {
+    log.debug('Updated plan paddock geometry', {
       planId: args.planId.toString(),
       sectionAreaHectares,
       status: 'modified',
@@ -589,7 +589,7 @@ export const updatePlanSectionGeometry = mutation({
 })
 
 /**
- * Delete old plans (sections) older than a specified date.
+ * Delete old plans (paddocks) older than a specified date.
  */
 export const deleteOldPlans = mutation({
   args: {
@@ -617,10 +617,10 @@ export const deleteOldPlans = mutation({
 })
 
 /**
- * Backdate all sections by moving their dates back by one day.
+ * Backdate all paddocks by moving their dates back by one day.
  * Useful for demo/testing to simulate passage of time.
  */
-export const backdateSections = mutation({
+export const backdatePaddocks = mutation({
   args: {
     farmExternalId: v.optional(v.string()),
   },
@@ -642,19 +642,19 @@ export const backdateSections = mutation({
 
         await ctx.db.patch(plan._id, { date: newDate })
         updated++
-        log.debug('Backdated section', { planId: plan._id.toString(), oldDate: plan.date, newDate })
+        log.debug('Backdated paddock', { planId: plan._id.toString(), oldDate: plan.date, newDate })
       }
     }
 
-    log.debug('backdateSections completed', { updated, farmExternalId })
+    log.debug('backdatePaddocks completed', { updated, farmExternalId })
     return { updated }
   },
 })
 
 /**
- * Update a single section's date. Dev tool for testing historical patterns.
+ * Update a single paddock's date. Dev tool for testing historical patterns.
  */
-export const updateSectionDate = mutation({
+export const updatePaddockDate = mutation({
   args: {
     planId: v.id('plans'),
     date: v.string(), // YYYY-MM-DD format
@@ -675,7 +675,7 @@ export const updateSectionDate = mutation({
 
 /**
  * Get rest period distribution for analytics.
- * Computes gaps between consecutive grazing events per paddock.
+ * Computes gaps between consecutive grazing events per pasture.
  */
 export const getRestPeriodDistribution = query({
   args: {
@@ -711,20 +711,20 @@ export const getRestPeriodDistribution = query({
       }
     }
 
-    // Group events by paddock
-    const eventsByPaddock = new Map<string, typeof relevantEvents>()
+    // Group events by pasture
+    const eventsByPasture = new Map<string, typeof relevantEvents>()
     for (const event of relevantEvents) {
-      const existing = eventsByPaddock.get(event.paddockExternalId) || []
+      const existing = eventsByPasture.get(event.paddockExternalId) || []
       existing.push(event)
-      eventsByPaddock.set(event.paddockExternalId, existing)
+      eventsByPasture.set(event.paddockExternalId, existing)
     }
 
-    // Calculate rest periods (gaps between consecutive grazing events per paddock)
+    // Calculate rest periods (gaps between consecutive grazing events per pasture)
     const restPeriods: number[] = []
 
-    for (const [, paddockEvents] of eventsByPaddock) {
+    for (const [, pastureEvents] of eventsByPasture) {
       // Sort by date ascending
-      const sorted = paddockEvents.sort((a, b) =>
+      const sorted = pastureEvents.sort((a, b) =>
         new Date(a.date).getTime() - new Date(b.date).getTime()
       )
 
@@ -772,10 +772,10 @@ export const getRestPeriodDistribution = query({
 })
 
 /**
- * Record a section modification with rationale for AI training.
- * Called when user modifies today's AI-suggested section and provides feedback.
+ * Record a paddock modification with rationale for AI training.
+ * Called when user modifies today's AI-suggested paddock and provides feedback.
  */
-export const recordSectionModification = mutation({
+export const recordPaddockModification = mutation({
   args: {
     planId: v.id('plans'),
     originalGeometry: v.object({
@@ -812,7 +812,7 @@ export const recordSectionModification = mutation({
       modifiedBy: args.modifiedBy,
     })
 
-    log.debug('Recorded section modification', {
+    log.debug('Recorded paddock modification', {
       planId: args.planId.toString(),
       originalArea: args.originalAreaHectares,
       modifiedArea: args.modifiedAreaHectares,
@@ -825,10 +825,10 @@ export const recordSectionModification = mutation({
 })
 
 /**
- * Get section modifications for multiple plans.
+ * Get paddock modifications for multiple plans.
  * Used by the History page to display feedback for modified plans.
  */
-export const getSectionModificationsByPlanIds = query({
+export const getPaddockModificationsByPlanIds = query({
   args: { planIds: v.array(v.id('plans')) },
   handler: async (ctx, args) => {
     const modifications = []
@@ -844,10 +844,10 @@ export const getSectionModificationsByPlanIds = query({
 })
 
 /**
- * Update feedback on an existing section modification.
+ * Update feedback on an existing paddock modification.
  * Allows farmers to edit their rationale/quick reasons after the fact.
  */
-export const updateSectionModificationFeedback = mutation({
+export const updatePaddockModificationFeedback = mutation({
   args: {
     modificationId: v.id('sectionModifications'),
     rationale: v.optional(v.string()),
@@ -856,7 +856,7 @@ export const updateSectionModificationFeedback = mutation({
   handler: async (ctx, args) => {
     const modification = await ctx.db.get(args.modificationId)
     if (!modification) {
-      throw new Error('Section modification not found')
+      throw new Error('Paddock modification not found')
     }
 
     await ctx.db.patch(args.modificationId, {
@@ -864,7 +864,7 @@ export const updateSectionModificationFeedback = mutation({
       quickReasons: args.quickReasons,
     })
 
-    log.debug('Updated section modification feedback', {
+    log.debug('Updated paddock modification feedback', {
       modificationId: args.modificationId.toString(),
       hasRationale: !!args.rationale,
       quickReasonsCount: args.quickReasons?.length ?? 0,

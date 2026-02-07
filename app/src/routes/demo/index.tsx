@@ -13,8 +13,8 @@ import { WaterSourceEditPanel } from '@/components/map/WaterSourceEditPanel'
 import type { NoGrazeZone, WaterSource } from '@/lib/types'
 import { MorningBrief } from '@/components/brief/MorningBrief'
 import { getFormattedDate } from '@/data/mock/plan'
+import { PastureEditDrawer } from '@/components/map/PastureEditDrawer'
 import { PaddockEditDrawer } from '@/components/map/PaddockEditDrawer'
-import { SectionEditDrawer } from '@/components/map/SectionEditDrawer'
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
 import { FloatingPanel } from '@/components/ui/floating-panel'
 import { Button } from '@/components/ui/button'
@@ -29,15 +29,15 @@ import { LivestockDrawer } from '@/components/livestock'
 import { useFarmSettings } from '@/lib/convex/useFarmSettings'
 import { useAvailableDates, useAvailableTileDates } from '@/lib/hooks/useSatelliteTiles'
 import type { Feature, Polygon } from 'geojson'
-import type { Paddock, Section } from '@/lib/types'
+import type { Pasture, Paddock } from '@/lib/types'
 
-type DrawEntityType = 'paddock' | 'section' | 'noGrazeZone' | 'waterPoint' | 'waterPolygon'
+type DrawEntityType = 'pasture' | 'paddock' | 'noGrazeZone' | 'waterPoint' | 'waterPolygon'
 
 interface EditDrawerState {
   open: boolean
   featureId: string | null
   geometry?: Feature<Polygon>
-  paddockId?: string
+  pastureId?: string
 }
 
 function DemoGISRoute() {
@@ -46,9 +46,9 @@ function DemoGISRoute() {
   const hasFarmBoundary = activeFarm?.geometry != null
   const { plan } = useTodayPlan(activeFarmId || '')
   const {
+    getPastureById,
     getPaddockById,
-    getSectionById,
-    addPaddock,
+    addPasture,
     pendingChanges,
     getNoGrazeZoneById,
     getWaterSourceById,
@@ -75,17 +75,17 @@ function DemoGISRoute() {
     open: false,
     featureId: null,
   })
-  const [drawEntityType, setDrawEntityType] = useState<DrawEntityType>('paddock')
-  const [sectionEditModeActive, setSectionEditModeActive] = useState(false)
+  const [drawEntityType, setDrawEntityType] = useState<DrawEntityType>('pasture')
+  const [paddockEditModeActive, setPaddockEditModeActive] = useState(false)
 
   const parsedFeatureId = useMemo(() => {
     if (!editDrawerState.featureId) return null
     return parseTypedFeatureId(editDrawerState.featureId)
   }, [editDrawerState.featureId])
 
-  const selectedEntityType = parsedFeatureId?.entityType as 'paddock' | 'section' | undefined
+  const selectedEntityType = parsedFeatureId?.entityType as 'pasture' | 'paddock' | undefined
   const selectedEntityId = parsedFeatureId?.entityId
-  const isEditingSection = selectedEntityType === 'section' && sectionEditModeActive
+  const isEditingPaddock = selectedEntityType === 'paddock' && paddockEditModeActive
 
   const [selectedNoGrazeZone, setSelectedNoGrazeZone] = useState<NoGrazeZone | null>(null)
   const [selectedWaterSource, setSelectedWaterSource] = useState<WaterSource | null>(null)
@@ -98,9 +98,9 @@ function DemoGISRoute() {
 
   const [layers, setLayers] = useState({
     ndviHeat: false,
-    paddocks: true,
+    pastures: true,
     labels: true,
-    sections: true,
+    paddocks: true,
   })
 
   const { settings, updateMapPreference } = useFarmSettings()
@@ -144,11 +144,11 @@ function DemoGISRoute() {
   const [satelliteViewOpen, setSatelliteViewOpen] = useState(false)
   const [livestockDrawerOpen, setLivestockDrawerOpen] = useState(false)
 
-  const todaysSection = useMemo<Section | null>(() => {
+  const todaysPaddock = useMemo<Paddock | null>(() => {
     if (plan?.sectionGeometry) {
       return {
         id: plan._id,
-        paddockId: plan.primaryPaddockExternalId || '',
+        pastureId: plan.primaryPaddockExternalId || '',
         date: plan.date,
         geometry: {
           type: 'Feature' as const,
@@ -162,45 +162,45 @@ function DemoGISRoute() {
     return null
   }, [plan])
 
-  const sectionPaddock = useMemo(() => {
-    if (!todaysSection?.paddockId) return undefined
-    return getPaddockById(todaysSection.paddockId)
-  }, [getPaddockById, todaysSection])
+  const paddockPasture = useMemo(() => {
+    if (!todaysPaddock?.pastureId) return undefined
+    return getPastureById(todaysPaddock.pastureId)
+  }, [getPastureById, todaysPaddock])
 
-  const sectionHasPendingDelete = useCallback((sectionId: string) => {
+  const paddockHasPendingDelete = useCallback((paddockId: string) => {
     return pendingChanges.some(
-      (c) => !c.synced && c.entityType === 'section' && c.changeType === 'delete' && c.id === sectionId
+      (c) => !c.synced && c.entityType === 'paddock' && c.changeType === 'delete' && c.id === paddockId
     )
   }, [pendingChanges])
 
-  const clippedSectionGeometry = useMemo(() => {
-    if (!todaysSection) return null
-    if (sectionHasPendingDelete(todaysSection.id)) return null
-    if (!sectionPaddock) return todaysSection.geometry
-    const clipped = clipPolygonToPolygon(todaysSection.geometry, sectionPaddock.geometry)
-    return clipped ?? sectionPaddock.geometry
-  }, [todaysSection, sectionPaddock, sectionHasPendingDelete])
+  const clippedPaddockGeometry = useMemo(() => {
+    if (!todaysPaddock) return null
+    if (paddockHasPendingDelete(todaysPaddock.id)) return null
+    if (!paddockPasture) return todaysPaddock.geometry
+    const clipped = clipPolygonToPolygon(todaysPaddock.geometry, paddockPasture.geometry)
+    return clipped ?? paddockPasture.geometry
+  }, [todaysPaddock, paddockPasture, paddockHasPendingDelete])
 
   const toggleLayer = (layer: keyof typeof layers) => {
     setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }))
   }
 
   const handleEditRequest = useCallback((request: {
-    entityType: 'paddock' | 'section' | 'noGrazeZone' | 'waterPolygon'
+    entityType: 'pasture' | 'paddock' | 'noGrazeZone' | 'waterPolygon'
+    pastureId?: string
     paddockId?: string
-    sectionId?: string
     noGrazeZoneId?: string
     waterSourceId?: string
     geometry?: Feature<Polygon>
   }) => {
-    if (request.entityType === 'paddock' && request.geometry && !request.paddockId) {
-      const newId = addPaddock(request.geometry)
+    if (request.entityType === 'pasture' && request.geometry && !request.pastureId) {
+      const newId = addPasture(request.geometry)
       setEditDrawerState({
         open: true,
-        featureId: createTypedFeatureId('paddock', newId),
+        featureId: createTypedFeatureId('pasture', newId),
         geometry: request.geometry,
       })
-      setDrawEntityType('paddock')
+      setDrawEntityType('pasture')
       return
     }
 
@@ -222,35 +222,35 @@ function DemoGISRoute() {
       return
     }
 
-    if (request.entityType === 'paddock' && request.paddockId) {
+    if (request.entityType === 'pasture' && request.pastureId) {
+      setEditDrawerState({
+        open: true,
+        featureId: createTypedFeatureId('pasture', request.pastureId),
+        geometry: request.geometry,
+      })
+      setDrawEntityType('pasture')
+    } else if (request.entityType === 'paddock' && request.paddockId) {
       setEditDrawerState({
         open: true,
         featureId: createTypedFeatureId('paddock', request.paddockId),
         geometry: request.geometry,
+        pastureId: request.pastureId,
       })
       setDrawEntityType('paddock')
-    } else if (request.entityType === 'section' && request.sectionId) {
-      setEditDrawerState({
-        open: true,
-        featureId: createTypedFeatureId('section', request.sectionId),
-        geometry: request.geometry,
-        paddockId: request.paddockId,
-      })
-      setDrawEntityType('section')
     }
-  }, [addPaddock, getNoGrazeZoneById, getWaterSourceById])
+  }, [addPasture, getNoGrazeZoneById, getWaterSourceById])
 
   const closeEditDrawer = useCallback(() => {
     setEditDrawerState({
       open: false,
       featureId: null,
     })
-    setSectionEditModeActive(false)
+    setPaddockEditModeActive(false)
   }, [])
 
-  const handleEnterSectionEditMode = useCallback(() => {
-    setSectionEditModeActive(true)
-    setDrawEntityType('section')
+  const handleEnterPaddockEditMode = useCallback(() => {
+    setPaddockEditModeActive(true)
+    setDrawEntityType('paddock')
   }, [])
 
   const handleNoGrazeZoneClick = useCallback((zoneId: string) => {
@@ -279,8 +279,8 @@ function DemoGISRoute() {
     setSelectedWaterSource(null)
   }, [deleteWaterSource])
 
-  const handleAddPaddock = useCallback(() => {
-    setDrawEntityType('paddock')
+  const handleAddPasture = useCallback(() => {
+    setDrawEntityType('pasture')
     setTimeout(() => {
       mapRef.current?.setDrawMode('draw_polygon')
     }, 50)
@@ -351,7 +351,7 @@ function DemoGISRoute() {
     }
   }, [dragState])
 
-  const handleZoomToSection = useCallback((geometry: Geometry) => {
+  const handleZoomToPaddock = useCallback((geometry: Geometry) => {
     if (geometry.type === 'Polygon') {
       const feature: Feature<Polygon> = {
         type: 'Feature',
@@ -362,20 +362,20 @@ function DemoGISRoute() {
     }
   }, [])
 
-  const selectedPaddock: Paddock | undefined = useMemo(() => {
-    if (selectedEntityType === 'paddock' && selectedEntityId) {
-      return getPaddockById(selectedEntityId)
+  const selectedPasture: Pasture | undefined = useMemo(() => {
+    if (selectedEntityType === 'pasture' && selectedEntityId) {
+      return getPastureById(selectedEntityId)
     }
     return undefined
-  }, [selectedEntityType, selectedEntityId, getPaddockById])
+  }, [selectedEntityType, selectedEntityId, getPastureById])
 
-  const parentPaddockIdForSection = useMemo(() => {
-    if (selectedEntityType === 'section' && selectedEntityId) {
-      const section = getSectionById(selectedEntityId)
-      return section?.paddockId ?? editDrawerState.paddockId
+  const parentPastureIdForPaddock = useMemo(() => {
+    if (selectedEntityType === 'paddock' && selectedEntityId) {
+      const paddock = getPaddockById(selectedEntityId)
+      return paddock?.pastureId ?? editDrawerState.pastureId
     }
     return undefined
-  }, [selectedEntityType, selectedEntityId, getSectionById, editDrawerState.paddockId])
+  }, [selectedEntityType, selectedEntityId, getPaddockById, editDrawerState.pastureId])
 
   if (isLoading) {
     return (
@@ -404,30 +404,30 @@ function DemoGISRoute() {
         onNoGrazeZoneClick={handleNoGrazeZoneClick}
         onWaterSourceClick={handleWaterSourceClick}
         showNdviHeat={layers.ndviHeat}
-        showPaddocks={layers.paddocks}
+        showPastures={layers.pastures}
         showLabels={layers.labels}
-        showSections={layers.sections}
+        showPaddocks={layers.paddocks}
         showRGBSatellite={showRGBSatellite}
         editable={true}
         editMode={true}
         entityType={drawEntityType}
-        parentPaddockId={parentPaddockIdForSection}
-        initialSectionFeature={
-          isEditingSection && editDrawerState.geometry && selectedEntityId && !sectionHasPendingDelete(selectedEntityId)
+        parentPastureId={parentPastureIdForPaddock}
+        initialPaddockFeature={
+          isEditingPaddock && editDrawerState.geometry && selectedEntityId && !paddockHasPendingDelete(selectedEntityId)
             ? editDrawerState.geometry
-            : clippedSectionGeometry ?? undefined
+            : clippedPaddockGeometry ?? undefined
         }
-        initialSectionId={
-          isEditingSection && selectedEntityId && !sectionHasPendingDelete(selectedEntityId)
+        initialPaddockId={
+          isEditingPaddock && selectedEntityId && !paddockHasPendingDelete(selectedEntityId)
             ? selectedEntityId
-            : (todaysSection && !sectionHasPendingDelete(todaysSection.id) ? todaysSection.id : undefined)
+            : (todaysPaddock && !paddockHasPendingDelete(todaysPaddock.id) ? todaysPaddock.id : undefined)
         }
-        initialPaddockId={selectedEntityType === 'paddock' ? selectedEntityId : undefined}
+        initialPastureId={selectedEntityType === 'pasture' ? selectedEntityId : undefined}
         showToolbar={false}
-        selectedSectionId={
+        selectedPaddockId={
           editDrawerState.open &&
-          selectedEntityType === 'section' &&
-          !isEditingSection
+          selectedEntityType === 'paddock' &&
+          !isEditingPaddock
             ? selectedEntityId
             : undefined
         }
@@ -513,7 +513,7 @@ function DemoGISRoute() {
 
       {/* Add menu */}
       <MapAddMenu
-        onAddPaddock={handleAddPaddock}
+        onAddPasture={handleAddPasture}
         onAddNoGrazeZone={handleAddNoGrazeZone}
         onAddWaterSource={handleAddWaterSource}
         onDragStart={handleDragStart}
@@ -526,15 +526,15 @@ function DemoGISRoute() {
         title="Daily Plan"
         subtitle={getFormattedDate()}
         headerActions={
-          todaysSection && !sectionHasPendingDelete(todaysSection.id) && (
+          todaysPaddock && !paddockHasPendingDelete(todaysPaddock.id) && (
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handleZoomToSection(todaysSection.geometry.geometry)}
+              onClick={() => handleZoomToPaddock(todaysPaddock.geometry.geometry)}
               className="gap-1 h-5 text-[10px] px-1.5"
             >
               <Focus className="h-3 w-3" />
-              <span className="hidden sm:inline">View Section</span>
+              <span className="hidden sm:inline">View Paddock</span>
             </Button>
           )
         }
@@ -549,7 +549,7 @@ function DemoGISRoute() {
           farmExternalId={activeFarmId}
           compact
           onClose={() => setBriefOpen(false)}
-          onZoomToSection={handleZoomToSection}
+          onZoomToPaddock={handleZoomToPaddock}
         />
       </FloatingPanel>
 
@@ -563,18 +563,18 @@ function DemoGISRoute() {
         />
       </div>
 
-      {/* Paddock Edit Modal */}
-      {selectedEntityType === 'paddock' && selectedPaddock && (
-        <PaddockEditDrawer
-          paddock={selectedPaddock}
+      {/* Pasture Edit Modal */}
+      {selectedEntityType === 'pasture' && selectedPasture && (
+        <PastureEditDrawer
+          pasture={selectedPasture}
           open={editDrawerState.open}
           onClose={closeEditDrawer}
         />
       )}
 
-      {/* Section Edit Drawer */}
+      {/* Paddock Edit Drawer */}
       <Drawer
-        open={editDrawerState.open && selectedEntityType === 'section'}
+        open={editDrawerState.open && selectedEntityType === 'paddock'}
         onOpenChange={(open) => {
           if (!open) closeEditDrawer()
         }}
@@ -587,15 +587,15 @@ function DemoGISRoute() {
           width={360}
           showCloseButton={false}
           showOverlay={false}
-          ariaLabel="Grazing Section"
+          ariaLabel="Grazing Paddock"
         >
-          {selectedEntityType === 'section' && selectedEntityId && editDrawerState.geometry ? (
-            <SectionEditDrawer
-              sectionId={selectedEntityId}
-              paddockId={parentPaddockIdForSection || ''}
+          {selectedEntityType === 'paddock' && selectedEntityId && editDrawerState.geometry ? (
+            <PaddockEditDrawer
+              paddockId={selectedEntityId}
+              pastureId={parentPastureIdForPaddock || ''}
               geometry={editDrawerState.geometry}
-              isEditMode={isEditingSection}
-              onEnterEditMode={handleEnterSectionEditMode}
+              isEditMode={isEditingPaddock}
+              onEnterEditMode={handleEnterPaddockEditMode}
               onClose={closeEditDrawer}
             />
           ) : null}

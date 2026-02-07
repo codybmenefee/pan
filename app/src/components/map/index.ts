@@ -1,6 +1,6 @@
 export { MapView } from './MapView'
 export { FarmMap } from './FarmMap'
-export { PaddockPanel } from './PaddockPanel'
-export { PaddockEditPanel } from './PaddockEditPanel'
+export { PasturePanel } from './PasturePanel'
+export { PastureEditPanel } from './PastureEditPanel'
 export { LayerSelector } from './LayerSelector'
 export { DrawingToolbar } from './DrawingToolbar'

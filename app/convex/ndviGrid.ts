@@ -1,9 +1,9 @@
 /**
  * NDVI Grid Generation
  *
- * Generates a 10x10 text grid from GeoTIFF NDVI raster data for a paddock.
+ * Generates a 10x10 text grid from GeoTIFF NDVI raster data for a pasture.
  * Used by the grazing agent to visualize NDVI distribution and make
- * heat-map-guided section drawing decisions.
+ * heat-map-guided paddock drawing decisions.
  */
 
 "use node"
@@ -31,17 +31,17 @@ interface NDVIGridResult {
     minLng: number
     maxLng: number
   }
-  paddockId: string
+  pastureId: string
   captureDate: string
   hasData: boolean
   error?: string
 }
 
 /**
- * Generate a 10x10 NDVI grid for a paddock from GeoTIFF raster data.
+ * Generate a 10x10 NDVI grid for a pasture from GeoTIFF raster data.
  *
- * The grid shows NDVI values sampled at regular intervals across the paddock,
- * allowing the agent to identify high-NDVI areas for section targeting.
+ * The grid shows NDVI values sampled at regular intervals across the pasture,
+ * allowing the agent to identify high-NDVI areas for paddock targeting.
  */
 export const generateNDVIGrid = action({
   args: {
@@ -56,30 +56,30 @@ export const generateNDVIGrid = action({
       captureDate: args.captureDate,
     })
 
-    // 1. Get paddock geometry to determine bounds
-    const paddockData = await ctx.runQuery(api.paddocks.getPaddockByExternalId, {
+    // 1. Get pasture geometry to determine bounds
+    const pastureData = await ctx.runQuery(api.paddocks.getPastureByExternalId, {
       farmExternalId: args.farmExternalId,
       paddockExternalId: args.paddockExternalId,
     })
 
-    if (!paddockData || !paddockData.geometry) {
-      log.error('[generateNDVIGrid] Paddock not found or has no geometry')
+    if (!pastureData || !pastureData.geometry) {
+      log.error('[generateNDVIGrid] Pasture not found or has no geometry')
       return {
-        gridText: 'Error: Paddock not found',
+        gridText: 'Error: Pasture not found',
         gridValues: [],
         bounds: { minLat: 0, maxLat: 0, minLng: 0, maxLng: 0 },
-        paddockId: args.paddockExternalId,
+        pastureId: args.paddockExternalId,
         captureDate: '',
         hasData: false,
-        error: 'Paddock not found or has no geometry',
+        error: 'Pasture not found or has no geometry',
       }
     }
 
-    // Extract polygon coordinates from paddock geometry
-    const paddockGeometry = paddockData.geometry as Feature<Polygon>
-    const [minLng, minLat, maxLng, maxLat] = bbox(paddockGeometry)
+    // Extract polygon coordinates from pasture geometry
+    const pastureGeometry = pastureData.geometry as Feature<Polygon>
+    const [minLng, minLat, maxLng, maxLat] = bbox(pastureGeometry)
 
-    log('[generateNDVIGrid] Paddock bounds:', {
+    log('[generateNDVIGrid] Pasture bounds:', {
       minLat,
       maxLat,
       minLng,
@@ -97,7 +97,7 @@ export const generateNDVIGrid = action({
         gridText: 'Error: Farm not found',
         gridValues: [],
         bounds: { minLat, maxLat, minLng, maxLng },
-        paddockId: args.paddockExternalId,
+        pastureId: args.paddockExternalId,
         captureDate: '',
         hasData: false,
         error: 'Farm not found',
@@ -221,7 +221,7 @@ export const generateNDVIGrid = action({
         gridText,
         gridValues,
         bounds: { minLat, maxLat, minLng, maxLng },
-        paddockId: args.paddockExternalId,
+        pastureId: args.paddockExternalId,
         captureDate: targetDate,
         hasData: true,
       }
@@ -275,10 +275,10 @@ function formatGridAsText(
 
 /**
  * Create a fallback grid when GeoTIFF data is unavailable.
- * Uses aggregate paddock NDVI value distributed uniformly.
+ * Uses aggregate pasture NDVI value distributed uniformly.
  */
 function createFallbackGrid(
-  paddockId: string,
+  pastureId: string,
   minLat: number,
   maxLat: number,
   minLng: number,
@@ -301,7 +301,7 @@ ${formatGridAsText(gridValues, minLat, maxLat, minLng, maxLng)}`
     gridText,
     gridValues,
     bounds: { minLat, maxLat, minLng, maxLng },
-    paddockId,
+    pastureId,
     captureDate: '',
     hasData: false,
     error: reason,
@@ -309,10 +309,10 @@ ${formatGridAsText(gridValues, minLat, maxLat, minLng, maxLng)}`
 }
 
 /**
- * Calculate NDVI statistics for a section polygon within the paddock.
- * Used to validate that agent-drawn sections target high-NDVI areas.
+ * Calculate NDVI statistics for a paddock polygon within the pasture.
+ * Used to validate that agent-drawn paddocks target high-NDVI areas.
  */
-export const calculateSectionNDVI = action({
+export const calculatePaddockNDVI = action({
   args: {
     farmExternalId: v.string(),
     paddockExternalId: v.string(),
@@ -331,7 +331,7 @@ export const calculateSectionNDVI = action({
     sampleCount: number
     error?: string
   }> => {
-    log('[calculateSectionNDVI] START:', {
+    log('[calculatePaddockNDVI] START:', {
       farmExternalId: args.farmExternalId,
       paddockExternalId: args.paddockExternalId,
       captureDate: args.captureDate,
@@ -343,13 +343,13 @@ export const calculateSectionNDVI = action({
     })
     const threshold = settings?.minNDVIThreshold || 0.40
 
-    // Get section bounds
-    const sectionFeature: Feature<Polygon> = {
+    // Get paddock bounds
+    const paddockFeature: Feature<Polygon> = {
       type: 'Feature',
       properties: {},
       geometry: args.sectionGeometry,
     }
-    const [minLng, minLat, maxLng, maxLat] = bbox(sectionFeature)
+    const [minLng, minLat, maxLng, maxLat] = bbox(paddockFeature)
 
     // Get the NDVI tile
     const availableDates = await ctx.runQuery(api.satelliteTiles.getAvailableDatesByExternalId, {
@@ -358,13 +358,13 @@ export const calculateSectionNDVI = action({
     })
 
     if (!availableDates || availableDates.length === 0) {
-      log('[calculateSectionNDVI] No NDVI tiles available, using paddock NDVI')
-      // Fallback to paddock aggregate NDVI
-      const paddockData = await ctx.runQuery(api.paddocks.getPaddockByExternalId, {
+      log('[calculatePaddockNDVI] No NDVI tiles available, using pasture NDVI')
+      // Fallback to pasture aggregate NDVI
+      const pastureData = await ctx.runQuery(api.paddocks.getPastureByExternalId, {
         farmExternalId: args.farmExternalId,
         paddockExternalId: args.paddockExternalId,
       })
-      const fallbackNdvi = paddockData?.ndvi || 0.45
+      const fallbackNdvi = pastureData?.ndvi || 0.45
       return {
         mean: fallbackNdvi,
         min: fallbackNdvi,
@@ -372,7 +372,7 @@ export const calculateSectionNDVI = action({
         threshold,
         meetsThreshold: fallbackNdvi >= threshold,
         sampleCount: 0,
-        error: 'No NDVI raster available, using paddock aggregate',
+        error: 'No NDVI raster available, using pasture aggregate',
       }
     }
 
@@ -384,11 +384,11 @@ export const calculateSectionNDVI = action({
     })
 
     if (!tile || !tile.r2Url) {
-      const paddockData = await ctx.runQuery(api.paddocks.getPaddockByExternalId, {
+      const pastureData = await ctx.runQuery(api.paddocks.getPastureByExternalId, {
         farmExternalId: args.farmExternalId,
         paddockExternalId: args.paddockExternalId,
       })
-      const fallbackNdvi = paddockData?.ndvi || 0.45
+      const fallbackNdvi = pastureData?.ndvi || 0.45
       return {
         mean: fallbackNdvi,
         min: fallbackNdvi,
@@ -396,7 +396,7 @@ export const calculateSectionNDVI = action({
         threshold,
         meetsThreshold: fallbackNdvi >= threshold,
         sampleCount: 0,
-        error: 'No NDVI tile for date, using paddock aggregate',
+        error: 'No NDVI tile for date, using pasture aggregate',
       }
     }
 
@@ -425,8 +425,8 @@ export const calculateSectionNDVI = action({
       const tileMinLat = tileBounds.south
       const tileMaxLat = tileBounds.north
 
-      // Sample NDVI values within the section bounds
-      // Use a 5x5 grid within the section for statistics
+      // Sample NDVI values within the paddock bounds
+      // Use a 5x5 grid within the paddock for statistics
       const SAMPLE_SIZE = 5
       const ndviValues: number[] = []
       const latStep = (maxLat - minLat) / SAMPLE_SIZE
@@ -466,7 +466,7 @@ export const calculateSectionNDVI = action({
           threshold,
           meetsThreshold: false,
           sampleCount: 0,
-          error: 'No valid NDVI samples within section',
+          error: 'No valid NDVI samples within paddock',
         }
       }
 
@@ -474,7 +474,7 @@ export const calculateSectionNDVI = action({
       const min = Math.min(...ndviValues)
       const max = Math.max(...ndviValues)
 
-      log('[calculateSectionNDVI] SUCCESS:', {
+      log('[calculatePaddockNDVI] SUCCESS:', {
         mean: mean.toFixed(3),
         min: min.toFixed(3),
         max: max.toFixed(3),
@@ -492,7 +492,7 @@ export const calculateSectionNDVI = action({
         sampleCount: ndviValues.length,
       }
     } catch (error: any) {
-      log.error('[calculateSectionNDVI] Error:', error)
+      log.error('[calculatePaddockNDVI] Error:', error)
       return {
         mean: 0.45,
         min: 0.45,

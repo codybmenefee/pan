@@ -31,19 +31,19 @@ The concepts in this section explain the mental model underlying the platform's 
 - Farmer observations and overrides
 
 **State (Understanding)**
-- Current forage availability per paddock
+- Current forage availability per pasture
 - Recovery status (days since last grazing)
 - Trend direction (improving, stable, declining)
 
 **Actions (Recommendations)**
-- Which paddock to graze
-- What section within the paddock
+- Which pasture to graze
+- What paddock within the pasture
 - Confidence level in the recommendation
 
 **Feedback (Learning)**
 - Farmer approval or rejection
 - Actual outcomes vs. predictions
-- Long-term paddock performance patterns
+- Long-term pasture performance patterns
 
 This loop repeats daily. Each cycle incorporates new data and refines understanding of your specific farm.`,
     },
@@ -53,9 +53,9 @@ This loop repeats daily. Each cycle incorporates new data and refines understand
 
 **Forage Availability** - Measured primarily through NDVI (Normalized Difference Vegetation Index). Higher values indicate more photosynthetically active vegetation. Not a direct measure of biomass, but a reliable proxy for relative pasture condition.
 
-**Recovery Time** - Days since a paddock was last grazed. Recovery allows root systems to regenerate, soil biology to stabilize, and forage to regrow. Insufficient recovery is the most common failure mode in rotational systems.
+**Recovery Time** - Days since a pasture was last grazed. Recovery allows root systems to regenerate, soil biology to stabilize, and forage to regrow. Insufficient recovery is the most common failure mode in rotational systems.
 
-**Grazing Pressure** - The relationship between animal demand and available forage. The platform models this through section sizing—recommending smaller sections when forage is limited.
+**Grazing Pressure** - The relationship between animal demand and available forage. The platform models this through paddock sizing—recommending smaller paddocks when forage is limited.
 
 **Weather Influence** - Temperature and precipitation affect growth rates. The platform weights recent weather more heavily than forecasts, using conditions as modifiers to expected recovery.
 

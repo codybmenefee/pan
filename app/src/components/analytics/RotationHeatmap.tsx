@@ -7,18 +7,18 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 interface RotationHeatmapProps {
   data: ExtendedRotationEntry[]
   title?: string
-  showSectionCounts?: boolean
+  showPaddockCounts?: boolean
 }
 
-export function RotationHeatmap({ 
-  data, 
-  title = 'Paddock Rotation Heatmap',
-  showSectionCounts = true,
+export function RotationHeatmap({
+  data,
+  title = 'Pasture Rotation Heatmap',
+  showPaddockCounts = true,
 }: RotationHeatmapProps) {
   const weekLabels = getWeekLabels()
 
-  // Get color intensity based on section count
-  const getSectionColor = (count: number): string => {
+  // Get color intensity based on paddock count
+  const getPaddockColor = (count: number): string => {
     if (count === 0) return 'bg-muted'
     if (count <= 2) return 'bg-green-300 dark:bg-green-800'
     if (count <= 4) return 'bg-green-500 dark:bg-green-600'
@@ -36,7 +36,7 @@ export function RotationHeatmap({
           <table className="w-full text-sm">
             <thead>
               <tr>
-                <th className="text-left font-medium py-2 pr-4">Paddock</th>
+                <th className="text-left font-medium py-2 pr-4">Pasture</th>
                 {weekLabels.map((label, i) => (
                   <th key={i} className="text-center font-medium py-2 px-2 min-w-[50px]">
                     {label}
@@ -46,19 +46,19 @@ export function RotationHeatmap({
             </thead>
             <tbody>
               {data.map((row) => (
-                <tr key={row.paddockId} className="border-t border-border">
+                <tr key={row.pastureId} className="border-t border-border">
                   <td className="py-2 pr-4">
                     <Link
-                      to="/app/paddocks/$id"
-                      params={{ id: row.paddockId }}
+                      to="/app/pastures/$id"
+                      params={{ id: row.pastureId }}
                       className="hover:underline"
                     >
-                      {row.paddockName}
+                      {row.pastureName}
                     </Link>
                   </td>
                   {row.weeklyData.map((grazed, i) => {
-                    const sectionCount = row.sectionCounts?.[i] || 0
-                    
+                    const paddockCount = row.paddockCounts?.[i] || 0
+
                     return (
                       <td key={i} className="text-center py-2 px-2">
                         <TooltipProvider>
@@ -66,20 +66,20 @@ export function RotationHeatmap({
                             <TooltipTrigger asChild>
                               <div className={cn(
                                 'mx-auto h-6 w-6 rounded flex items-center justify-center transition-colors',
-                                showSectionCounts 
-                                  ? getSectionColor(sectionCount)
+                                showPaddockCounts
+                                  ? getPaddockColor(paddockCount)
                                   : grazed ? 'bg-green-500 dark:bg-green-600' : 'bg-muted'
                               )}>
-                                {showSectionCounts && sectionCount > 0 && (
+                                {showPaddockCounts && paddockCount > 0 && (
                                   <span className="text-[10px] font-semibold text-white dark:text-gray-900">
-                                    {sectionCount}
+                                    {paddockCount}
                                   </span>
                                 )}
                               </div>
                             </TooltipTrigger>
                             <TooltipContent>
-                              {grazed 
-                                ? `${sectionCount} section${sectionCount !== 1 ? 's' : ''} grazed`
+                              {grazed
+                                ? `${paddockCount} paddock${paddockCount !== 1 ? 's' : ''} grazed`
                                 : 'Resting'
                               }
                             </TooltipContent>
@@ -93,12 +93,12 @@ export function RotationHeatmap({
             </tbody>
           </table>
         </div>
-        
+
         {/* Legend */}
         <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground">
-          {showSectionCounts ? (
+          {showPaddockCounts ? (
             <>
-              <span className="font-medium">Sections per week:</span>
+              <span className="font-medium">Paddocks per week:</span>
               <div className="flex items-center gap-1.5">
                 <div className="h-4 w-4 rounded bg-muted" />
                 <span>0</span>

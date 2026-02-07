@@ -19,7 +19,7 @@ The sample farm is located at:
 - **Location:** 943 Riverview Ln, Columbia, TN 38401
 - **Coordinates:** [-87.0403892, 35.6389946]
 - **Area:** ~142 hectares
-- **Paddocks:** 8 (South Valley, North Flat, Top Block, East Ridge, Creek Bend, West Slope, Creek Side, Lower Paddock)
+- **Pastures:** 8 (South Valley, North Flat, Top Block, East Ridge, Creek Bend, West Slope, Creek Side, Lower Pasture)
 
 ### Bounding Box for AOI
 
@@ -353,7 +353,7 @@ Phase 2 is complete when:
 After Phase 2 validates the data path:
 - Implement cloud masking using SCL band
 - Expand to 21-day rolling window
-- Add zonal statistics per paddock
+- Add zonal statistics per pasture
 - Store observations in Convex
 
 ## Troubleshooting

@@ -54,8 +54,8 @@ export const listAllFarmsWithSettings = internalQuery({
           .withIndex('by_farm', (q) => q.eq('farmId', farm._id))
           .first()
 
-        // Get paddocks
-        const paddocks = await ctx.db
+        // Get pastures
+        const pastures = await ctx.db
           .query('paddocks')
           .withIndex('by_farm', (q) => q.eq('farmId', farm._id))
           .collect()
@@ -64,7 +64,7 @@ export const listAllFarmsWithSettings = internalQuery({
           ...farm,
           settings,
           subscription,
-          paddocks,
+          pastures,
         }
       })
     )

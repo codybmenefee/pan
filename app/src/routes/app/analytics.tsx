@@ -88,7 +88,7 @@ function AnalyticsPage() {
     ? Math.round(recoveryData.reduce((sum, p) => sum + p.recoveryPct, 0) / recoveryData.length)
     : 0
 
-  const readyPaddocks = recoveryData.filter(p => p.recoveryPct >= 80).length
+  const readyPastures = recoveryData.filter(p => p.recoveryPct >= 80).length
 
   return (
     <div className="h-full overflow-auto">
@@ -108,19 +108,19 @@ function AnalyticsPage() {
           title="Avg Rest Period"
           value={`${restPeriodData.avgRestPeriod} days`}
           trendDirection={restPeriodData.avgRestPeriod >= 21 ? 'up' : 'down'}
-          tooltip="Average days paddocks rest between grazing events. Target: 21-45 days for optimal regrowth."
+          tooltip="Average days pastures rest between grazing events. Target: 21-45 days for optimal regrowth."
         />
         <MetricCard
           title="Avg Recovery"
           value={`${avgRecovery}%`}
           trendDirection={avgRecovery >= 60 ? 'up' : avgRecovery >= 40 ? 'stable' : 'down'}
-          tooltip="Average NDVI recovery across all paddocks since last graze."
+          tooltip="Average NDVI recovery across all pastures since last graze."
         />
         <MetricCard
-          title="Ready Paddocks"
-          value={`${readyPaddocks} of ${recoveryData.length}`}
-          trendDirection={readyPaddocks > 0 ? 'up' : 'stable'}
-          tooltip="Paddocks with 80%+ recovery, ready for grazing."
+          title="Ready Pastures"
+          value={`${readyPastures} of ${recoveryData.length}`}
+          trendDirection={readyPastures > 0 ? 'up' : 'stable'}
+          tooltip="Pastures with 80%+ recovery, ready for grazing."
         />
         <MetricCard
           title="AI Approval Rate"

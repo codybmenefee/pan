@@ -2,29 +2,29 @@ import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import type { Paddock, PaddockStatus } from '@/lib/types'
+import type { Pasture, PastureStatus } from '@/lib/types'
 import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 
-interface PaddockPanelProps {
-  paddock: Paddock
+interface PasturePanelProps {
+  pasture: Pasture
   onClose: () => void
 }
 
-const statusLabels: Record<PaddockStatus, string> = {
+const statusLabels: Record<PastureStatus, string> = {
   ready: 'Ready',
   almost_ready: 'Almost Ready',
   recovering: 'Recovering',
   grazed: 'Recently Grazed',
 }
 
-const statusColors: Record<PaddockStatus, string> = {
+const statusColors: Record<PastureStatus, string> = {
   ready: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20',
   almost_ready: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
   recovering: 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20',
   grazed: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
 }
 
-export function PaddockPanel({ paddock, onClose }: PaddockPanelProps) {
+export function PasturePanel({ pasture, onClose }: PasturePanelProps) {
   const { format } = useAreaUnit()
 
   return (
@@ -32,9 +32,9 @@ export function PaddockPanel({ paddock, onClose }: PaddockPanelProps) {
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div>
-          <h2 className="font-semibold text-lg">{paddock.name}</h2>
+          <h2 className="font-semibold text-lg">{pasture.name}</h2>
           <p className="text-sm text-muted-foreground">
-            Paddock {paddock.id.replace('p', '')}
+            Pasture {pasture.id.replace('p', '')}
           </p>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
@@ -43,8 +43,8 @@ export function PaddockPanel({ paddock, onClose }: PaddockPanelProps) {
       </div>
 
       {/* Status badge */}
-      <Badge variant="outline" className={statusColors[paddock.status]}>
-        {statusLabels[paddock.status]}
+      <Badge variant="outline" className={statusColors[pasture.status]}>
+        {statusLabels[pasture.status]}
       </Badge>
 
       <Separator className="my-4" />
@@ -54,28 +54,28 @@ export function PaddockPanel({ paddock, onClose }: PaddockPanelProps) {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-wide">NDVI</p>
-            <p className="text-lg font-semibold">{paddock.ndvi.toFixed(2)}</p>
+            <p className="text-lg font-semibold">{pasture.ndvi.toFixed(2)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-wide">Rest</p>
-            <p className="text-lg font-semibold">{paddock.restDays} days</p>
+            <p className="text-lg font-semibold">{pasture.restDays} days</p>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-wide">Area</p>
-            <p className="text-sm font-medium">{format(paddock.area)}</p>
+            <p className="text-sm font-medium">{format(pasture.area)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-wide">Last Grazed</p>
-            <p className="text-sm font-medium">{paddock.lastGrazed}</p>
+            <p className="text-sm font-medium">{pasture.lastGrazed}</p>
           </div>
         </div>
 
         <div>
           <p className="text-xs text-muted-foreground uppercase tracking-wide">Water Access</p>
-          <p className="text-sm font-medium">{paddock.waterAccess}</p>
+          <p className="text-sm font-medium">{pasture.waterAccess}</p>
         </div>
       </div>
 

@@ -1,63 +1,63 @@
 import { useMemo } from 'react'
 import { useGeometry } from '@/lib/geometry'
-import type { Paddock, Section, SectionAlternative } from '@/lib/types'
+import type { Pasture, Paddock, PaddockAlternative } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
-interface PaddockMiniMapProps {
-  currentPaddockId?: string
-  targetPaddockId?: string
-  highlightedPaddockId?: string
+interface PastureMiniMapProps {
+  currentPastureId?: string
+  targetPastureId?: string
+  highlightedPastureId?: string
   size?: 'sm' | 'md' | 'lg' | 'full'
   showLabels?: boolean
   className?: string
-  // Section-specific props
-  section?: Section
-  previousSections?: Section[]
-  // Section alternatives
-  sectionAlternatives?: SectionAlternative[]
+  // Paddock-specific props
+  paddock?: Paddock
+  previousPaddocks?: Paddock[]
+  // Paddock alternatives
+  paddockAlternatives?: PaddockAlternative[]
   selectedAlternativeId?: string
 }
 
-const statusColors: Record<Paddock['status'], string> = {
+const statusColors: Record<Pasture['status'], string> = {
   ready: '#22c55e',
   almost_ready: '#f59e0b',
   recovering: '#6b7280',
   grazed: '#ef4444',
 }
 
-const statusColorsLight: Record<Paddock['status'], string> = {
+const statusColorsLight: Record<Pasture['status'], string> = {
   ready: '#86efac',
   almost_ready: '#fcd34d',
   recovering: '#d1d5db',
   grazed: '#fca5a5',
 }
 
-export function PaddockMiniMap({
-  currentPaddockId,
-  targetPaddockId,
-  highlightedPaddockId,
+export function PastureMiniMap({
+  currentPastureId,
+  targetPastureId,
+  highlightedPastureId,
   size = 'md',
   showLabels = false,
   className,
-  section,
-  previousSections = [],
-  sectionAlternatives = [],
+  paddock,
+  previousPaddocks = [],
+  paddockAlternatives = [],
   selectedAlternativeId,
-}: PaddockMiniMapProps) {
-  const { paddocks, getPaddockById } = useGeometry()
-  
-  // Check if we're in section view mode (focus on single paddock)
-  const sectionViewMode = section && currentPaddockId === targetPaddockId
-  const focusPaddock = sectionViewMode ? getPaddockById(currentPaddockId!) : null
+}: PastureMiniMapProps) {
+  const { pastures, getPastureById } = useGeometry()
+
+  // Check if we're in paddock view mode (focus on single pasture)
+  const paddockViewMode = paddock && currentPastureId === targetPastureId
+  const focusPasture = paddockViewMode ? getPastureById(currentPastureId!) : null
 
   // Calculate bounds and normalize coordinates
-  // When in section view mode, focus only on the current paddock
-  const { normalizedPaddocks, viewBox, paddockCenters, normalizeFn, focusPaddockPath, svgWidth, svgHeight } = useMemo(() => {
+  // When in paddock view mode, focus only on the current pasture
+  const { normalizedPastures, viewBox, pastureCenters, normalizeFn, focusPasturePath, svgWidth, svgHeight } = useMemo(() => {
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
 
-    if (sectionViewMode && focusPaddock) {
-      // Focus bounds on just the current paddock - sections may overflow but that's ok
-      const coords = (focusPaddock.geometry.geometry as GeoJSON.Polygon).coordinates[0]
+    if (paddockViewMode && focusPasture) {
+      // Focus bounds on just the current pasture - paddocks may overflow but that's ok
+      const coords = (focusPasture.geometry.geometry as GeoJSON.Polygon).coordinates[0]
       coords.forEach(([lng, lat]) => {
         minX = Math.min(minX, lng)
         maxX = Math.max(maxX, lng)
@@ -65,8 +65,8 @@ export function PaddockMiniMap({
         maxY = Math.max(maxY, lat)
       })
     } else {
-      // Find bounds from all paddock coordinates
-      paddocks.forEach(p => {
+      // Find bounds from all pasture coordinates
+      pastures.forEach(p => {
         const coords = (p.geometry.geometry as GeoJSON.Polygon).coordinates[0]
         coords.forEach(([lng, lat]) => {
           minX = Math.min(minX, lng)
@@ -82,7 +82,7 @@ export function PaddockMiniMap({
     const padding = 0.02 // Minimal padding for full bleed
     const paddedWidth = width * (1 + padding * 2)
     const paddedHeight = height * (1 + padding * 2)
-    
+
     // Calculate aspect ratio for viewBox (use actual content proportions)
     const aspectRatio = paddedWidth / paddedHeight
     const svgWidth = 100
@@ -97,10 +97,10 @@ export function PaddockMiniMap({
 
     const centers: Record<string, [number, number]> = {}
 
-    const normalized = paddocks.map(p => {
+    const normalized = pastures.map(p => {
       const coords = (p.geometry.geometry as GeoJSON.Polygon).coordinates[0]
       const normalizedCoords = coords.map(([lng, lat]) => normalize(lng, lat))
-      
+
       // Calculate center
       const centerX = normalizedCoords.reduce((sum, [x]) => sum + x, 0) / normalizedCoords.length
       const centerY = normalizedCoords.reduce((sum, [, y]) => sum + y, 0) / normalizedCoords.length
@@ -112,47 +112,47 @@ export function PaddockMiniMap({
       }
     })
 
-    // Generate focus paddock path separately for section view
+    // Generate focus pasture path separately for paddock view
     let focusPath = ''
-    if (sectionViewMode && focusPaddock) {
-      const coords = (focusPaddock.geometry.geometry as GeoJSON.Polygon).coordinates[0]
+    if (paddockViewMode && focusPasture) {
+      const coords = (focusPasture.geometry.geometry as GeoJSON.Polygon).coordinates[0]
       const normalizedCoords = coords.map(([lng, lat]) => normalize(lng, lat))
       focusPath = `M ${normalizedCoords.map(([x, y]) => `${x},${y}`).join(' L ')} Z`
     }
 
     return {
-      normalizedPaddocks: normalized,
+      normalizedPastures: normalized,
       viewBox: `0 0 ${svgWidth} ${svgHeight}`,
-      paddockCenters: centers,
+      pastureCenters: centers,
       normalizeFn: normalize,
-      focusPaddockPath: focusPath,
+      focusPasturePath: focusPath,
       svgWidth,
       svgHeight,
     }
-  }, [sectionViewMode, focusPaddock])
+  }, [paddockViewMode, focusPasture])
 
-  // Normalize section geometry to SVG path
-  const normalizeSection = useMemo(() => {
-    return (sec: Section): string => {
-      const coords = sec.geometry.geometry.coordinates[0]
+  // Normalize paddock geometry to SVG path
+  const normalizePaddock = useMemo(() => {
+    return (pdk: Paddock): string => {
+      const coords = pdk.geometry.geometry.coordinates[0]
       const normalizedCoords = coords.map(([lng, lat]) => normalizeFn(lng, lat))
       return `M ${normalizedCoords.map(([x, y]) => `${x},${y}`).join(' L ')} Z`
     }
   }, [normalizeFn])
 
-  // Normalize alternative section geometry to SVG path
+  // Normalize alternative paddock geometry to SVG path
   const normalizeAlternative = useMemo(() => {
-    return (alt: SectionAlternative): string => {
+    return (alt: PaddockAlternative): string => {
       const coords = alt.geometry.geometry.coordinates[0]
       const normalizedCoords = coords.map(([lng, lat]) => normalizeFn(lng, lat))
       return `M ${normalizedCoords.map(([x, y]) => `${x},${y}`).join(' L ')} Z`
     }
   }, [normalizeFn])
 
-  // Calculate center of a section for labeling
-  const getSectionCenter = useMemo(() => {
-    return (sec: Section): [number, number] => {
-      const coords = sec.geometry.geometry.coordinates[0]
+  // Calculate center of a paddock for labeling
+  const getPaddockCenter = useMemo(() => {
+    return (pdk: Paddock): [number, number] => {
+      const coords = pdk.geometry.geometry.coordinates[0]
       const normalizedCoords = coords.map(([lng, lat]) => normalizeFn(lng, lat))
       const centerX = normalizedCoords.reduce((sum, [x]) => sum + x, 0) / normalizedCoords.length
       const centerY = normalizedCoords.reduce((sum, [, y]) => sum + y, 0) / normalizedCoords.length
@@ -167,14 +167,14 @@ export function PaddockMiniMap({
     full: 'w-full aspect-[3/2]',
   }
 
-  const currentPaddock = currentPaddockId ? getPaddockById(currentPaddockId) : undefined
-  const targetPaddock = targetPaddockId ? getPaddockById(targetPaddockId) : undefined
+  const currentPasture = currentPastureId ? getPastureById(currentPastureId) : undefined
+  const targetPasture = targetPastureId ? getPastureById(targetPastureId) : undefined
 
-  // Arrow path calculation (only for paddock transitions)
+  // Arrow path calculation (only for pasture transitions)
   const arrowPath = useMemo(() => {
-    if (!currentPaddockId || !targetPaddockId || currentPaddockId === targetPaddockId) return null
-    const from = paddockCenters[currentPaddockId]
-    const to = paddockCenters[targetPaddockId]
+    if (!currentPastureId || !targetPastureId || currentPastureId === targetPastureId) return null
+    const from = pastureCenters[currentPastureId]
+    const to = pastureCenters[targetPastureId]
     if (!from || !to) return null
 
     // Calculate direction and shorten the line
@@ -191,13 +191,13 @@ export function PaddockMiniMap({
     const endY = to[1] - unitY * 10
 
     return { startX, startY, endX, endY, unitX, unitY }
-  }, [currentPaddockId, targetPaddockId, paddockCenters])
+  }, [currentPastureId, targetPastureId, pastureCenters])
 
-  // Get yesterday's section (most recent in previousSections)
-  const yesterdaySection = previousSections.length > 0 
-    ? previousSections[previousSections.length - 1] 
+  // Get yesterday's paddock (most recent in previousPaddocks)
+  const yesterdayPaddock = previousPaddocks.length > 0
+    ? previousPaddocks[previousPaddocks.length - 1]
     : null
-  const olderSections = previousSections.slice(0, -1)
+  const olderPaddocks = previousPaddocks.slice(0, -1)
 
   return (
     <div className={cn('relative border border-border rounded-md overflow-hidden', sizeClasses[size], className)}>
@@ -238,39 +238,39 @@ export function PaddockMiniMap({
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
-          {/* Hatching pattern for current section */}
-          <pattern id="section-hatch" patternUnits="userSpaceOnUse" width="4" height="4">
+          {/* Hatching pattern for current paddock */}
+          <pattern id="paddock-hatch" patternUnits="userSpaceOnUse" width="4" height="4">
             <path d="M-1,1 l2,-2 M0,4 l4,-4 M3,5 l2,-2" stroke="#22c55e" strokeWidth="1" />
           </pattern>
-          {/* Pattern for yesterday's section */}
+          {/* Pattern for yesterday's paddock */}
           <pattern id="yesterday-hatch" patternUnits="userSpaceOnUse" width="4" height="4">
             <path d="M-1,1 l2,-2 M0,4 l4,-4 M3,5 l2,-2" stroke="#f59e0b" strokeWidth="0.8" opacity="0.7" />
           </pattern>
-          {/* Pattern for older grazed sections */}
+          {/* Pattern for older grazed paddocks */}
           <pattern id="grazed-hatch" patternUnits="userSpaceOnUse" width="3" height="3">
             <path d="M-1,1 l2,-2 M0,3 l3,-3 M2,4 l2,-2" stroke="#6b7280" strokeWidth="0.5" opacity="0.5" />
           </pattern>
-          {/* Pattern for alternative sections */}
+          {/* Pattern for alternative paddocks */}
           <pattern id="alt-hatch" patternUnits="userSpaceOnUse" width="5" height="5">
             <path d="M0,5 l5,-5 M-2,2 l4,-4 M3,7 l4,-4" stroke="#3b82f6" strokeWidth="0.8" opacity="0.5" />
           </pattern>
         </defs>
 
-        {/* Section View Mode: Focus on just the current paddock */}
-        {sectionViewMode && focusPaddock ? (
+        {/* Paddock View Mode: Focus on just the current pasture */}
+        {paddockViewMode && focusPasture ? (
           <g clipPath="url(#viewbox-clip)">
-            {/* Paddock outline (background) */}
+            {/* Pasture outline (background) */}
             <path
-              d={focusPaddockPath}
+              d={focusPasturePath}
               fill="#f5f5f5"
               stroke="#d4d4d4"
               strokeWidth="1"
               className="dark:fill-zinc-800 dark:stroke-zinc-600"
             />
 
-            {/* Ungrazed area indicator (remaining paddock) */}
+            {/* Ungrazed area indicator (remaining pasture) */}
             <path
-              d={focusPaddockPath}
+              d={focusPasturePath}
               fill="none"
               stroke="#a3a3a3"
               strokeWidth="0.5"
@@ -278,11 +278,11 @@ export function PaddockMiniMap({
               className="dark:stroke-zinc-500"
             />
 
-            {/* Older grazed sections (before yesterday) */}
-            {olderSections.map((prevSection, index) => (
+            {/* Older grazed paddocks (before yesterday) */}
+            {olderPaddocks.map((prevPaddock, index) => (
               <path
-                key={prevSection.id || `older-${index}`}
-                d={normalizeSection(prevSection)}
+                key={prevPaddock.id || `older-${index}`}
+                d={normalizePaddock(prevPaddock)}
                 fill="#9ca3af"
                 fillOpacity="0.3"
                 stroke="#6b7280"
@@ -291,11 +291,11 @@ export function PaddockMiniMap({
               />
             ))}
 
-            {/* Yesterday's section - highlighted distinctly */}
-            {yesterdaySection && (
+            {/* Yesterday's paddock - highlighted distinctly */}
+            {yesterdayPaddock && (
               <g>
                 <path
-                  d={normalizeSection(yesterdaySection)}
+                  d={normalizePaddock(yesterdayPaddock)}
                   fill="#f59e0b"
                   fillOpacity="0.35"
                   stroke="#f59e0b"
@@ -303,7 +303,7 @@ export function PaddockMiniMap({
                   className="transition-all duration-300"
                 />
                 <path
-                  d={normalizeSection(yesterdaySection)}
+                  d={normalizePaddock(yesterdayPaddock)}
                   fill="url(#yesterday-hatch)"
                   fillOpacity="0.4"
                   stroke="none"
@@ -311,8 +311,8 @@ export function PaddockMiniMap({
               </g>
             )}
 
-            {/* Alternative sections (shown when expanded) */}
-            {sectionAlternatives.map((alt) => (
+            {/* Alternative paddocks (shown when expanded) */}
+            {paddockAlternatives.map((alt) => (
               <g key={alt.id} className={selectedAlternativeId === alt.id ? "" : "opacity-60"}>
                 <path
                   d={normalizeAlternative(alt)}
@@ -334,11 +334,11 @@ export function PaddockMiniMap({
               </g>
             ))}
 
-            {/* Today's section - prominently highlighted (only if no alternative selected) */}
-            {section && !selectedAlternativeId && (
+            {/* Today's paddock - prominently highlighted (only if no alternative selected) */}
+            {paddock && !selectedAlternativeId && (
               <g className="animate-pulse">
                 <path
-                  d={normalizeSection(section)}
+                  d={normalizePaddock(paddock)}
                   fill="#22c55e"
                   fillOpacity="0.5"
                   stroke="#22c55e"
@@ -347,8 +347,8 @@ export function PaddockMiniMap({
                   className="transition-all duration-300"
                 />
                 <path
-                  d={normalizeSection(section)}
-                  fill="url(#section-hatch)"
+                  d={normalizePaddock(paddock)}
+                  fill="url(#paddock-hatch)"
                   fillOpacity="0.3"
                   stroke="none"
                 />
@@ -356,9 +356,9 @@ export function PaddockMiniMap({
             )}
 
             {/* Movement arrow from yesterday to today */}
-            {yesterdaySection && section && (() => {
-              const [fromX, fromY] = getSectionCenter(yesterdaySection)
-              const [toX, toY] = getSectionCenter(section)
+            {yesterdayPaddock && paddock && (() => {
+              const [fromX, fromY] = getPaddockCenter(yesterdayPaddock)
+              const [toX, toY] = getPaddockCenter(paddock)
               const dx = toX - fromX
               const dy = toY - fromY
               const len = Math.sqrt(dx * dx + dy * dy)
@@ -385,11 +385,11 @@ export function PaddockMiniMap({
           </g>
         ) : (
           <>
-            {/* Full Farm View: Render all paddocks */}
-            {normalizedPaddocks.map(p => {
-              const isTarget = p.id === targetPaddockId
-              const isCurrent = p.id === currentPaddockId
-              const isHighlighted = p.id === highlightedPaddockId
+            {/* Full Farm View: Render all pastures */}
+            {normalizedPastures.map(p => {
+              const isTarget = p.id === targetPastureId
+              const isCurrent = p.id === currentPastureId
+              const isHighlighted = p.id === highlightedPastureId
 
               return (
                 <g key={p.id}>
@@ -405,8 +405,8 @@ export function PaddockMiniMap({
                   {/* Labels */}
                   {showLabels && (
                     <text
-                      x={paddockCenters[p.id][0]}
-                      y={paddockCenters[p.id][1]}
+                      x={pastureCenters[p.id][0]}
+                      y={pastureCenters[p.id][1]}
                       textAnchor="middle"
                       dominantBaseline="middle"
                       className="fill-foreground text-[4px] font-medium pointer-events-none"
@@ -418,7 +418,7 @@ export function PaddockMiniMap({
               )
             })}
 
-            {/* Movement arrow (only for paddock transitions) */}
+            {/* Movement arrow (only for pasture transitions) */}
             {arrowPath && (
               <g className="animate-pulse">
                 <line
@@ -436,8 +436,8 @@ export function PaddockMiniMap({
             )}
 
             {/* Current position marker (livestock icon) */}
-            {currentPaddockId && paddockCenters[currentPaddockId] && (
-              <g transform={`translate(${paddockCenters[currentPaddockId][0]}, ${paddockCenters[currentPaddockId][1]})`}>
+            {currentPastureId && pastureCenters[currentPastureId] && (
+              <g transform={`translate(${pastureCenters[currentPastureId][0]}, ${pastureCenters[currentPastureId][1]})`}>
                 <circle r="5" fill="#1f2937" stroke="#fff" strokeWidth="1" className="dark:fill-zinc-800" />
                 <text
                   textAnchor="middle"
@@ -450,9 +450,9 @@ export function PaddockMiniMap({
               </g>
             )}
 
-            {/* Target marker (only for paddock transitions) */}
-            {targetPaddockId && currentPaddockId !== targetPaddockId && paddockCenters[targetPaddockId] && (
-              <g transform={`translate(${paddockCenters[targetPaddockId][0]}, ${paddockCenters[targetPaddockId][1]})`}>
+            {/* Target marker (only for pasture transitions) */}
+            {targetPastureId && currentPastureId !== targetPastureId && pastureCenters[targetPastureId] && (
+              <g transform={`translate(${pastureCenters[targetPastureId][0]}, ${pastureCenters[targetPastureId][1]})`}>
                 <circle r="4" fill="none" stroke="#22c55e" strokeWidth="1.5" className="animate-ping opacity-75" />
                 <circle r="3" fill="#22c55e" stroke="#fff" strokeWidth="0.5" />
               </g>
@@ -463,7 +463,7 @@ export function PaddockMiniMap({
 
       {/* Legend */}
       <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-3 text-[10px] text-muted-foreground">
-        {sectionViewMode ? (
+        {paddockViewMode ? (
           <>
             {!selectedAlternativeId && (
               <span className="flex items-center gap-1">
@@ -477,13 +477,13 @@ export function PaddockMiniMap({
                 Selected
               </span>
             )}
-            {yesterdaySection && (
+            {yesterdayPaddock && (
               <span className="flex items-center gap-1">
                 <span className="inline-block w-2 h-2 rounded-sm bg-amber-500/35 border border-amber-500" />
                 Yesterday
               </span>
             )}
-            {sectionAlternatives.length > 0 && !selectedAlternativeId && (
+            {paddockAlternatives.length > 0 && !selectedAlternativeId && (
               <span className="flex items-center gap-1">
                 <span className="inline-block w-2 h-2 rounded-sm bg-blue-300/25 border border-blue-400 border-dashed" />
                 Options
@@ -492,13 +492,13 @@ export function PaddockMiniMap({
           </>
         ) : (
           <>
-            {currentPaddock && (
+            {currentPasture && (
               <span className="flex items-center gap-1">
                 <span className="inline-block w-2 h-2 rounded-full bg-zinc-700 dark:bg-zinc-600" />
                 Now
               </span>
             )}
-            {targetPaddock && currentPaddockId !== targetPaddockId && (
+            {targetPasture && currentPastureId !== targetPastureId && (
               <span className="flex items-center gap-1">
                 <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
                 Next

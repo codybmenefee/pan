@@ -1,14 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import type { PaddockStay } from '@/lib/types'
+import type { PastureStay } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 
-interface SectionHistoryProps {
-  stays: PaddockStay[]
+interface PaddockHistoryProps {
+  stays: PastureStay[]
   title?: string
 }
 
-export function SectionHistory({ stays, title = 'Rotation History' }: SectionHistoryProps) {
+export function PaddockHistory({ stays, title = 'Rotation History' }: PaddockHistoryProps) {
   const { format } = useAreaUnit()
 
   if (stays.length === 0) {
@@ -19,7 +19,7 @@ export function SectionHistory({ stays, title = 'Rotation History' }: SectionHis
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground text-center py-4">
-            No rotation history for this paddock yet.
+            No rotation history for this pasture yet.
           </p>
         </CardContent>
       </Card>
@@ -34,13 +34,13 @@ export function SectionHistory({ stays, title = 'Rotation History' }: SectionHis
       <CardContent className="space-y-4">
         {stays.map((stay) => {
           const isOngoing = !stay.exitDate
-          const duration = stay.exitDate 
+          const duration = stay.exitDate
             ? Math.ceil((new Date(stay.exitDate).getTime() - new Date(stay.entryDate).getTime()) / (1000 * 60 * 60 * 24))
-            : stay.sections.length
-          
+            : stay.paddocks.length
+
           return (
-            <div 
-              key={stay.id} 
+            <div
+              key={stay.id}
               className={cn(
                 'border-l-2 pl-4 py-2',
                 isOngoing ? 'border-green-500' : 'border-muted-foreground/30'
@@ -63,26 +63,26 @@ export function SectionHistory({ stays, title = 'Rotation History' }: SectionHis
                   {duration} day{duration !== 1 ? 's' : ''} - {format(stay.totalArea)}
                 </span>
               </div>
-              
-              {/* Section timeline */}
+
+              {/* Paddock timeline */}
               <div className="flex gap-1 mt-2">
-                {stay.sections.map((section, sectionIndex) => {
-                  const isCurrentSection = isOngoing && sectionIndex === stay.sections.length - 1
+                {stay.paddocks.map((paddock, paddockIndex) => {
+                  const isCurrentPaddock = isOngoing && paddockIndex === stay.paddocks.length - 1
                   return (
                     <div
-                      key={section.id}
+                      key={paddock.id}
                       className={cn(
                         'flex-1 h-2 rounded-sm transition-all',
-                        isCurrentSection 
-                          ? 'bg-green-500 animate-pulse' 
+                        isCurrentPaddock
+                          ? 'bg-green-500 animate-pulse'
                           : 'bg-muted-foreground/40'
                       )}
-                      title={`Day ${sectionIndex + 1}: ${format(section.targetArea)}`}
+                      title={`Day ${paddockIndex + 1}: ${format(paddock.targetArea)}`}
                     />
                   )
                 })}
                 {/* Show remaining days if ongoing */}
-                {isOngoing && Array.from({ length: 4 - stay.sections.length }).map((_, i) => (
+                {isOngoing && Array.from({ length: 4 - stay.paddocks.length }).map((_, i) => (
                   <div
                     key={`planned-${i}`}
                     className="flex-1 h-2 rounded-sm border border-dashed border-muted-foreground/30"
@@ -90,13 +90,13 @@ export function SectionHistory({ stays, title = 'Rotation History' }: SectionHis
                   />
                 ))}
               </div>
-              
-              {/* Section details */}
+
+              {/* Paddock details */}
               <div className="mt-2 text-xs text-muted-foreground">
-                {stay.sections.length} section{stay.sections.length !== 1 ? 's' : ''} grazed
-                {stay.sections.length > 0 && (
+                {stay.paddocks.length} paddock{stay.paddocks.length !== 1 ? 's' : ''} grazed
+                {stay.paddocks.length > 0 && (
                   <span className="ml-2">
-                    (avg {format(stay.totalArea / stay.sections.length)}/section)
+                    (avg {format(stay.totalArea / stay.paddocks.length)}/paddock)
                   </span>
                 )}
               </div>

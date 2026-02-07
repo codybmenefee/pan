@@ -19,19 +19,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { Paddock, PaddockStatus } from '@/lib/types'
+import type { Pasture, PastureStatus } from '@/lib/types'
 import { useGeometry } from '@/lib/geometry'
 import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 
-interface PaddockEditPanelProps {
-  paddock: Paddock
+interface PastureEditPanelProps {
+  pasture: Pasture
   open: boolean
   onClose: () => void
 }
 
-interface PaddockFormState {
+interface PastureFormState {
   name: string
-  status: PaddockStatus
+  status: PastureStatus
   ndvi: number
   restDays: number
   area: number
@@ -39,34 +39,34 @@ interface PaddockFormState {
   lastGrazed: string
 }
 
-const statusOptions: { value: PaddockStatus; label: string }[] = [
+const statusOptions: { value: PastureStatus; label: string }[] = [
   { value: 'ready', label: 'Ready' },
   { value: 'almost_ready', label: 'Almost Ready' },
   { value: 'recovering', label: 'Recovering' },
   { value: 'grazed', label: 'Recently Grazed' },
 ]
 
-function buildFormState(paddock: Paddock): PaddockFormState {
+function buildFormState(pasture: Pasture): PastureFormState {
   return {
-    name: paddock.name,
-    status: paddock.status,
-    ndvi: paddock.ndvi,
-    restDays: paddock.restDays,
-    area: paddock.area,
-    waterAccess: paddock.waterAccess,
-    lastGrazed: paddock.lastGrazed,
+    name: pasture.name,
+    status: pasture.status,
+    ndvi: pasture.ndvi,
+    restDays: pasture.restDays,
+    area: pasture.area,
+    waterAccess: pasture.waterAccess,
+    lastGrazed: pasture.lastGrazed,
   }
 }
 
-export function PaddockEditPanel({ paddock, open, onClose }: PaddockEditPanelProps) {
-  const { deletePaddock } = useGeometry()
+export function PastureEditPanel({ pasture, open, onClose }: PastureEditPanelProps) {
+  const { deletePasture } = useGeometry()
   const { label } = useAreaUnit()
-  const [form, setForm] = useState<PaddockFormState>(() => buildFormState(paddock))
+  const [form, setForm] = useState<PastureFormState>(() => buildFormState(pasture))
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   useEffect(() => {
-    setForm(buildFormState(paddock))
-  }, [paddock.id])
+    setForm(buildFormState(pasture))
+  }, [pasture.id])
 
   const statusLabel = useMemo(
     () => statusOptions.find((option) => option.value === form.status)?.label ?? 'Select status',
@@ -74,7 +74,7 @@ export function PaddockEditPanel({ paddock, open, onClose }: PaddockEditPanelPro
   )
 
   const handleDelete = () => {
-    deletePaddock(paddock.id)
+    deletePasture(pasture.id)
     setDeleteDialogOpen(false)
     onClose()
   }
@@ -83,8 +83,8 @@ export function PaddockEditPanel({ paddock, open, onClose }: PaddockEditPanelPro
     <FloatingPanel
       open={open}
       onOpenChange={(isOpen) => !isOpen && onClose()}
-      title={`Edit ${paddock.name}`}
-      subtitle={`Paddock ${paddock.id.replace('p', '')}`}
+      title={`Edit ${pasture.name}`}
+      subtitle={`Pasture ${pasture.id.replace('p', '')}`}
       defaultWidth={340}
       defaultHeight={480}
       minWidth={300}
@@ -105,7 +105,7 @@ export function PaddockEditPanel({ paddock, open, onClose }: PaddockEditPanelPro
           <label className="text-xs text-muted-foreground uppercase tracking-wide">Status</label>
           <Select
             value={form.status}
-            onValueChange={(value) => setForm((prev) => ({ ...prev, status: value as PaddockStatus }))}
+            onValueChange={(value) => setForm((prev) => ({ ...prev, status: value as PastureStatus }))}
           >
             <SelectTrigger className="w-full">
               <SelectValue>{statusLabel}</SelectValue>
@@ -200,7 +200,7 @@ export function PaddockEditPanel({ paddock, open, onClose }: PaddockEditPanelPro
           onClick={() => setDeleteDialogOpen(true)}
         >
           <Trash2 className="h-4 w-4" />
-          Delete Paddock
+          Delete Pasture
         </Button>
       </div>
 
@@ -208,10 +208,10 @@ export function PaddockEditPanel({ paddock, open, onClose }: PaddockEditPanelPro
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Paddock</DialogTitle>
+            <DialogTitle>Delete Pasture</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete "{paddock.name}"? This action cannot be undone.
-              All sections within this paddock will also be deleted.
+              Are you sure you want to delete "{pasture.name}"? This action cannot be undone.
+              All paddocks within this pasture will also be deleted.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

@@ -3,11 +3,11 @@ import { Sparkles, Target } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import { ScreenshotFrame } from '../ScreenshotFrame'
 
-interface SectionsStepProps {
+interface PaddocksStepProps {
   isActive?: boolean
 }
 
-export function SectionsStep({ isActive = false }: SectionsStepProps) {
+export function PaddocksStep({ isActive = false }: PaddocksStepProps) {
   const hasTriggeredConfetti = useRef(false)
 
   useEffect(() => {
@@ -32,8 +32,8 @@ export function SectionsStep({ isActive = false }: SectionsStepProps) {
     <div className="flex flex-col items-center gap-6">
       {/* Visual - screenshot */}
       <ScreenshotFrame
-        src="/tutorial/section-highlight.png"
-        alt="Map with section polygon highlighted"
+        src="/tutorial/paddock-highlight.png"
+        alt="Map with paddock polygon highlighted"
         className="w-full"
       />
 
@@ -47,7 +47,7 @@ export function SectionsStep({ isActive = false }: SectionsStepProps) {
           Precision Grazing
         </h2>
         <p className="mt-3 text-muted-foreground max-w-md mx-auto">
-          AI draws section polygons covering ~20% of each paddock, rotating
+          AI draws paddock polygons covering ~20% of each pasture, rotating
           through to maximize recovery time. This precision approach keeps your
           pastures thriving.
         </p>

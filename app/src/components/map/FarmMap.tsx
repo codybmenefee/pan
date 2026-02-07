@@ -3,7 +3,7 @@ import maplibregl from 'maplibre-gl'
 import MapboxDraw from '@mapbox/mapbox-gl-draw'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
-import type { Paddock, PaddockStatus } from '@/lib/types'
+import type { Pasture, PastureStatus } from '@/lib/types'
 import { useGeometry, clipPolygonToPolygon, getTranslationDelta, translatePolygon } from '@/lib/geometry'
 import { createNoGrazeStripePatternByType, getNoGrazeZoneTypes } from '@/lib/map/patterns'
 import { useMapDraw, loadGeometriesToDraw, createTypedFeatureId, parseTypedFeatureId, type DrawMode } from '@/lib/hooks'
@@ -31,32 +31,32 @@ interface MapEventData {
 type MapEvent = maplibregl.MapMouseEvent & MapEventData
 
 interface FarmMapProps {
-  onPaddockClick?: (paddock: Paddock) => void
-  onEditPaddockSelect?: (paddock: Paddock | null) => void
+  onPastureClick?: (pasture: Pasture) => void
+  onEditPastureSelect?: (pasture: Pasture | null) => void
   onEditRequest?: (request: {
-    entityType: 'paddock' | 'section' | 'noGrazeZone' | 'waterPolygon'
+    entityType: 'pasture' | 'paddock' | 'noGrazeZone' | 'waterPolygon'
+    pastureId?: string
     paddockId?: string
-    sectionId?: string
     noGrazeZoneId?: string
     waterSourceId?: string
     geometry?: Feature<Polygon>
   }) => void
   onNoGrazeZoneClick?: (zoneId: string) => void
   onWaterSourceClick?: (sourceId: string) => void
+  selectedPastureId?: string
   selectedPaddockId?: string
-  selectedSectionId?: string
   showNdviHeat?: boolean
-  showPaddocks?: boolean
+  showPastures?: boolean
   showLabels?: boolean
-  showSections?: boolean
+  showPaddocks?: boolean
   showRGBSatellite?: boolean
   editable?: boolean
   editMode?: boolean
-  entityType?: 'paddock' | 'section' | 'noGrazeZone' | 'waterPoint' | 'waterPolygon'
-  parentPaddockId?: string
-  initialSectionFeature?: Feature<Polygon>
-  initialSectionId?: string
+  entityType?: 'pasture' | 'paddock' | 'noGrazeZone' | 'waterPoint' | 'waterPolygon'
+  parentPastureId?: string
+  initialPaddockFeature?: Feature<Polygon>
   initialPaddockId?: string
+  initialPastureId?: string
   initialNoGrazeZoneId?: string
   initialWaterSourceId?: string
   showToolbar?: boolean
@@ -64,7 +64,7 @@ interface FarmMapProps {
   compactToolbar?: boolean
 }
 
-export type EntityDropType = 'paddock' | 'noGrazeZone' | 'waterPoint' | 'waterPolygon'
+export type EntityDropType = 'pasture' | 'noGrazeZone' | 'waterPoint' | 'waterPolygon'
 
 export interface FarmMapHandle {
   getMap: () => maplibregl.Map | null
@@ -72,51 +72,51 @@ export interface FarmMapHandle {
   setDrawMode: (mode: DrawMode) => void
   deleteSelected: () => void
   cancelDrawing: () => void
-  focusOnPaddock: (paddockId: string) => void
+  focusOnPasture: (pastureId: string) => void
   focusOnGeometry: (geometry: Feature<Polygon>, padding?: number, force?: boolean) => void
   focusOnFarmBoundary: () => void
-  createPaddockAtCenter: () => string | null
+  createPastureAtCenter: () => string | null
   createEntityAtScreenPoint: (type: EntityDropType, screenX: number, screenY: number) => string | null
   getMapContainerRect: () => DOMRect | null
   resetUserInteraction: () => void
 }
 
-interface SectionRenderItem {
+interface PaddockRenderItem {
   id: string
-  paddockId: string
+  pastureId: string
   geometry: Feature<Polygon>
   properties: Record<string, unknown>
 }
 
-interface SectionRenderState {
-  current: SectionRenderItem[]
-  yesterday: SectionRenderItem[]
-  grazed: SectionRenderItem[]
-  alternatives: SectionRenderItem[]
+interface PaddockRenderState {
+  current: PaddockRenderItem[]
+  yesterday: PaddockRenderItem[]
+  grazed: PaddockRenderItem[]
+  alternatives: PaddockRenderItem[]
 }
 
-const statusColors: Record<PaddockStatus, string> = {
+const statusColors: Record<PastureStatus, string> = {
   ready: '#22c55e',
   almost_ready: '#f59e0b',
   recovering: '#6b7280',
   grazed: '#ef4444',
 }
 
-function pushSectionData(mapInstance: maplibregl.Map, sectionState: SectionRenderState) {
-  log('[Sections] pushSectionData called')
-  const updateSource = (sourceId: string, items: SectionRenderItem[]) => {
+function pushPaddockData(mapInstance: maplibregl.Map, paddockState: PaddockRenderState) {
+  log('[Paddocks] pushPaddockData called')
+  const updateSource = (sourceId: string, items: PaddockRenderItem[]) => {
     const source = mapInstance.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
     if (!source) {
-      log.warn('[Sections] Source not found:', sourceId)
+      log.warn('[Paddocks] Source not found:', sourceId)
       return
     }
 
     const features = items.map((item) => {
       const coords = item.geometry.geometry.coordinates[0]
-      log(`[Sections] ${sourceId} feature ${item.id}:`, {
+      log(`[Paddocks] ${sourceId} feature ${item.id}:`, {
         coordCount: coords.length,
         sampleCoord: coords[0],
-        paddockId: item.paddockId,
+        pastureId: item.pastureId,
       })
 
       return {
@@ -125,7 +125,7 @@ function pushSectionData(mapInstance: maplibregl.Map, sectionState: SectionRende
           ...(item.geometry.properties ?? {}),
           ...item.properties,
           id: item.id,
-          paddockId: item.paddockId,
+          pastureId: item.pastureId,
         },
       }
     })
@@ -134,39 +134,39 @@ function pushSectionData(mapInstance: maplibregl.Map, sectionState: SectionRende
       type: 'FeatureCollection',
       features,
     }
-    log(`[Sections] Updating ${sourceId}:`, { count: items.length })
+    log(`[Paddocks] Updating ${sourceId}:`, { count: items.length })
     source.setData(geojson)
   }
 
-  updateSource('sections-grazed', sectionState.grazed)
-  updateSource('sections-yesterday', sectionState.yesterday)
-  updateSource('sections-current', sectionState.current)
-  updateSource('sections-alternatives', sectionState.alternatives)
+  updateSource('paddocks-grazed', paddockState.grazed)
+  updateSource('paddocks-yesterday', paddockState.yesterday)
+  updateSource('paddocks-current', paddockState.current)
+  updateSource('paddocks-alternatives', paddockState.alternatives)
 }
 
-function ensureSectionLayers(mapInstance: maplibregl.Map) {
-  log('[Sections] ensureSectionLayers called')
+function ensurePaddockLayers(mapInstance: maplibregl.Map) {
+  log('[Paddocks] ensurePaddockLayers called')
   const emptyCollection: GeoJSON.FeatureCollection = {
     type: 'FeatureCollection',
     features: [],
   }
 
-  if (!mapInstance.getSource('sections-grazed')) {
-    log('[Sections] Adding source: sections-grazed')
-    mapInstance.addSource('sections-grazed', {
+  if (!mapInstance.getSource('paddocks-grazed')) {
+    log('[Paddocks] Adding source: paddocks-grazed')
+    mapInstance.addSource('paddocks-grazed', {
       type: 'geojson',
       data: emptyCollection,
     })
   } else {
-    log('[Sections] Source already exists: sections-grazed')
+    log('[Paddocks] Source already exists: paddocks-grazed')
   }
 
-  if (!mapInstance.getLayer('sections-grazed-fill')) {
-    log('[Sections] Adding layer: sections-grazed-fill')
+  if (!mapInstance.getLayer('paddocks-grazed-fill')) {
+    log('[Paddocks] Adding layer: paddocks-grazed-fill')
     mapInstance.addLayer({
-      id: 'sections-grazed-fill',
+      id: 'paddocks-grazed-fill',
       type: 'fill',
-      source: 'sections-grazed',
+      source: 'paddocks-grazed',
       paint: {
         'fill-color': '#64748b',
         'fill-opacity': 0.18,
@@ -174,12 +174,12 @@ function ensureSectionLayers(mapInstance: maplibregl.Map) {
     })
   }
 
-  if (!mapInstance.getLayer('sections-grazed-outline')) {
-    log('[Sections] Adding layer: sections-grazed-outline')
+  if (!mapInstance.getLayer('paddocks-grazed-outline')) {
+    log('[Paddocks] Adding layer: paddocks-grazed-outline')
     mapInstance.addLayer({
-      id: 'sections-grazed-outline',
+      id: 'paddocks-grazed-outline',
       type: 'line',
-      source: 'sections-grazed',
+      source: 'paddocks-grazed',
       paint: {
         'line-color': '#94a3b8',
         'line-width': 2,
@@ -188,23 +188,23 @@ function ensureSectionLayers(mapInstance: maplibregl.Map) {
     })
   }
 
-  // Yesterday sections - yellow styling
-  if (!mapInstance.getSource('sections-yesterday')) {
-    log('[Sections] Adding source: sections-yesterday')
-    mapInstance.addSource('sections-yesterday', {
+  // Yesterday paddocks - yellow styling
+  if (!mapInstance.getSource('paddocks-yesterday')) {
+    log('[Paddocks] Adding source: paddocks-yesterday')
+    mapInstance.addSource('paddocks-yesterday', {
       type: 'geojson',
       data: emptyCollection,
     })
   } else {
-    log('[Sections] Source already exists: sections-yesterday')
+    log('[Paddocks] Source already exists: paddocks-yesterday')
   }
 
-  if (!mapInstance.getLayer('sections-yesterday-fill')) {
-    log('[Sections] Adding layer: sections-yesterday-fill')
+  if (!mapInstance.getLayer('paddocks-yesterday-fill')) {
+    log('[Paddocks] Adding layer: paddocks-yesterday-fill')
     mapInstance.addLayer({
-      id: 'sections-yesterday-fill',
+      id: 'paddocks-yesterday-fill',
       type: 'fill',
-      source: 'sections-yesterday',
+      source: 'paddocks-yesterday',
       paint: {
         'fill-color': '#eab308', // yellow-500
         'fill-opacity': 0.35,
@@ -212,12 +212,12 @@ function ensureSectionLayers(mapInstance: maplibregl.Map) {
     })
   }
 
-  if (!mapInstance.getLayer('sections-yesterday-outline')) {
-    log('[Sections] Adding layer: sections-yesterday-outline')
+  if (!mapInstance.getLayer('paddocks-yesterday-outline')) {
+    log('[Paddocks] Adding layer: paddocks-yesterday-outline')
     mapInstance.addLayer({
-      id: 'sections-yesterday-outline',
+      id: 'paddocks-yesterday-outline',
       type: 'line',
-      source: 'sections-yesterday',
+      source: 'paddocks-yesterday',
       paint: {
         'line-color': '#ca8a04', // yellow-600
         'line-width': 2,
@@ -225,22 +225,22 @@ function ensureSectionLayers(mapInstance: maplibregl.Map) {
     })
   }
 
-  if (!mapInstance.getSource('sections-current')) {
-    log('[Sections] Adding source: sections-current')
-    mapInstance.addSource('sections-current', {
+  if (!mapInstance.getSource('paddocks-current')) {
+    log('[Paddocks] Adding source: paddocks-current')
+    mapInstance.addSource('paddocks-current', {
       type: 'geojson',
       data: emptyCollection,
     })
   } else {
-    log('[Sections] Source already exists: sections-current')
+    log('[Paddocks] Source already exists: paddocks-current')
   }
 
-  if (!mapInstance.getLayer('sections-current-fill')) {
-    log('[Sections] Adding layer: sections-current-fill')
+  if (!mapInstance.getLayer('paddocks-current-fill')) {
+    log('[Paddocks] Adding layer: paddocks-current-fill')
     mapInstance.addLayer({
-      id: 'sections-current-fill',
+      id: 'paddocks-current-fill',
       type: 'fill',
-      source: 'sections-current',
+      source: 'paddocks-current',
       paint: {
         'fill-color': '#22c55e',
         'fill-opacity': 0.45,
@@ -248,12 +248,12 @@ function ensureSectionLayers(mapInstance: maplibregl.Map) {
     })
   }
 
-  if (!mapInstance.getLayer('sections-current-outline')) {
-    log('[Sections] Adding layer: sections-current-outline')
+  if (!mapInstance.getLayer('paddocks-current-outline')) {
+    log('[Paddocks] Adding layer: paddocks-current-outline')
     mapInstance.addLayer({
-      id: 'sections-current-outline',
+      id: 'paddocks-current-outline',
       type: 'line',
-      source: 'sections-current',
+      source: 'paddocks-current',
       paint: {
         'line-color': '#22c55e',
         'line-width': 3,
@@ -261,22 +261,22 @@ function ensureSectionLayers(mapInstance: maplibregl.Map) {
     })
   }
 
-  if (!mapInstance.getSource('sections-alternatives')) {
-    log('[Sections] Adding source: sections-alternatives')
-    mapInstance.addSource('sections-alternatives', {
+  if (!mapInstance.getSource('paddocks-alternatives')) {
+    log('[Paddocks] Adding source: paddocks-alternatives')
+    mapInstance.addSource('paddocks-alternatives', {
       type: 'geojson',
       data: emptyCollection,
     })
   } else {
-    log('[Sections] Source already exists: sections-alternatives')
+    log('[Paddocks] Source already exists: paddocks-alternatives')
   }
 
-  if (!mapInstance.getLayer('sections-alternatives-fill')) {
-    log('[Sections] Adding layer: sections-alternatives-fill')
+  if (!mapInstance.getLayer('paddocks-alternatives-fill')) {
+    log('[Paddocks] Adding layer: paddocks-alternatives-fill')
     mapInstance.addLayer({
-      id: 'sections-alternatives-fill',
+      id: 'paddocks-alternatives-fill',
       type: 'fill',
-      source: 'sections-alternatives',
+      source: 'paddocks-alternatives',
       paint: {
         'fill-color': '#60a5fa',
         'fill-opacity': 0.25,
@@ -284,12 +284,12 @@ function ensureSectionLayers(mapInstance: maplibregl.Map) {
     })
   }
 
-  if (!mapInstance.getLayer('sections-alternatives-outline')) {
-    log('[Sections] Adding layer: sections-alternatives-outline')
+  if (!mapInstance.getLayer('paddocks-alternatives-outline')) {
+    log('[Paddocks] Adding layer: paddocks-alternatives-outline')
     mapInstance.addLayer({
-      id: 'sections-alternatives-outline',
+      id: 'paddocks-alternatives-outline',
       type: 'line',
-      source: 'sections-alternatives',
+      source: 'paddocks-alternatives',
       paint: {
         'line-color': '#3b82f6',
         'line-width': 2,
@@ -436,25 +436,25 @@ function ensureWaterSourceLayers(mapInstance: maplibregl.Map) {
 }
 
 export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap({
-  onPaddockClick,
-  onEditPaddockSelect,
+  onPastureClick,
+  onEditPastureSelect,
   onEditRequest,
   onNoGrazeZoneClick,
   onWaterSourceClick,
+  selectedPastureId: _selectedPastureId,
   selectedPaddockId,
-  selectedSectionId,
   showNdviHeat = false,
-  showPaddocks = true,
+  showPastures = true,
   showLabels = true,
-  showSections = true,
+  showPaddocks = true,
   showRGBSatellite = false,
   editable = false,
   editMode = false,
-  entityType = 'paddock',
-  parentPaddockId,
-  initialSectionFeature,
-  initialSectionId,
+  entityType = 'pasture',
+  parentPastureId,
+  initialPaddockFeature,
   initialPaddockId,
+  initialPastureId: _initialPastureId,
   initialNoGrazeZoneId,
   initialWaterSourceId,
   showToolbar = true,
@@ -466,7 +466,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   const [mapInstance, setMapInstance] = useState<maplibregl.Map | null>(null)
   const [isMapLoaded, setIsMapLoaded] = useState(false)
   const lastClickRef = useRef<{ time: number; point: maplibregl.Point } | null>(null)
-  const lastSectionPickRef = useRef<{ time: number; point: maplibregl.Point; index: number; ids: string[] } | null>(null)
+  const lastPaddockPickRef = useRef<{ time: number; point: maplibregl.Point; index: number; ids: string[] } | null>(null)
   const dragStateRef = useRef<{
     featureId: string
     startPoint: maplibregl.Point
@@ -476,36 +476,36 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     manual: boolean
     lastGeometry?: Feature<Polygon> | null
   } | null>(null)
-  const lastSelectedPaddockIdRef = useRef<string | null>(null)
-  const sectionStateRef = useRef<SectionRenderState>({ current: [], yesterday: [], grazed: [], alternatives: [] })
-  const paddockGeometryRef = useRef<Record<string, Feature<Polygon>>>({})
+  const lastSelectedPastureIdRef = useRef<string | null>(null)
+  const paddockStateRef = useRef<PaddockRenderState>({ current: [], yesterday: [], grazed: [], alternatives: [] })
+  const pastureGeometryRef = useRef<Record<string, Feature<Polygon>>>({})
   const lastResetCounterRef = useRef<number>(0)
   // Refs for initial bounds calculation (to avoid map recreation on every change)
-  const initialPaddocksRef = useRef<Paddock[] | null>(null)
+  const initialPasturesRef = useRef<Pasture[] | null>(null)
   const initialFarmGeometryRef = useRef<Feature<Polygon> | null>(null)
   const initialMapCenterRef = useRef<[number, number] | null>(null)
   // Track if user has manually adjusted the map (pan/zoom) to suppress auto-focus
   const userHasInteractedRef = useRef(false)
-  // Track the last section ID we focused on to avoid re-focusing during vertex edits
-  const lastFocusedSectionIdRef = useRef<string | null>(null)
+  // Track the last paddock ID we focused on to avoid re-focusing during vertex edits
+  const lastFocusedPaddockIdRef = useRef<string | null>(null)
 
-  const { paddocks, sections, getPaddockById, noGrazeZones, waterSources, addPaddock, addNoGrazeZone, addWaterSource, resetCounter } = useGeometry()
+  const { pastures, paddocks, getPastureById, noGrazeZones, waterSources, addPasture, addNoGrazeZone, addWaterSource, resetCounter } = useGeometry()
   const { activeFarm: farm, isLoading: isFarmLoading } = useFarmContext()
   const farmId = farm?.id ?? null
   const farmLng = farm?.coordinates?.[0] ?? null
   const farmLat = farm?.coordinates?.[1] ?? null
   const farmGeometry = farm?.geometry ?? null
 
-  // Capture initial paddocks and farmGeometry for bounds calculation (only once)
-  if (initialPaddocksRef.current === null && paddocks.length > 0) {
-    initialPaddocksRef.current = paddocks
+  // Capture initial pastures and farmGeometry for bounds calculation (only once)
+  if (initialPasturesRef.current === null && pastures.length > 0) {
+    initialPasturesRef.current = pastures
   }
   if (initialFarmGeometryRef.current === null && farmGeometry) {
     initialFarmGeometryRef.current = farmGeometry
   }
 
-  // Compute initial map center - prefer paddock bounds (more reliable than farm geometry which may be out of sync)
-  // Use ref to cache value and prevent map recreation on every paddock change
+  // Compute initial map center - prefer pasture bounds (more reliable than farm geometry which may be out of sync)
+  // Use ref to cache value and prevent map recreation on every pasture change
   const initialMapCenter = useMemo<[number, number] | null>(() => {
     // Return cached value if already computed
     if (initialMapCenterRef.current !== null) {
@@ -514,11 +514,11 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
     let center: [number, number] | null = null
 
-    // First try to use the paddock bounds center (most reliable)
-    if (paddocks.length > 0) {
+    // First try to use the pasture bounds center (most reliable)
+    if (pastures.length > 0) {
       let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
-      paddocks.forEach(paddock => {
-        const coords = paddock.geometry?.geometry?.coordinates?.[0]
+      pastures.forEach(pasture => {
+        const coords = pasture.geometry?.geometry?.coordinates?.[0]
         if (coords) {
           coords.forEach(([lng, lat]) => {
             minLng = Math.min(minLng, lng)
@@ -570,7 +570,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
 
     return center
-  }, [paddocks, farmGeometry, farmLng, farmLat])
+  }, [pastures, farmGeometry, farmLng, farmLat])
 
   // Fetch available satellite tile dates (dates with actual raster imagery)
   // We specifically query for ndvi_heatmap tiles since that's what the NDVI layer displays
@@ -637,7 +637,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   const lastNotifiedFeatureIdRef = useRef<string | null>(null)
 
   // Callback when a feature is selected in the draw control
-  // This handles cases where MapboxDraw selection changes (e.g., clicking between sections)
+  // This handles cases where MapboxDraw selection changes (e.g., clicking between paddocks)
   // without going through the layer click handlers
   const handleFeatureSelected = useCallback((
     typedId: string | null,
@@ -654,15 +654,15 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
     // Notify parent when a feature is selected
     if (typedId && entityType && entityId) {
-      if (entityType === 'paddock') {
-        onEditRequest?.({ entityType: 'paddock', paddockId: entityId })
-      } else if (entityType === 'section') {
-        const section = sections.find(s => s.id === entityId)
+      if (entityType === 'pasture') {
+        onEditRequest?.({ entityType: 'pasture', pastureId: entityId })
+      } else if (entityType === 'paddock') {
+        const paddock = paddocks.find(s => s.id === entityId)
         onEditRequest?.({
-          entityType: 'section',
-          sectionId: entityId,
-          paddockId: section?.paddockId,
-          geometry: section?.geometry,
+          entityType: 'paddock',
+          paddockId: entityId,
+          pastureId: paddock?.pastureId,
+          geometry: paddock?.geometry,
         })
       } else if (entityType === 'noGrazeZone') {
         onEditRequest?.({ entityType: 'noGrazeZone', noGrazeZoneId: entityId })
@@ -670,7 +670,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         onEditRequest?.({ entityType: 'waterPolygon', waterSourceId: entityId })
       }
     }
-  }, [onEditRequest, sections])
+  }, [onEditRequest, paddocks])
 
   const {
     draw,
@@ -689,7 +689,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     editable: isEditActive,
     onFeatureSelected: handleFeatureSelected,
     drawingEntityType: entityType,
-    parentPaddockId,
+    parentPastureId,
   })
 
   useEffect(() => {
@@ -774,13 +774,13 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     setDrawMode: setMode,
     deleteSelected,
     cancelDrawing,
-    focusOnPaddock: (paddockId: string) => {
+    focusOnPasture: (pastureId: string) => {
       if (!mapInstance) return
-      const paddock = getPaddockById(paddockId)
-      if (!paddock) return
+      const pasture = getPastureById(pastureId)
+      if (!pasture) return
 
       const doFocus = () => {
-        fitPolygonBounds(paddock.geometry, 120)
+        fitPolygonBounds(pasture.geometry, 120)
       }
 
       // If map is already loaded, focus immediately. Otherwise wait for it.
@@ -809,12 +809,12 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       if (!mapInstance) return
       userHasInteractedRef.current = false  // Reset so focus works
 
-      // If we have paddocks, compute their bounding box and use that
-      // This handles cases where farm boundary geometry is out of sync with paddock locations
-      if (paddocks.length > 0) {
+      // If we have pastures, compute their bounding box and use that
+      // This handles cases where farm boundary geometry is out of sync with pasture locations
+      if (pastures.length > 0) {
         let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
-        paddocks.forEach(paddock => {
-          const coords = paddock.geometry?.geometry?.coordinates?.[0]
+        pastures.forEach(pasture => {
+          const coords = pasture.geometry?.geometry?.coordinates?.[0]
           if (coords) {
             coords.forEach(([lng, lat]) => {
               minLng = Math.min(minLng, lng)
@@ -826,9 +826,9 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         })
 
         if (minLng !== Infinity) {
-          // Add some padding around the paddock bounds
+          // Add some padding around the pasture bounds
           const padding = 0.002 // ~200m
-          const paddockBoundsGeometry: Feature<Polygon> = {
+          const pastureBoundsGeometry: Feature<Polygon> = {
             type: 'Feature',
             properties: {},
             geometry: {
@@ -842,23 +842,23 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
               ]]
             }
           }
-          fitPolygonBounds(paddockBoundsGeometry, 50)
+          fitPolygonBounds(pastureBoundsGeometry, 50)
           return
         }
       }
 
-      // Fall back to farm boundary if no paddocks
+      // Fall back to farm boundary if no pastures
       if (farmGeometry) {
         fitPolygonBounds(farmGeometry, 50)
       }
     },
-    createPaddockAtCenter: () => {
+    createPastureAtCenter: () => {
       if (!mapInstance) return null
       const center = mapInstance.getCenter()
       const draft = createDraftSquare(center, 100) // 100px square
       if (!draft) return null
-      const paddockId = addPaddock(draft)
-      return paddockId
+      const pastureId = addPasture(draft)
+      return pastureId
     },
     getMapContainerRect: () => {
       return mapContainer.current?.getBoundingClientRect() ?? null
@@ -902,7 +902,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
       // For polygon types, create a default square
       const sizes: Record<Exclude<EntityDropType, 'waterPoint'>, number> = {
-        paddock: 100,
+        pasture: 100,
         noGrazeZone: 100,
         waterPolygon: 100,
       }
@@ -912,8 +912,8 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
       let entityId: string | null = null
       switch (type) {
-        case 'paddock':
-          entityId = addPaddock(draft)
+        case 'pasture':
+          entityId = addPasture(draft)
           break
         case 'noGrazeZone':
           entityId = addNoGrazeZone(draft)
@@ -928,41 +928,41 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     resetUserInteraction: () => {
       userHasInteractedRef.current = false
     },
-  }), [mapInstance, draw, setMode, deleteSelected, cancelDrawing, getPaddockById, fitPolygonBounds, createDraftSquare, addPaddock, addNoGrazeZone, addWaterSource, farmGeometry])
+  }), [mapInstance, draw, setMode, deleteSelected, cancelDrawing, getPastureById, fitPolygonBounds, createDraftSquare, addPasture, addNoGrazeZone, addWaterSource, farmGeometry, pastures])
 
-  // Handle paddock click wrapper
-  const handlePaddockClick = useCallback((paddock: Paddock) => {
+  // Handle pasture click wrapper
+  const handlePastureClick = useCallback((pasture: Pasture) => {
     // Don't trigger click handler when in edit mode
     if (isEditActive) return
-    onPaddockClick?.(paddock)
-  }, [isEditActive, onPaddockClick])
+    onPastureClick?.(pasture)
+  }, [isEditActive, onPastureClick])
 
   useEffect(() => {
-    if (!isEditActive || entityType !== 'paddock') {
-      if (lastSelectedPaddockIdRef.current !== null) {
-        lastSelectedPaddockIdRef.current = null
-        onEditPaddockSelect?.(null)
+    if (!isEditActive || entityType !== 'pasture') {
+      if (lastSelectedPastureIdRef.current !== null) {
+        lastSelectedPastureIdRef.current = null
+        onEditPastureSelect?.(null)
       }
       return
     }
 
     const nextSelectedId = selectedFeatureIds[0] ?? null
-    if (nextSelectedId === lastSelectedPaddockIdRef.current) return
+    if (nextSelectedId === lastSelectedPastureIdRef.current) return
 
-    lastSelectedPaddockIdRef.current = nextSelectedId
-    const paddock = nextSelectedId ? getPaddockById(nextSelectedId) ?? null : null
-    onEditPaddockSelect?.(paddock)
-  }, [isEditActive, entityType, selectedFeatureIds, getPaddockById, onEditPaddockSelect])
+    lastSelectedPastureIdRef.current = nextSelectedId
+    const pasture = nextSelectedId ? getPastureById(nextSelectedId) ?? null : null
+    onEditPastureSelect?.(pasture)
+  }, [isEditActive, entityType, selectedFeatureIds, getPastureById, onEditPastureSelect])
 
-  const updateSectionListForPaddock = useCallback(
+  const updatePaddockListForPasture = useCallback(
     (
-      list: SectionRenderItem[],
-      paddockId: string,
+      list: PaddockRenderItem[],
+      pastureId: string,
       boundary: Feature<Polygon>,
       translation?: { deltaLng: number; deltaLat: number } | null
     ) => {
       return list.flatMap((item) => {
-        if (item.paddockId !== paddockId) {
+        if (item.pastureId !== pastureId) {
           return [item]
         }
 
@@ -982,18 +982,18 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     [],
   )
 
-  // Render initial section - keep visible even during section editing so it shows when draw control deselects
+  // Render initial paddock - keep visible even during paddock editing so it shows when draw control deselects
   useEffect(() => {
     if (!mapInstance || !isMapReady()) return
 
-    const sourceId = 'section-initial'
+    const sourceId = 'paddock-initial'
     const fillLayerId = `${sourceId}-fill`
     const outlineLayerId = `${sourceId}-outline`
 
-    // Hide section layers only when no section or sections toggled off
-    // Note: We keep the layer visible during section editing as a "backing" layer
-    // so the section remains visible even when the draw control deselects it
-    if (!initialSectionFeature || !showSections) {
+    // Hide paddock layers only when no paddock or paddocks toggled off
+    // Note: We keep the layer visible during paddock editing as a "backing" layer
+    // so the paddock remains visible even when the draw control deselects it
+    if (!initialPaddockFeature || !showPaddocks) {
       if (mapInstance.getLayer(fillLayerId)) {
         mapInstance.setLayoutProperty(fillLayerId, 'visibility', 'none')
       }
@@ -1003,28 +1003,28 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       return
     }
 
-    const sectionGeoJson: GeoJSON.FeatureCollection = {
+    const paddockGeoJson: GeoJSON.FeatureCollection = {
       type: 'FeatureCollection',
       features: [{
-        ...initialSectionFeature,
+        ...initialPaddockFeature,
         properties: {
-          ...(initialSectionFeature.properties || {}),
-          id: initialSectionId || 'initial-section',
-          paddockId: parentPaddockId,
+          ...(initialPaddockFeature.properties || {}),
+          id: initialPaddockId || 'initial-paddock',
+          pastureId: parentPastureId,
         },
       }],
     }
-    log('[Section] Rendering initial section:', {
-      id: initialSectionId,
-      paddockId: parentPaddockId,
-      coordCount: initialSectionFeature.geometry.coordinates[0]?.length,
-      firstCoord: initialSectionFeature.geometry.coordinates[0]?.[0],
+    log('[Paddock] Rendering initial paddock:', {
+      id: initialPaddockId,
+      pastureId: parentPastureId,
+      coordCount: initialPaddockFeature.geometry.coordinates[0]?.length,
+      firstCoord: initialPaddockFeature.geometry.coordinates[0]?.[0],
     })
 
     if (!mapInstance.getSource(sourceId)) {
       mapInstance.addSource(sourceId, {
         type: 'geojson',
-        data: sectionGeoJson,
+        data: paddockGeoJson,
       })
       mapInstance.addLayer({
         id: fillLayerId,
@@ -1045,7 +1045,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         },
       })
     } else {
-      (mapInstance.getSource(sourceId) as maplibregl.GeoJSONSource).setData(sectionGeoJson)
+      (mapInstance.getSource(sourceId) as maplibregl.GeoJSONSource).setData(paddockGeoJson)
       // Ensure layers are visible
       if (mapInstance.getLayer(fillLayerId)) {
         mapInstance.setLayoutProperty(fillLayerId, 'visibility', 'visible')
@@ -1054,7 +1054,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         mapInstance.setLayoutProperty(outlineLayerId, 'visibility', 'visible')
       }
     }
-  }, [isMapReady, mapInstance, initialSectionFeature, initialSectionId, showSections, parentPaddockId])
+  }, [isMapReady, mapInstance, initialPaddockFeature, initialPaddockId, showPaddocks, parentPastureId])
 
   // Initialize map
   useEffect(() => {
@@ -1097,13 +1097,13 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       setMapInstance(map)
       setIsMapLoaded(true)
 
-      // Fit to paddock bounds first (more reliable than farm geometry which may be out of sync)
-      // Use refs to avoid recreating map on every paddock change
-      const initialPaddocks = initialPaddocksRef.current
-      if (initialPaddocks && initialPaddocks.length > 0) {
+      // Fit to pasture bounds first (more reliable than farm geometry which may be out of sync)
+      // Use refs to avoid recreating map on every pasture change
+      const initialPastures = initialPasturesRef.current
+      if (initialPastures && initialPastures.length > 0) {
         let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
-        initialPaddocks.forEach(paddock => {
-          const coords = paddock.geometry?.geometry?.coordinates?.[0]
+        initialPastures.forEach(pasture => {
+          const coords = pasture.geometry?.geometry?.coordinates?.[0]
           if (coords) {
             coords.forEach(([lng, lat]) => {
               minLng = Math.min(minLng, lng)
@@ -1115,7 +1115,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         })
 
         if (minLng !== Infinity) {
-          const padding = 0.002 // ~200m padding around paddocks
+          const padding = 0.002 // ~200m padding around pastures
           const bounds = new maplibregl.LngLatBounds(
             [minLng - padding, minLat - padding],
             [maxLng + padding, maxLat + padding]
@@ -1125,7 +1125,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         }
       }
 
-      // Fall back to farm boundary if no paddocks
+      // Fall back to farm boundary if no pastures
       const initialFarmGeometry = initialFarmGeometryRef.current
       if (hasValidBoundary() && initialFarmGeometry) {
         const coords = initialFarmGeometry.geometry.coordinates[0]
@@ -1152,14 +1152,14 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       setMapInstance(null)
       setIsMapLoaded(false)
     }
-    // Note: paddocks/farmGeometry are accessed via refs to avoid map recreation on every change
+    // Note: pastures/farmGeometry are accessed via refs to avoid map recreation on every change
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [farmId, initialMapCenter, hasValidBoundary])
 
-  // Add paddock and section layers once map is loaded
+  // Add pasture and paddock layers once map is loaded
   useEffect(() => {
     if (!mapInstance || !isMapLoaded) {
-      log('[Paddocks] Map not ready, skipping layer creation', { hasMapInstance: !!mapInstance, isMapLoaded })
+      log('[Pastures] Map not ready, skipping layer creation', { hasMapInstance: !!mapInstance, isMapLoaded })
       return
     }
     const map = mapInstance
@@ -1167,20 +1167,20 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     // Safety check - ensure map style is still valid
     try {
       if (!map.getStyle()) {
-        log('[Paddocks] Map style not available, skipping')
+        log('[Pastures] Map style not available, skipping')
         return
       }
     } catch {
-      log('[Paddocks] Map is being destroyed, skipping')
+      log('[Pastures] Map is being destroyed, skipping')
       return
     }
 
-    log('[Paddocks] Creating/updating paddock layers, count:', paddocks.length)
+    log('[Pastures] Creating/updating pasture layers, count:', pastures.length)
 
-    // Create GeoJSON feature collection for paddocks
-    const paddocksGeojson: GeoJSON.FeatureCollection = {
+    // Create GeoJSON feature collection for pastures
+    const pasturesGeojson: GeoJSON.FeatureCollection = {
       type: 'FeatureCollection',
-      features: paddocks.map((p) => ({
+      features: pastures.map((p) => ({
         ...p.geometry,
         properties: {
           id: p.id,
@@ -1191,8 +1191,8 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       })),
     }
 
-    // Log detailed paddock info for debugging
-    log('[Paddocks] Source data:', paddocks.map((p) => ({
+    // Log detailed pasture info for debugging
+    log('[Pastures] Source data:', pastures.map((p) => ({
       id: p.id,
       name: p.name,
       status: p.status,
@@ -1201,35 +1201,35 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     })))
 
     // Check for duplicate IDs
-    const ids = paddocks.map(p => p.id)
+    const ids = pastures.map(p => p.id)
     const duplicates = ids.filter((id, i) => ids.indexOf(id) !== i)
     if (duplicates.length > 0) {
-      log.warn('[Paddocks] DUPLICATE IDS DETECTED:', duplicates)
+      log.warn('[Pastures] DUPLICATE IDS DETECTED:', duplicates)
     }
 
-    // Check for paddocks with same name (might indicate accidental duplicates)
-    const names = paddocks.map(p => p.name)
+    // Check for pastures with same name (might indicate accidental duplicates)
+    const names = pastures.map(p => p.name)
     const dupNames = names.filter((name, i) => names.indexOf(name) !== i)
     if (dupNames.length > 0) {
-      log('[Paddocks] Paddocks with same name:', dupNames)
+      log('[Pastures] Pastures with same name:', dupNames)
     }
 
-    // Add or update paddocks source
+    // Add or update pastures source
     try {
-      if (map.getSource('paddocks')) {
-        log('[Paddocks] Updating existing source')
-        ;(map.getSource('paddocks') as maplibregl.GeoJSONSource).setData(paddocksGeojson)
+      if (map.getSource('pastures')) {
+        log('[Pastures] Updating existing source')
+        ;(map.getSource('pastures') as maplibregl.GeoJSONSource).setData(pasturesGeojson)
       } else {
-        map.addSource('paddocks', {
+        map.addSource('pastures', {
           type: 'geojson',
-          data: paddocksGeojson,
+          data: pasturesGeojson,
         })
 
       // Add fill layer
       map.addLayer({
-        id: 'paddocks-fill',
+        id: 'pastures-fill',
         type: 'fill',
-        source: 'paddocks',
+        source: 'pastures',
         layout: {
           visibility: 'visible',
         },
@@ -1249,9 +1249,9 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
       // Add outline layer
       map.addLayer({
-        id: 'paddocks-outline',
+        id: 'pastures-outline',
         type: 'line',
-        source: 'paddocks',
+        source: 'pastures',
         layout: {
           visibility: 'visible',
         },
@@ -1271,9 +1271,9 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
       // Add labels
       map.addLayer({
-        id: 'paddocks-labels',
+        id: 'pastures-labels',
         type: 'symbol',
-        source: 'paddocks',
+        source: 'pastures',
         layout: {
           'text-field': ['get', 'name'],
           'text-size': 12,
@@ -1286,11 +1286,11 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         },
       })
 
-      // Add sections source and layers
-      ensureSectionLayers(map)
+      // Add paddock (daily strip) source and layers
+      ensurePaddockLayers(map)
 
-      // Push section data to sources after layers are created
-      pushSectionData(map, sectionStateRef.current)
+      // Push paddock data to sources after layers are created
+      pushPaddockData(map, paddockStateRef.current)
 
       // Add no-graze zone and water source layers
       ensureNoGrazeZoneLayers(map)
@@ -1298,15 +1298,15 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
     } catch (err) {
       // Map may have been destroyed during component unmount - ignore
-      log('[Paddocks] Map operation failed (likely unmounting):', err)
+      log('[Pastures] Map operation failed (likely unmounting):', err)
       return
     }
 
     const filterExistingLayers = (layerIds: string[]) =>
       layerIds.filter((layerId) => map.getLayer(layerId))
 
-    const handlePaddockLayerClick = (e: MapEvent) => {
-      log('[PaddockLayerClick] Handler called', { point: e.point, features: e.features?.length, entityType, isEditActive })
+    const handlePastureLayerClick = (e: MapEvent) => {
+      log('[PastureLayerClick] Handler called', { point: e.point, features: e.features?.length, entityType, isEditActive })
 
       // If in edit mode, check if click is on a vertex or midpoint
       // If so, let MapboxDraw handle the vertex drag - don't re-trigger selection
@@ -1324,50 +1324,50 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         if (existingVertexLayers.length > 0) {
           const vertexHits = map.queryRenderedFeatures(e.point, { layers: existingVertexLayers })
           if (vertexHits.length > 0) {
-            log('[PaddockLayerClick] Click on vertex/midpoint, letting MapboxDraw handle it')
+            log('[PastureLayerClick] Click on vertex/midpoint, letting MapboxDraw handle it')
             return
           }
         }
       }
 
-      // Check if a section was clicked first (sections are top layer)
-      // Include both the initial section layer and the section state layers
-      const sectionLayers = ['section-initial-fill', 'sections-current-fill', 'sections-yesterday-fill', 'sections-grazed-fill', 'sections-alternatives-fill']
-      const existingLayers = sectionLayers.filter((l) => map.getLayer(l))
-      log('[PaddockLayerClick] Section layers check', { sectionLayers, existingLayers })
+      // Check if a paddock was clicked first (paddocks are top layer)
+      // Include both the initial paddock layer and the paddock state layers
+      const paddockLayers = ['paddock-initial-fill', 'paddocks-current-fill', 'paddocks-yesterday-fill', 'paddocks-grazed-fill', 'paddocks-alternatives-fill']
+      const existingLayers = paddockLayers.filter((l) => map.getLayer(l))
+      log('[PastureLayerClick] Paddock layers check', { paddockLayers, existingLayers })
 
       if (existingLayers.length > 0) {
-        const sectionHits = map.queryRenderedFeatures(e.point, { layers: existingLayers })
-        log('[PaddockLayerClick] Section hits', {
-          hitCount: sectionHits.length,
-          hits: sectionHits.map(f => ({
+        const paddockHits = map.queryRenderedFeatures(e.point, { layers: existingLayers })
+        log('[PastureLayerClick] Paddock hits', {
+          hitCount: paddockHits.length,
+          hits: paddockHits.map(f => ({
             id: f.properties?.id,
-            paddockId: f.properties?.paddockId,
+            pastureId: f.properties?.paddockId,
             layer: f.layer?.id,
             geometryType: f.geometry?.type,
             properties: f.properties
           }))
         })
-        if (sectionHits.length > 0) {
-          const feature = sectionHits[0]
-          const sectionId = feature.properties?.id as string | undefined
-          // Use parentPaddockId as fallback if paddockId not in feature properties
-          const featurePaddockId = feature.properties?.paddockId as string | undefined
-          const effectivePaddockId = featurePaddockId || parentPaddockId
-          log('[PaddockLayerClick] Section found', { sectionId, featurePaddockId, parentPaddockId, effectivePaddockId, geometryType: feature.geometry?.type })
-          if (sectionId && feature.geometry?.type === 'Polygon') {
-            // Skip if we're already editing this same section
-            if (entityType === 'section' && isEditActive && initialSectionId === sectionId) {
-              log('[PaddockLayerClick] Already editing this section, ignoring click')
+        if (paddockHits.length > 0) {
+          const feature = paddockHits[0]
+          const paddockId = feature.properties?.id as string | undefined
+          // Use parentPastureId as fallback if paddockId not in feature properties
+          const featurePastureId = feature.properties?.paddockId as string | undefined
+          const effectivePastureId = featurePastureId || parentPastureId
+          log('[PastureLayerClick] Paddock found', { paddockId, featurePastureId, parentPastureId: parentPastureId, effectivePastureId, geometryType: feature.geometry?.type })
+          if (paddockId && feature.geometry?.type === 'Polygon') {
+            // Skip if we're already editing this same paddock
+            if (entityType === 'paddock' && isEditActive && initialPaddockId === paddockId) {
+              log('[PastureLayerClick] Already editing this paddock, ignoring click')
               return
             }
 
-            // In edit mode, select the section directly in draw control
-            const typedId = createTypedFeatureId('section', sectionId)
+            // In edit mode, select the paddock directly in draw control
+            const typedId = createTypedFeatureId('paddock', paddockId)
             if (isEditActive && draw) {
               const existing = draw.get(typedId)
               if (existing) {
-                log('[PaddockLayerClick] Selecting section in draw:', typedId)
+                log('[PastureLayerClick] Selecting paddock in draw:', typedId)
                 draw.changeMode('direct_select', { featureId: typedId })
               }
             }
@@ -1375,11 +1375,11 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
             // Update last notified to prevent double notification from handleFeatureSelected
             lastNotifiedFeatureIdRef.current = typedId
 
-            log('[PaddockLayerClick] Triggering section edit request')
+            log('[PastureLayerClick] Triggering paddock edit request')
             onEditRequest?.({
-              entityType: 'section',
-              sectionId,
-              paddockId: effectivePaddockId,
+              entityType: 'paddock',
+              paddockId,
+              pastureId: effectivePastureId,
               geometry: {
                 type: 'Feature',
                 properties: feature.properties ?? {},
@@ -1388,15 +1388,15 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
             })
             return // Don't process as paddock click
           } else {
-            log('[PaddockLayerClick] Section check failed', { sectionId, geometryType: feature.geometry?.type })
+            log('[PastureLayerClick] Paddock check failed', { paddockId, geometryType: feature.geometry?.type })
           }
         }
       }
 
-      // If already in section edit mode, don't fall through to paddock click
-      // The section layer is hidden during edit, so clicks should not switch entities
-      if (entityType === 'section' && isEditActive) {
-        log('[PaddockLayerClick] Already in section edit mode, ignoring paddock click')
+      // If already in paddock edit mode, don't fall through to pasture click
+      // The paddock layer is hidden during edit, so clicks should not switch entities
+      if (entityType === 'paddock' && isEditActive) {
+        log('[PastureLayerClick] Already in paddock edit mode, ignoring pasture click')
         return
       }
 
@@ -1404,7 +1404,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       if (map.getLayer('no-graze-fill')) {
         const noGrazeHits = map.queryRenderedFeatures(e.point, { layers: ['no-graze-fill'] })
         if (noGrazeHits.length > 0) {
-          log('[PaddockLayerClick] No-graze zone at point, deferring to its handler')
+          log('[PastureLayerClick] No-graze zone at point, deferring to its handler')
           return // Let the no-graze zone handler deal with it
         }
       }
@@ -1413,36 +1413,36 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       if (map.getLayer('water-source-fill')) {
         const waterHits = map.queryRenderedFeatures(e.point, { layers: ['water-source-fill'] })
         if (waterHits.length > 0) {
-          log('[PaddockLayerClick] Water source at point, deferring to its handler')
+          log('[PastureLayerClick] Water source at point, deferring to its handler')
           return // Let the water source handler deal with it
         }
       }
 
-      // No section/no-graze/water found, handle as paddock click
-      log('[PaddockLayerClick] No overlay found, handling as paddock click')
+      // No paddock/no-graze/water found, handle as pasture click
+      log('[PastureLayerClick] No overlay found, handling as pasture click')
       if (e.features && e.features[0]) {
-        const paddockId = e.features[0].properties?.id as string | undefined
-        if (paddockId) {
-          // Skip if we're already editing this same paddock
-          if (entityType === 'paddock' && isEditActive && initialPaddockId === paddockId) {
-            log('[PaddockLayerClick] Already editing this paddock, ignoring click')
+        const pastureId = e.features[0].properties?.id as string | undefined
+        if (pastureId) {
+          // Skip if we're already editing this same pasture
+          if (entityType === 'pasture' && isEditActive && initialPaddockId === pastureId) {
+            log('[PastureLayerClick] Already editing this pasture, ignoring click')
             return
           }
-          const paddock = getPaddockById(paddockId)
-          if (paddock) {
-            // In edit mode, select the paddock directly in draw control
+          const pasture = getPastureById(pastureId)
+          if (pasture) {
+            // In edit mode, select the pasture directly in draw control
             if (isEditActive && draw) {
-              const typedId = createTypedFeatureId('paddock', paddockId)
+              const typedId = createTypedFeatureId('pasture', pastureId)
               const existing = draw.get(typedId)
               if (existing) {
-                log('[PaddockLayerClick] Selecting paddock in draw:', typedId)
+                log('[PastureLayerClick] Selecting pasture in draw:', typedId)
                 draw.changeMode('direct_select', { featureId: typedId })
               }
               // Update last notified to prevent double notification from handleFeatureSelected
               lastNotifiedFeatureIdRef.current = typedId
-              onEditRequest?.({ entityType: 'paddock', paddockId })
+              onEditRequest?.({ entityType: 'pasture', pastureId })
             } else {
-              handlePaddockClick(paddock)
+              handlePastureClick(pasture)
             }
           }
         }
@@ -1450,7 +1450,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
 
     const handleMapClickLog = (e: MapEvent) => {
-      if (!isEditActive || entityType !== 'section') return
+      if (!isEditActive || entityType !== 'paddock') return
       const now = Date.now()
       const last = lastClickRef.current
       const dt = last ? now - last.time : null
@@ -1475,24 +1475,24 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         ? map.queryRenderedFeatures(e.point, { layers: availableDrawLayers })
         : []
 
-      const sectionHitLayers = filterExistingLayers([
-        'sections-current-fill',
-        'sections-yesterday-fill',
-        'sections-grazed-fill',
-        'sections-alternatives-fill',
+      const paddockHitLayers = filterExistingLayers([
+        'paddocks-current-fill',
+        'paddocks-yesterday-fill',
+        'paddocks-grazed-fill',
+        'paddocks-alternatives-fill',
       ])
-      const sectionHits = sectionHitLayers.length
-        ? map.queryRenderedFeatures(e.point, { layers: sectionHitLayers })
+      const paddockHits = paddockHitLayers.length
+        ? map.queryRenderedFeatures(e.point, { layers: paddockHitLayers })
         : []
-      if (!isDoubleCandidate && drawHits.length === 0 && sectionHits[0]) {
-        const feature = sectionHits[0]
-        const sectionId = feature.properties?.id
-        const paddockId = feature.properties?.paddockId
-        if (sectionId && feature.geometry?.type === 'Polygon') {
+      if (!isDoubleCandidate && drawHits.length === 0 && paddockHits[0]) {
+        const feature = paddockHits[0]
+        const paddockId = feature.properties?.id
+        const pastureId = feature.properties?.paddockId
+        if (paddockId && feature.geometry?.type === 'Polygon') {
           onEditRequest?.({
-            entityType: 'section',
-            sectionId,
+            entityType: 'paddock',
             paddockId,
+            pastureId,
             geometry: {
               type: 'Feature',
               properties: feature.properties ?? {},
@@ -1504,19 +1504,19 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
 
     const handleMapDoubleClick = (e: MapEvent) => {
-      const isSectionEditDoubleClick = isEditActive && entityType === 'section'
-      if (isEditActive && !isSectionEditDoubleClick) return
+      const isPaddockEditDoubleClick = isEditActive && entityType === 'paddock'
+      if (isEditActive && !isPaddockEditDoubleClick) return
       if (isDrawing) return
       e.preventDefault()
 
-      const sectionFeatureLayers = filterExistingLayers([
-        'sections-current-fill',
-        'sections-yesterday-fill',
-        'sections-grazed-fill',
-        'sections-alternatives-fill',
+      const paddockFeatureLayers = filterExistingLayers([
+        'paddocks-current-fill',
+        'paddocks-yesterday-fill',
+        'paddocks-grazed-fill',
+        'paddocks-alternatives-fill',
       ])
-      const sectionFeatures = sectionFeatureLayers.length
-        ? map.queryRenderedFeatures(e.point, { layers: sectionFeatureLayers })
+      const paddockFeatures = paddockFeatureLayers.length
+        ? map.queryRenderedFeatures(e.point, { layers: paddockFeatureLayers })
         : []
       const drawHitLayers = [
         'gl-draw-polygon-fill-active',
@@ -1525,8 +1525,8 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         'gl-draw-polygon-fill-inactive.cold',
       ]
 
-      if (isSectionEditDoubleClick) {
-        if (sectionFeatures[0]) {
+      if (isPaddockEditDoubleClick) {
+        if (paddockFeatures[0]) {
           return
         }
 
@@ -1538,11 +1538,11 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
           return
         }
 
-        const paddockFeatures = map.queryRenderedFeatures(e.point, {
-          layers: ['paddocks-fill'],
+        const pastureFeatures = map.queryRenderedFeatures(e.point, {
+          layers: ['pastures-fill'],
         })
-        if (paddockFeatures.length > 0) {
-          const paddockId = paddockFeatures[0]?.properties?.id
+        if (pastureFeatures.length > 0) {
+          const paddockId = pastureFeatures[0]?.properties?.id
           if (paddockId) {
             onEditRequest?.({ entityType: 'paddock', paddockId })
           }
@@ -1550,34 +1550,34 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         return
       }
 
-      if (sectionFeatures[0]) {
+      if (paddockFeatures[0]) {
         const now = Date.now()
-        const ids = sectionFeatures.map((f) => String(f.properties?.id ?? ''))
-        const last = lastSectionPickRef.current
+        const ids = paddockFeatures.map((f) => String(f.properties?.id ?? ''))
+        const last = lastPaddockPickRef.current
         const dt = last ? now - last.time : null
         const dx = last ? e.point.x - last.point.x : null
         const dy = last ? e.point.y - last.point.y : null
         const dist = last && dx !== null && dy !== null ? Math.hypot(dx, dy) : null
         const sameIds = last && last.ids.length === ids.length && last.ids.every((id, index) => id === ids[index])
         const shouldCycle = !!last && !!sameIds && dt !== null && dt < 2000 && dist !== null && dist < 12
-        const nextIndex = shouldCycle ? (last.index + 1) % sectionFeatures.length : 0
-        lastSectionPickRef.current = { time: now, point: e.point, index: nextIndex, ids }
+        const nextIndex = shouldCycle ? (last.index + 1) % paddockFeatures.length : 0
+        lastPaddockPickRef.current = { time: now, point: e.point, index: nextIndex, ids }
         // Sort by visual priority: current > yesterday > alternative > grazed
         const layerPriority: Record<string, number> = {
-          'sections-current-fill': 4,
-          'sections-yesterday-fill': 3,
-          'sections-alternatives-fill': 2,
-          'sections-grazed-fill': 1,
+          'paddocks-current-fill': 4,
+          'paddocks-yesterday-fill': 3,
+          'paddocks-alternatives-fill': 2,
+          'paddocks-grazed-fill': 1,
         }
-        const sortedFeatures = [...sectionFeatures].sort((a, b) => {
+        const sortedFeatures = [...paddockFeatures].sort((a, b) => {
           const aPriority = layerPriority[a.layer?.id ?? ''] ?? 0
           const bPriority = layerPriority[b.layer?.id ?? ''] ?? 0
           return bPriority - aPriority
         })
         const feature = sortedFeatures[nextIndex % sortedFeatures.length]
-        const sectionId = feature.properties?.id
-        const paddockId = feature.properties?.paddockId
-        if (sectionId && feature.geometry?.type === 'Polygon') {
+        const paddockId = feature.properties?.id
+        const pastureId = feature.properties?.paddockId
+        if (paddockId && feature.geometry?.type === 'Polygon') {
           const geometry: Feature<Polygon> = {
             type: 'Feature',
             properties: feature.properties ?? {},
@@ -1586,31 +1586,31 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
           // Focus on double-click and reset interaction flag
           fitPolygonBounds(geometry, 120)
           userHasInteractedRef.current = false
-          lastFocusedSectionIdRef.current = sectionId
+          lastFocusedPaddockIdRef.current = paddockId
           onEditRequest?.({
-            entityType: 'section',
-            sectionId,
+            entityType: 'paddock',
             paddockId,
+            pastureId,
             geometry,
           })
         }
         return
       }
 
-      const paddockFeatures = map.queryRenderedFeatures(e.point, {
-        layers: ['paddocks-fill'],
+      const pastureFeatures = map.queryRenderedFeatures(e.point, {
+        layers: ['pastures-fill'],
       })
 
-      if (paddockFeatures.length > 0) {
-        const paddockId = paddockFeatures[0]?.properties?.id
-        if (paddockId) {
-          // Focus on paddock on double-click
-          const paddock = getPaddockById(paddockId)
-          if (paddock) {
-            fitPolygonBounds(paddock.geometry, 120)
+      if (pastureFeatures.length > 0) {
+        const pastureId = pastureFeatures[0]?.properties?.id
+        if (pastureId) {
+          // Focus on pasture on double-click
+          const pasture = getPastureById(pastureId)
+          if (pasture) {
+            fitPolygonBounds(pasture.geometry, 120)
             userHasInteractedRef.current = false
           }
-          onEditRequest?.({ entityType: 'paddock', paddockId })
+          onEditRequest?.({ entityType: 'pasture', pastureId })
         }
         return
       }
@@ -1647,10 +1647,10 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       }
     }
 
-    if (map.getLayer('paddocks-fill')) {
-      map.on('click', 'paddocks-fill', handlePaddockLayerClick)
-      map.on('mouseenter', 'paddocks-fill', handlePaddocksMouseEnter)
-      map.on('mouseleave', 'paddocks-fill', handlePaddocksMouseLeave)
+    if (map.getLayer('pastures-fill')) {
+      map.on('click', 'pastures-fill', handlePastureLayerClick)
+      map.on('mouseenter', 'pastures-fill', handlePaddocksMouseEnter)
+      map.on('mouseleave', 'pastures-fill', handlePaddocksMouseLeave)
     }
 
     // No-graze zone click handler - in edit mode, single click switches to editing that zone
@@ -1782,139 +1782,139 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       map.on('click', 'water-source-markers', handleWaterSourceClick)
     }
 
-    // Double click behavior: select section or create new paddock
+    // Double click behavior: select paddock or create new pasture
     map.on('dblclick', handleMapDoubleClick)
     map.on('click', handleMapClickLog)
 
     return () => {
       map.off('dblclick', handleMapDoubleClick)
       map.off('click', handleMapClickLog)
-      map.off('click', 'paddocks-fill', handlePaddockLayerClick)
-      map.off('mouseenter', 'paddocks-fill', handlePaddocksMouseEnter)
-      map.off('mouseleave', 'paddocks-fill', handlePaddocksMouseLeave)
+      map.off('click', 'pastures-fill', handlePastureLayerClick)
+      map.off('mouseenter', 'pastures-fill', handlePaddocksMouseEnter)
+      map.off('mouseleave', 'pastures-fill', handlePaddocksMouseLeave)
       map.off('click', 'no-graze-fill', handleNoGrazeZoneClick)
       map.off('dblclick', 'no-graze-fill', handleNoGrazeZoneDblClick)
       map.off('click', 'water-source-fill', handleWaterSourceClick)
       map.off('dblclick', 'water-source-fill', handleWaterSourceDblClick)
       map.off('click', 'water-source-markers', handleWaterSourceClick)
     }
-  }, [mapInstance, isMapLoaded, paddocks, getPaddockById, handlePaddockClick, isEditActive, isDrawing, onEditRequest, createDraftSquare, entityType, currentMode, selectedFeatureIds, onNoGrazeZoneClick, onWaterSourceClick, noGrazeZones, waterSources, draw, initialSectionId, initialPaddockId])
+  }, [mapInstance, isMapLoaded, paddocks, getPastureById, handlePastureClick, isEditActive, isDrawing, onEditRequest, createDraftSquare, entityType, currentMode, selectedFeatureIds, onNoGrazeZoneClick, onWaterSourceClick, noGrazeZones, waterSources, draw, initialPaddockId, initialPaddockId])
 
-  // Keep section sources synced and clipped to paddock bounds
+  // Keep paddock sources synced and clipped to pasture bounds
   useEffect(() => {
     if (!isMapReady()) return
-    const sectionState = sectionStateRef.current
-    if (!sectionState) return
+    const paddockState = paddockStateRef.current
+    if (!paddockState) return
 
-    log('[Sections] Updating section sources, paddocks:', paddocks.length)
+    log('[Paddocks] Updating paddock sources, pastures:', pastures.length)
 
-    const nextPaddockGeometries: Record<string, Feature<Polygon>> = {}
-    paddocks.forEach((paddock) => {
-      nextPaddockGeometries[paddock.id] = paddock.geometry
+    const nextPastureGeometries: Record<string, Feature<Polygon>> = {}
+    pastures.forEach((pasture) => {
+      nextPastureGeometries[pasture.id] = pasture.geometry
     })
 
-    const previousGeometries = paddockGeometryRef.current
+    const previousGeometries = pastureGeometryRef.current
 
-    Object.entries(nextPaddockGeometries).forEach(([paddockId, geometry]) => {
-      const previousGeometry = previousGeometries[paddockId]
+    Object.entries(nextPastureGeometries).forEach(([pastureId, geometry]) => {
+      const previousGeometry = previousGeometries[pastureId]
       const translation = previousGeometry ? getTranslationDelta(previousGeometry, geometry) : null
 
-      sectionState.current = updateSectionListForPaddock(sectionState.current, paddockId, geometry, translation)
-      sectionState.yesterday = updateSectionListForPaddock(sectionState.yesterday, paddockId, geometry, translation)
-      sectionState.grazed = updateSectionListForPaddock(sectionState.grazed, paddockId, geometry, translation)
-      sectionState.alternatives = updateSectionListForPaddock(
-        sectionState.alternatives,
-        paddockId,
+      paddockState.current = updatePaddockListForPasture(paddockState.current, pastureId, geometry, translation)
+      paddockState.yesterday = updatePaddockListForPasture(paddockState.yesterday, pastureId, geometry, translation)
+      paddockState.grazed = updatePaddockListForPasture(paddockState.grazed, pastureId, geometry, translation)
+      paddockState.alternatives = updatePaddockListForPasture(
+        paddockState.alternatives,
+        pastureId,
         geometry,
         translation
       )
     })
 
-    const validPaddockIds = new Set(Object.keys(nextPaddockGeometries))
-    sectionState.current = sectionState.current.filter((item) => validPaddockIds.has(item.paddockId))
-    sectionState.yesterday = sectionState.yesterday.filter((item) => validPaddockIds.has(item.paddockId))
-    sectionState.grazed = sectionState.grazed.filter((item) => validPaddockIds.has(item.paddockId))
-    sectionState.alternatives = sectionState.alternatives.filter((item) => validPaddockIds.has(item.paddockId))
+    const validPastureIds = new Set(Object.keys(nextPastureGeometries))
+    paddockState.current = paddockState.current.filter((item) => validPastureIds.has(item.pastureId))
+    paddockState.yesterday = paddockState.yesterday.filter((item) => validPastureIds.has(item.pastureId))
+    paddockState.grazed = paddockState.grazed.filter((item) => validPastureIds.has(item.pastureId))
+    paddockState.alternatives = paddockState.alternatives.filter((item) => validPastureIds.has(item.pastureId))
 
-    paddockGeometryRef.current = nextPaddockGeometries
+    pastureGeometryRef.current = nextPastureGeometries
 
     if (mapInstance) {
       try {
-        pushSectionData(mapInstance, sectionState)
+        pushPaddockData(mapInstance, paddockState)
       } catch (err) {
-        log('[Sections] Map operation failed (likely unmounting):', err)
+        log('[Paddocks] Map operation failed (likely unmounting):', err)
       }
     }
-  }, [mapInstance, isMapLoaded, paddocks, updateSectionListForPaddock])
+  }, [mapInstance, isMapLoaded, pastures, updatePaddockListForPasture])
 
-  // Categorize sections by date (today, yesterday, older)
+  // Categorize paddocks by date (today, yesterday, older)
   useEffect(() => {
-    if (!mapInstance || !isMapLoaded || !sections) return
+    if (!mapInstance || !isMapLoaded || !paddocks) return
 
     // Safety check - ensure map style is still valid
     try {
       if (!mapInstance.getStyle()) {
-        log('[Sections] Map style not available, skipping')
+        log('[Paddocks] Map style not available, skipping')
         return
       }
     } catch {
-      log('[Sections] Map is being destroyed, skipping')
+      log('[Paddocks] Map is being destroyed, skipping')
       return
     }
 
-    // Use local date (not UTC) since section dates are in local time
+    // Use local date (not UTC) since paddock dates are in local time
     const now = new Date()
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     const yesterdayDate = new Date(now)
     yesterdayDate.setDate(yesterdayDate.getDate() - 1)
     const yesterday = `${yesterdayDate.getFullYear()}-${String(yesterdayDate.getMonth() + 1).padStart(2, '0')}-${String(yesterdayDate.getDate()).padStart(2, '0')}`
 
-    const categorized: SectionRenderState = {
+    const categorized: PaddockRenderState = {
       current: [],
       yesterday: [],
       grazed: [],
       alternatives: [],
     }
 
-    sections.forEach((section) => {
-      // Skip the section being edited/displayed via initialSectionFeature to avoid duplicate rendering
-      // The initialSectionFeature is rendered separately via the 'section-initial' layer
-      if (initialSectionId && section.id === initialSectionId) {
+    paddocks.forEach((paddock) => {
+      // Skip the paddock being edited/displayed via initialPaddockFeature to avoid duplicate rendering
+      // The initialPaddockFeature is rendered separately via the 'paddock-initial' layer
+      if (initialPaddockId && paddock.id === initialPaddockId) {
         return
       }
 
-      const item: SectionRenderItem = {
-        id: section.id,
-        paddockId: section.paddockId,
-        geometry: section.geometry,
-        properties: { date: section.date, targetArea: section.targetArea },
+      const item: PaddockRenderItem = {
+        id: paddock.id,
+        pastureId: paddock.pastureId,
+        geometry: paddock.geometry,
+        properties: { date: paddock.date, targetArea: paddock.targetArea },
       }
 
-      if (section.date === today) {
+      if (paddock.date === today) {
         categorized.current.push(item)
-      } else if (section.date === yesterday) {
+      } else if (paddock.date === yesterday) {
         categorized.yesterday.push(item)
       } else {
         categorized.grazed.push(item)
       }
     })
 
-    log('[Sections] Date categorization:', {
+    log('[Paddocks] Date categorization:', {
       today,
       yesterday,
       currentCount: categorized.current.length,
       yesterdayCount: categorized.yesterday.length,
       grazedCount: categorized.grazed.length,
-      excludedSectionId: initialSectionId,
+      excludedPaddockId: initialPaddockId,
     })
 
-    sectionStateRef.current = categorized
+    paddockStateRef.current = categorized
     try {
-      pushSectionData(mapInstance, categorized)
+      pushPaddockData(mapInstance, categorized)
     } catch (err) {
-      log('[Sections] Map operation failed (likely unmounting):', err)
+      log('[Paddocks] Map operation failed (likely unmounting):', err)
     }
-  }, [mapInstance, isMapLoaded, sections, initialSectionId])
+  }, [mapInstance, isMapLoaded, paddocks, initialPaddockId])
 
   // Update no-graze zone layer data
   useEffect(() => {
@@ -2021,7 +2021,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
           'fill-color': '#f59e0b',
           'fill-opacity': 0.05,
         },
-      }, 'paddocks-fill') // Insert below paddocks
+      }, 'pastures-fill') // Insert below paddocks
 
       // Add outline layer (dashed amber line)
       map.addLayer({
@@ -2033,7 +2033,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
           'line-width': 2,
           'line-dasharray': [4, 2],
         },
-      }, 'paddocks-fill') // Insert below paddocks
+      }, 'pastures-fill') // Insert below paddocks
     }
   }, [mapInstance, isMapLoaded, farmGeometry, isMapReady])
 
@@ -2065,13 +2065,13 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         .filter((id): id is string => id !== undefined && id !== null && id !== '')
       if (ids.length === 0) return null
 
-      // Priority order matches visual z-index: sections > waterPolygon > noGrazeZone > paddock
+      // Priority order matches visual z-index: paddocks > waterPolygon > noGrazeZone > pasture
       // Higher number = higher priority (selected first when overlapping)
       const priorityOrder: Record<string, number> = {
-        section: 4,
+        paddock: 4,
         waterPolygon: 3,
         noGrazeZone: 2,
-        paddock: 1,
+        pasture: 1,
       }
 
       // Sort by priority (highest first) and return the top one
@@ -2179,9 +2179,9 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
       const featureId = getFeatureIdAtPoint(e.point)
       if (!featureId) {
-        // When editing sections, don't deselect when clicking outside
-        // This keeps the section visible (inactive polygons are transparent)
-        if (entityType === 'section') {
+        // When editing paddocks, don't deselect when clicking outside
+        // This keeps the paddock visible (inactive polygons are transparent)
+        if (entityType === 'paddock') {
           return
         }
         // Don't deselect if clicking on a no-graze zone or water source
@@ -2316,7 +2316,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   const lastLoadedUnifiedKeyRef = useRef<string | null>(null)
 
   // UNIFIED: Load ALL editable geometries into draw when edit mode is activated
-  // Z-index layering: paddocks first (bottom), then overlays, sections last (top)
+  // Z-index layering: pastures first (bottom), then overlays, paddocks last (top)
   useEffect(() => {
     if (!draw || !isEditActive) {
       lastLoadedUnifiedKeyRef.current = null
@@ -2335,14 +2335,14 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     // Order matters for z-index: MapboxDraw renders later features on top
     const features: Feature<Polygon | GeoJSON.Point>[] = []
 
-    // 1. Paddocks (bottom layer)
-    paddocks.forEach((p) => {
+    // 1. Pastures (bottom layer)
+    pastures.forEach((p) => {
       features.push({
         ...p.geometry,
-        id: createTypedFeatureId('paddock', p.id),
+        id: createTypedFeatureId('pasture', p.id),
         properties: {
           ...(p.geometry.properties ?? {}),
-          entityType: 'paddock',
+          entityType: 'pasture',
           entityId: p.id,
         },
       })
@@ -2374,17 +2374,17 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       })
     })
 
-    // 4. Sections (top layer - always clickable even when inside paddocks)
-    // Load ALL sections so clicking between them doesn't trigger reload
-    sections.forEach((s) => {
+    // 4. Paddocks (top layer - always clickable even when inside pastures)
+    // Load ALL paddocks so clicking between them doesn't trigger reload
+    paddocks.forEach((s) => {
       features.push({
         ...s.geometry,
-        id: createTypedFeatureId('section', s.id),
+        id: createTypedFeatureId('paddock', s.id),
         properties: {
           ...(s.geometry.properties ?? {}),
-          entityType: 'section',
+          entityType: 'paddock',
           entityId: s.id,
-          paddockId: s.paddockId,
+          pastureId: s.pastureId,
         },
       })
     })
@@ -2423,18 +2423,18 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
 
     console.log('[FarmMap:UnifiedDraw] Loading all geometries into draw:', {
-      paddocks: paddocks.length,
+      pastures: pastures.length,
       noGrazeZones: noGrazeZones.length,
       noGrazeZoneIds: noGrazeZones.map(z => ({ id: z.id, name: z.name })),
       waterPolygons: waterSources.filter(s => s.geometryType === 'polygon').length,
-      sections: sections.length,
+      paddocks: paddocks.length,
       total: features.length,
     })
     log('[UnifiedDraw] Loading all geometries into draw:', {
-      paddocks: paddocks.length,
+      pastures: pastures.length,
       noGrazeZones: noGrazeZones.length,
       waterPolygons: waterSources.filter(s => s.geometryType === 'polygon').length,
-      sections: sections.length,
+      paddocks: paddocks.length,
       total: features.length,
     })
 
@@ -2449,8 +2449,8 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       let typedIdToSelect: string | null = null
       if (entityType === 'paddock' && initialPaddockId) {
         typedIdToSelect = createTypedFeatureId('paddock', initialPaddockId)
-      } else if (entityType === 'section' && initialSectionId) {
-        typedIdToSelect = createTypedFeatureId('section', initialSectionId)
+      } else if (entityType === 'paddock' && initialPaddockId) {
+        typedIdToSelect = createTypedFeatureId('paddock', initialPaddockId)
       } else if (entityType === 'noGrazeZone' && initialNoGrazeZoneId) {
         typedIdToSelect = createTypedFeatureId('noGrazeZone', initialNoGrazeZoneId)
       } else if (entityType === 'waterPolygon' && initialWaterSourceId) {
@@ -2471,7 +2471,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       console.log('[FarmMap:UnifiedDraw] Draw reload failed:', err)
       log('[UnifiedDraw] Draw reload failed:', err)
     }
-  }, [draw, isEditActive, paddocks, noGrazeZones, waterSources, sections, resetCounter, entityType, initialPaddockId, initialSectionId, initialNoGrazeZoneId, initialWaterSourceId])
+  }, [draw, isEditActive, pastures, paddocks, noGrazeZones, waterSources, resetCounter, entityType, initialPaddockId, initialPaddockId, initialNoGrazeZoneId, initialWaterSourceId])
 
   // Select initial feature when entering edit mode
   useEffect(() => {
@@ -2482,8 +2482,8 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
     if (entityType === 'paddock' && initialPaddockId) {
       typedIdToSelect = createTypedFeatureId('paddock', initialPaddockId)
-    } else if (entityType === 'section' && initialSectionId) {
-      typedIdToSelect = createTypedFeatureId('section', initialSectionId)
+    } else if (entityType === 'paddock' && initialPaddockId) {
+      typedIdToSelect = createTypedFeatureId('paddock', initialPaddockId)
     } else if (entityType === 'noGrazeZone' && initialNoGrazeZoneId) {
       typedIdToSelect = createTypedFeatureId('noGrazeZone', initialNoGrazeZoneId)
     } else if (entityType === 'waterPolygon' && initialWaterSourceId) {
@@ -2507,40 +2507,40 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         log.debug('Mode change to simple_select failed', { error: String(error) })
       }
     }
-  }, [draw, isEditActive, entityType, initialPaddockId, initialSectionId, initialNoGrazeZoneId, initialWaterSourceId])
+  }, [draw, isEditActive, entityType, initialPaddockId, initialPaddockId, initialNoGrazeZoneId, initialWaterSourceId])
 
-  // Focus map on the section bounds when editing sections
-  // Only focus when the section ID changes, not when geometry updates during vertex editing
+  // Focus map on the paddock bounds when editing paddocks
+  // Only focus when the paddock ID changes, not when geometry updates during vertex editing
   // Store the initial geometry in a ref to avoid re-focusing on every vertex edit
-  const initialSectionGeometryRef = useRef<Feature<Polygon> | null>(null)
+  const initialPaddockGeometryRef = useRef<Feature<Polygon> | null>(null)
   useEffect(() => {
-    // Capture geometry when section ID changes
-    if (initialSectionId && initialSectionFeature) {
-      if (initialSectionGeometryRef.current === null || lastFocusedSectionIdRef.current !== initialSectionId) {
-        initialSectionGeometryRef.current = initialSectionFeature
+    // Capture geometry when paddock ID changes
+    if (initialPaddockId && initialPaddockFeature) {
+      if (initialPaddockGeometryRef.current === null || lastFocusedPaddockIdRef.current !== initialPaddockId) {
+        initialPaddockGeometryRef.current = initialPaddockFeature
       }
     }
-  }, [initialSectionId, initialSectionFeature])
+  }, [initialPaddockId, initialPaddockFeature])
 
   useEffect(() => {
-    if (!isMapLoaded || !isEditActive || entityType !== 'section' || !initialSectionId) return
-    // Skip if user has manually adjusted the map or we already focused on this section
+    if (!isMapLoaded || !isEditActive || entityType !== 'paddock' || !initialPaddockId) return
+    // Skip if user has manually adjusted the map or we already focused on this paddock
     if (userHasInteractedRef.current) return
-    if (lastFocusedSectionIdRef.current === initialSectionId) return
-    lastFocusedSectionIdRef.current = initialSectionId
+    if (lastFocusedPaddockIdRef.current === initialPaddockId) return
+    lastFocusedPaddockIdRef.current = initialPaddockId
     // Use the captured initial geometry, not the current (possibly updated) geometry
-    const geometryToFocus = initialSectionGeometryRef.current
+    const geometryToFocus = initialPaddockGeometryRef.current
     if (geometryToFocus) {
       fitPolygonBounds(geometryToFocus, 120)
     }
-    // Note: initialSectionFeature is NOT in dependencies - we only focus when section ID changes
+    // Note: initialPaddockFeature is NOT in dependencies - we only focus when paddock ID changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entityType, fitPolygonBounds, initialSectionId, isEditActive, isMapLoaded])
+  }, [entityType, fitPolygonBounds, initialPaddockId, isEditActive, isMapLoaded])
 
-  // Reset focus tracking when leaving section edit mode
+  // Reset focus tracking when leaving paddock edit mode
   useEffect(() => {
-    if (entityType !== 'section' || !isEditActive) {
-      lastFocusedSectionIdRef.current = null
+    if (entityType !== 'paddock' || !isEditActive) {
+      lastFocusedPaddockIdRef.current = null
     }
   }, [entityType, isEditActive])
 
@@ -2561,11 +2561,11 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     if (!selectedTypedId) {
       // No selection - reset all filters
       try {
-        if (map.getLayer('paddocks-fill')) {
-          map.setFilter('paddocks-fill', null)
+        if (map.getLayer('pastures-fill')) {
+          map.setFilter('pastures-fill', null)
         }
-        if (map.getLayer('paddocks-outline')) {
-          map.setFilter('paddocks-outline', null)
+        if (map.getLayer('pastures-outline')) {
+          map.setFilter('pastures-outline', null)
         }
         if (map.getLayer('no-graze-fill')) {
           map.setFilter('no-graze-fill', null)
@@ -2594,11 +2594,11 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     try {
       // Hide the selected feature from its display layer
       if (featureEntityType === 'paddock') {
-        if (map.getLayer('paddocks-fill')) {
-          map.setFilter('paddocks-fill', ['!=', ['get', 'id'], entityId])
+        if (map.getLayer('pastures-fill')) {
+          map.setFilter('pastures-fill', ['!=', ['get', 'id'], entityId])
         }
-        if (map.getLayer('paddocks-outline')) {
-          map.setFilter('paddocks-outline', ['!=', ['get', 'id'], entityId])
+        if (map.getLayer('pastures-outline')) {
+          map.setFilter('pastures-outline', ['!=', ['get', 'id'], entityId])
         }
       } else if (featureEntityType === 'noGrazeZone') {
         if (map.getLayer('no-graze-fill')) {
@@ -2615,7 +2615,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
           map.setFilter('water-source-outline', ['!=', ['get', 'id'], entityId])
         }
       }
-      // Sections use different source/layers, handled separately
+      // Paddocks use different source/layers, handled separately
     } catch (err) {
       log('[DisplayLayerFilter] Error setting filter:', err)
     }
@@ -2623,11 +2623,11 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     return () => {
       // Reset filters on cleanup
       try {
-        if (map.getLayer('paddocks-fill')) {
-          map.setFilter('paddocks-fill', null)
+        if (map.getLayer('pastures-fill')) {
+          map.setFilter('pastures-fill', null)
         }
-        if (map.getLayer('paddocks-outline')) {
-          map.setFilter('paddocks-outline', null)
+        if (map.getLayer('pastures-outline')) {
+          map.setFilter('pastures-outline', null)
         }
         if (map.getLayer('no-graze-fill')) {
           map.setFilter('no-graze-fill', null)
@@ -2647,10 +2647,10 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
   }, [mapInstance, isMapLoaded, isEditActive, selectedFeatureIds])
 
-  // Hide native paddock layers when editing paddocks (Draw will render them)
+  // Toggle pasture boundary/fill visibility
   useEffect(() => {
     if (!mapInstance || !isMapLoaded) {
-      log('[Paddocks] Visibility effect: map not ready')
+      log('[Pastures] Visibility effect: map not ready')
       return
     }
     const map = mapInstance
@@ -2658,39 +2658,30 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     // Safety check - ensure map style is available (may be destroyed during navigation)
     try {
       if (!map.getStyle()) {
-        log('[Paddocks] Visibility effect: map style not available, skipping')
+        log('[Pastures] Visibility effect: map style not available, skipping')
         return
       }
     } catch {
-      log('[Paddocks] Visibility effect: map is being destroyed, skipping')
+      log('[Pastures] Visibility effect: map is being destroyed, skipping')
       return
     }
 
-    const paddockLayers = ['paddocks-fill', 'paddocks-outline']
-    // Always show native paddock layers - Draw's inactive polygons are transparent
-    // so native layers show through with proper status colors
-    const visibility = showPaddocks ? 'visible' : 'none'
-    log('[Paddocks] Setting visibility:', { showPaddocks, visibility, isEditActive, hasDraw: !!draw })
-
-    // Log all paddocks for debugging
-    log('[Paddocks] Current paddocks:', paddocks.map(p => ({
-      id: p.id,
-      name: p.name,
-      status: p.status,
-    })))
+    const pastureLayers = ['pastures-fill', 'pastures-outline']
+    const visibility = showPastures ? 'visible' : 'none'
+    log('[Pastures] Setting visibility:', { showPastures, visibility })
 
     try {
-      paddockLayers.forEach(layerId => {
+      pastureLayers.forEach(layerId => {
         const layerExists = !!map.getLayer(layerId)
-        log('[Paddocks] Layer check', { layerId, exists: layerExists })
+        log('[Pastures] Layer check', { layerId, exists: layerExists })
         if (layerExists) {
           map.setLayoutProperty(layerId, 'visibility', visibility)
         }
       })
     } catch (err) {
-      log('[Paddocks] Visibility effect: error accessing map layers, likely destroyed', err)
+      log('[Pastures] Visibility effect: error accessing map layers, likely destroyed', err)
     }
-  }, [mapInstance, isMapLoaded, showPaddocks, paddocks])
+  }, [mapInstance, isMapLoaded, showPastures])
 
   // Update selected paddock highlight
   useEffect(() => {
@@ -2698,13 +2689,13 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     const map = mapInstance!
     if (!map) return
 
-    if (map.getLayer('paddocks-selected')) {
-      map.removeLayer('paddocks-selected')
+    if (map.getLayer('pastures-selected')) {
+      map.removeLayer('pastures-selected')
     }
 
     if (selectedPaddockId && !isEditActive) {
       map.addLayer({
-        id: 'paddocks-selected',
+        id: 'pastures-selected',
         type: 'line',
         source: 'paddocks',
         paint: {
@@ -2716,27 +2707,27 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
   }, [mapInstance, isMapLoaded, selectedPaddockId, isEditActive])
 
-  // Update selected section highlight
+  // Update selected paddock highlight
   useEffect(() => {
     if (!isMapReady()) return
     const map = mapInstance!
     if (!map) return
 
     // Remove existing highlight layers
-    const sources = ['sections-current', 'sections-yesterday', 'sections-grazed'] as const
+    const sources = ['paddocks-current', 'paddocks-yesterday', 'paddocks-grazed'] as const
     sources.forEach((sourceId) => {
-      const layerId = `section-selected-highlight-${sourceId}`
+      const layerId = `paddock-selected-highlight-${sourceId}`
       if (map.getLayer(layerId)) {
         map.removeLayer(layerId)
       }
     })
 
-    // selectedSectionId is only passed when viewing (not editing) a section
-    if (selectedSectionId) {
+    // selectedPaddockId is only passed when viewing (not editing) a paddock
+    if (selectedPaddockId) {
       // Add highlight layer to each source - the filter will only match in the right one
       sources.forEach((sourceId) => {
         if (map.getSource(sourceId)) {
-          const layerId = `section-selected-highlight-${sourceId}`
+          const layerId = `paddock-selected-highlight-${sourceId}`
           map.addLayer({
             id: layerId,
             type: 'line',
@@ -2745,12 +2736,12 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
               'line-color': '#ffffff',
               'line-width': 4,
             },
-            filter: ['==', ['get', 'id'], selectedSectionId],
+            filter: ['==', ['get', 'id'], selectedPaddockId],
           })
         }
       })
     }
-  }, [mapInstance, isMapLoaded, selectedSectionId])
+  }, [mapInstance, isMapLoaded, selectedPaddockId])
 
 
   // Toggle labels visibility
@@ -2759,46 +2750,46 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     const map = mapInstance!
     if (!map) return
     
-    if (map.getLayer('paddocks-labels')) {
+    if (map.getLayer('pastures-labels')) {
       map.setLayoutProperty(
-        'paddocks-labels',
+        'pastures-labels',
         'visibility',
         showLabels ? 'visible' : 'none'
       )
     }
   }, [mapInstance, isMapLoaded, showLabels])
 
-  // Toggle sections visibility
+  // Toggle paddock layer visibility
   useEffect(() => {
     if (!isMapReady()) return
     const map = mapInstance!
     if (!map) return
-    
-    log('[Sections] Toggle visibility, showSections:', showSections)
-    
-    const sectionLayers = [
-      'sections-grazed-fill',
-      'sections-grazed-outline',
-      'sections-yesterday-fill',
-      'sections-yesterday-outline',
-      'sections-current-fill',
-      'sections-current-outline',
-      'sections-alternatives-fill',
-      'sections-alternatives-outline',
+
+    log('[Paddocks] Toggle visibility, showPaddocks:', showPaddocks)
+
+    const paddockLayers = [
+      'paddocks-grazed-fill',
+      'paddocks-grazed-outline',
+      'paddocks-yesterday-fill',
+      'paddocks-yesterday-outline',
+      'paddocks-current-fill',
+      'paddocks-current-outline',
+      'paddocks-alternatives-fill',
+      'paddocks-alternatives-outline',
     ]
-    sectionLayers.forEach(layerId => {
+    paddockLayers.forEach(layerId => {
       if (map.getLayer(layerId)) {
         map.setLayoutProperty(
           layerId,
           'visibility',
-          showSections ? 'visible' : 'none'
+          showPaddocks ? 'visible' : 'none'
         )
-        log('[Sections] Set visibility', { layerId, visibility: showSections ? 'visible' : 'none' })
+        log('[Paddocks] Set visibility', { layerId, visibility: showPaddocks ? 'visible' : 'none' })
       } else {
-        log.warn('[Sections] Layer not found', { layerId })
+        log.warn('[Paddocks] Layer not found', { layerId })
       }
     })
-  }, [mapInstance, isMapLoaded, showSections])
+  }, [mapInstance, isMapLoaded, showPaddocks])
 
   // Position classes for toolbar
   const toolbarPositionClasses = {
@@ -2865,4 +2856,3 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     </div>
   )
 })
-

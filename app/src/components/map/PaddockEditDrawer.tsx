@@ -1,15 +1,8 @@
-import { useMemo, useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { useState, useMemo, useCallback } from 'react'
+import { X, Trash2, Info, Pencil, Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
 import {
   Dialog,
   DialogContent,
@@ -18,195 +11,265 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { FloatingPanel } from '@/components/ui/floating-panel'
-import type { Paddock, PaddockStatus } from '@/lib/types'
-import { useGeometry } from '@/lib/geometry'
+import type { Feature, Polygon } from 'geojson'
+import { useGeometry, calculateAreaHectares } from '@/lib/geometry'
+import { cn } from '@/lib/utils'
 import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
+import { isDemoDevMode } from '@/lib/demo'
 
 interface PaddockEditDrawerProps {
-  paddock: Paddock
-  open: boolean
+  paddockId: string
+  pastureId: string
+  geometry: Feature<Polygon>
+  isEditMode?: boolean
+  onEnterEditMode?: () => void
   onClose: () => void
 }
 
-interface PaddockFormState {
-  name: string
-  status: PaddockStatus
-  ndvi: number
-  restDays: number
-  area: number
-  waterAccess: string
-  lastGrazed: string
-}
-
-const statusOptions: { value: PaddockStatus; label: string }[] = [
-  { value: 'ready', label: 'Ready' },
-  { value: 'almost_ready', label: 'Almost Ready' },
-  { value: 'recovering', label: 'Recovering' },
-  { value: 'grazed', label: 'Recently Grazed' },
-]
-
-function buildFormState(paddock: Paddock): PaddockFormState {
-  return {
-    name: paddock.name,
-    status: paddock.status,
-    ndvi: paddock.ndvi,
-    restDays: paddock.restDays,
-    area: paddock.area,
-    waterAccess: paddock.waterAccess,
-    lastGrazed: paddock.lastGrazed,
-  }
-}
-
-export function PaddockEditDrawer({ paddock, open, onClose }: PaddockEditDrawerProps) {
-  const { deletePaddock } = useGeometry()
-  const { label } = useAreaUnit()
-  const [form, setForm] = useState<PaddockFormState>(() => buildFormState(paddock))
+export function PaddockEditDrawer({
+  paddockId,
+  pastureId,
+  geometry,
+  isEditMode = false,
+  onEnterEditMode,
+  onClose
+}: PaddockEditDrawerProps) {
+  const { deletePaddock, getPaddockById, getPastureById, updatePaddockMetadata } = useGeometry()
+  const { format } = useAreaUnit()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [lastPaddockId, setLastPaddockId] = useState(paddock.id)
 
-  // Reset form when paddock changes
-  if (paddock.id !== lastPaddockId) {
-    setLastPaddockId(paddock.id)
-    setForm(buildFormState(paddock))
+  const paddock = getPaddockById(paddockId)
+  const pasture = getPastureById(pastureId)
+  const area = paddock?.targetArea ?? calculateAreaHectares(geometry)
+
+  // Compute paddock age category
+  const paddockAge = useMemo(() => {
+    // Use local date (not UTC) for comparison since paddock dates are in local time
+    const now = new Date()
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const paddockDate = paddock?.date ?? ''
+
+    if (!paddockDate) return 'unknown'
+    if (paddockDate === today) return 'today'
+    if (paddockDate < today) {
+      // Determine if it's "previous" (yellow) or "historical" (gray)
+      // Previous is the most recently grazed (yesterday by default)
+      const yesterdayDate = new Date(now)
+      yesterdayDate.setDate(yesterdayDate.getDate() - 1)
+      const yesterday = `${yesterdayDate.getFullYear()}-${String(yesterdayDate.getMonth() + 1).padStart(2, '0')}-${String(yesterdayDate.getDate()).padStart(2, '0')}`
+      if (paddockDate === yesterday) return 'previous'
+      return 'historical'
+    }
+    return 'future'
+  }, [paddock?.date])
+
+  // Format date in human-readable format
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr + 'T00:00:00')
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    })
   }
 
-  const statusLabel = useMemo(
-    () => statusOptions.find((option) => option.value === form.status)?.label ?? 'Select status',
-    [form.status]
-  )
+  // Short date format for badge
+  const formatShortDate = (dateStr: string) => {
+    const date = new Date(dateStr + 'T00:00:00')
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
+    })
+  }
+
+  // Get styling based on paddock age
+  const ageStyles = useMemo(() => {
+    switch (paddockAge) {
+      case 'today':
+        return {
+          headerText: "Today's Grazing Paddock",
+          badgeText: 'Today',
+          badgeClass: 'bg-green-100 text-green-800 border-green-200',
+          accentClass: 'border-green-500',
+          dotClass: 'bg-green-500'
+        }
+      case 'previous':
+        return {
+          headerText: 'Previously Grazed Paddock',
+          badgeText: 'Previous',
+          badgeClass: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+          accentClass: 'border-yellow-500',
+          dotClass: 'bg-yellow-500'
+        }
+      case 'historical':
+        return {
+          headerText: 'Historical Paddock',
+          badgeText: paddock?.date ? formatShortDate(paddock.date) : 'Historical',
+          badgeClass: 'bg-gray-100 text-gray-700 border-gray-200',
+          accentClass: 'border-gray-400',
+          dotClass: 'bg-gray-400'
+        }
+      default:
+        return {
+          headerText: 'Grazing Paddock',
+          badgeText: 'Paddock',
+          badgeClass: 'bg-blue-100 text-blue-800 border-blue-200',
+          accentClass: 'border-blue-500',
+          dotClass: 'bg-blue-500'
+        }
+    }
+  }, [paddockAge, paddock?.date])
+
+  const isPastPaddock = paddockAge === 'previous' || paddockAge === 'historical'
+
+  const handleDateChange = useCallback((newDate: string) => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+      updatePaddockMetadata(paddockId, { date: newDate })
+    }
+  }, [paddockId, updatePaddockMetadata])
 
   const handleDelete = () => {
-    deletePaddock(paddock.id)
+    deletePaddock(paddockId)
     setDeleteDialogOpen(false)
     onClose()
   }
 
   return (
-    <>
-      <FloatingPanel
-        open={open}
-        onOpenChange={(isOpen) => !isOpen && onClose()}
-        title={`Edit ${paddock.name}`}
-        subtitle={`Paddock ${paddock.id.replace('p', '')}`}
-        defaultWidth={340}
-        defaultHeight={520}
-        minWidth={300}
-        maxWidth={450}
-        minHeight={400}
-        initialPosition={{ x: typeof window !== 'undefined' ? window.innerWidth - 360 : 800, y: 64 }}
-      >
-        <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-4">
-          <div className="space-y-2">
-            <label className="text-xs text-muted-foreground uppercase tracking-wide">Name</label>
-            <Input
-              value={form.name}
-              onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-            />
+    <div className="flex h-full flex-col">
+      {/* Header with accent border */}
+      <div className={cn("flex items-start justify-between border-b p-4 border-l-4", ageStyles.accentClass)}>
+        <div>
+          <h2 className="font-semibold text-base">
+            {isEditMode ? 'Edit Paddock' : ageStyles.headerText}
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            in {pasture?.name ?? `Pasture ${pastureId}`}
+          </p>
+        </div>
+        <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7 -mt-1 -mr-1">
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="space-y-4">
+          {/* Status badge with date - only show in view mode for past paddocks */}
+          {!isEditMode && paddock?.date && (
+            <div className={cn(
+              "rounded-md border p-3 flex items-start gap-3",
+              ageStyles.badgeClass
+            )}>
+              <div className={cn("w-2 h-2 rounded-full mt-1.5 flex-shrink-0", ageStyles.dotClass)} />
+              <div>
+                <div className="font-medium text-sm">{ageStyles.badgeText}</div>
+                <div className="text-xs mt-0.5 opacity-80">
+                  Grazed: {formatDate(paddock.date)}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="rounded-md border border-border bg-muted/50 p-3">
+            <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Paddock Area</div>
+            <div className="text-2xl font-semibold">{format(area, 2)}</div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs text-muted-foreground uppercase tracking-wide">Status</label>
-            <Select
-              value={form.status}
-              onValueChange={(value) => setForm((prev) => ({ ...prev, status: value as PaddockStatus }))}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue>{statusLabel}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {statusOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
+          {/* Date picker - only show in edit mode for dev mode */}
+          {isEditMode && isDemoDevMode && paddock?.date && (
+            <div className="rounded-md border border-border bg-muted/50 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <label className="text-xs text-muted-foreground uppercase tracking-wide">
+                  Paddock Date
+                </label>
+              </div>
+              <Input
+                type="date"
+                value={paddock.date}
+                onChange={(e) => handleDateChange(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Dev tool: Change when this paddock was grazed.
+              </p>
+            </div>
+          )}
+
+          {paddock?.reasoning && paddock.reasoning.length > 0 && (
+            <div className="space-y-2">
+              <label className="text-xs text-muted-foreground uppercase tracking-wide">Reasoning</label>
+              <ul className="text-sm space-y-1">
+                {paddock.reasoning.map((reason, i) => (
+                  <li key={i} className="text-muted-foreground">* {reason}</li>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
+              </ul>
+            </div>
+          )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <label className="text-xs text-muted-foreground uppercase tracking-wide">NDVI</label>
-              <Input
-                type="number"
-                min={-1}
-                max={1}
-                step={0.01}
-                value={Number.isNaN(form.ndvi) ? '' : form.ndvi}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    ndvi: Number.isNaN(event.target.valueAsNumber) ? prev.ndvi : event.target.valueAsNumber,
-                  }))
-                }
-              />
+          {/* Show edit instructions only in edit mode */}
+          {isEditMode && (
+            <div className="rounded-md border border-border bg-card p-3">
+              <p className="text-xs text-muted-foreground">
+                Drag paddock vertices on the map to resize. Changes are tracked in "unsaved changes."
+              </p>
             </div>
-            <div className="space-y-2">
-              <label className="text-xs text-muted-foreground uppercase tracking-wide">Rest Days</label>
-              <Input
-                type="number"
-                min={0}
-                step={1}
-                value={Number.isNaN(form.restDays) ? '' : form.restDays}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    restDays: Number.isNaN(event.target.valueAsNumber) ? prev.restDays : event.target.valueAsNumber,
-                  }))
-                }
-              />
-            </div>
-          </div>
+          )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <label className="text-xs text-muted-foreground uppercase tracking-wide">Area ({label})</label>
-              <Input
-                type="number"
-                min={0}
-                step={0.1}
-                value={Number.isNaN(form.area) ? '' : form.area}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    area: Number.isNaN(event.target.valueAsNumber) ? prev.area : event.target.valueAsNumber,
-                  }))
-                }
-              />
+          {/* Info callout in view mode */}
+          {!isEditMode && (
+            <div className="rounded-md border border-blue-200 bg-blue-50 p-3 flex gap-2">
+              <Info className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-blue-800">
+                {isPastPaddock
+                  ? "This paddock was grazed previously. Update if the actual grazing area was different."
+                  : "Update the paddock boundary if it doesn't match the actual grazing area."}
+              </p>
             </div>
-            <div className="space-y-2">
-              <label className="text-xs text-muted-foreground uppercase tracking-wide">Last Grazed</label>
-              <Input
-                type="text"
-                value={form.lastGrazed}
-                onChange={(event) => setForm((prev) => ({ ...prev, lastGrazed: event.target.value }))}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs text-muted-foreground uppercase tracking-wide">Water Access</label>
-            <Textarea
-              rows={2}
-              value={form.waterAccess}
-              onChange={(event) => setForm((prev) => ({ ...prev, waterAccess: event.target.value }))}
-            />
-          </div>
+          )}
         </div>
 
-        {/* Fixed footer */}
-        <div className="border-t p-4">
-          <Button
-            variant="destructive"
-            size="sm"
-            className="w-full gap-2"
-            onClick={() => setDeleteDialogOpen(true)}
-          >
-            <Trash2 className="h-4 w-4" />
-            Delete Paddock
-          </Button>
-        </div>
-      </FloatingPanel>
+        {/* Edit Paddock button in view mode - available for all paddocks */}
+        {!isEditMode && onEnterEditMode && (
+          <>
+            <Separator className="my-4" />
+            <Button
+              variant="outline"
+              className="w-full gap-2"
+              onClick={onEnterEditMode}
+            >
+              <Pencil className="h-4 w-4" />
+              {isPastPaddock ? 'Update Paddock' : 'Edit Paddock'}
+            </Button>
+          </>
+        )}
+
+        {/* Danger Zone - only show in edit mode */}
+        {isEditMode && (
+          <>
+            <Separator className="my-4" />
+            <div className="space-y-2">
+              <label className="text-xs text-destructive uppercase tracking-wide">Danger Zone</label>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="w-full gap-2"
+                onClick={() => setDeleteDialogOpen(true)}
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete Paddock
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="border-t p-4">
+        <Button className="w-full" onClick={onClose}>
+          Done
+        </Button>
+      </div>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -214,8 +277,7 @@ export function PaddockEditDrawer({ paddock, open, onClose }: PaddockEditDrawerP
           <DialogHeader>
             <DialogTitle>Delete Paddock</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete "{paddock.name}"? This action cannot be undone.
-              All sections within this paddock will also be deleted.
+              Are you sure you want to delete this paddock? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -228,6 +290,6 @@ export function PaddockEditDrawer({ paddock, open, onClose }: PaddockEditDrawerP
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   )
 }

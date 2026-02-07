@@ -13,7 +13,7 @@ const polygonFeature = v.object({
   }),
 })
 
-const paddockStatus = v.union(
+const pastureStatus = v.union(
   v.literal('ready'),
   v.literal('almost_ready'),
   v.literal('recovering'),
@@ -22,7 +22,7 @@ const paddockStatus = v.union(
 
 const geometryChange = v.object({
   id: v.string(),
-  entityType: v.union(v.literal('paddock'), v.literal('section')),
+  entityType: v.union(v.literal('pasture'), v.literal('paddock')),
   changeType: v.union(v.literal('add'), v.literal('update'), v.literal('delete')),
   geometry: v.optional(polygonFeature),
   parentId: v.optional(v.string()),
@@ -71,7 +71,7 @@ function byFarmExternalId(q: any, farmId: unknown, externalId: unknown) {
   return q.eq('farmId', farmId).eq('externalId', externalId)
 }
 
-export const listPaddocksByFarm = query({
+export const listPasturesByFarm = query({
   args: { farmId: v.string() },
   handler: async (ctx, args) => {
     const farm = await ctx.db
@@ -90,7 +90,7 @@ export const listPaddocksByFarm = query({
   },
 })
 
-export const applyPaddockChanges = mutation({
+export const applyPastureChanges = mutation({
   args: {
     farmId: v.string(),
     changes: v.array(geometryChange),
@@ -110,7 +110,7 @@ export const applyPaddockChanges = mutation({
     let applied = 0
 
     for (const change of args.changes) {
-      if (change.entityType !== 'paddock') continue
+      if (change.entityType !== 'pasture') continue
 
       const existing = await ctx.db
         .query('paddocks')
@@ -141,8 +141,8 @@ export const applyPaddockChanges = mutation({
         lastGrazed?: unknown
       }
 
-      const paddockData = {
-        name: resolveString(metadata.name, 'New Paddock'),
+      const pastureData = {
+        name: resolveString(metadata.name, 'New Pasture'),
         status: resolveStatus(metadata.status),
         ndvi: resolveNumber(metadata.ndvi, 0.35),
         restDays: resolveNumber(metadata.restDays, 0),
@@ -154,7 +154,7 @@ export const applyPaddockChanges = mutation({
       if (existing) {
         await ctx.db.patch(existing._id, {
           geometry,
-          area: paddockData.area,
+          area: pastureData.area,
           updatedAt: now,
         })
         applied += 1
@@ -165,7 +165,7 @@ export const applyPaddockChanges = mutation({
         farmId: farm._id,
         externalId: change.id,
         geometry,
-        ...paddockData,
+        ...pastureData,
         createdAt: now,
         updatedAt: now,
       })
@@ -174,13 +174,13 @@ export const applyPaddockChanges = mutation({
     }
 
     if (countNeedsRefresh) {
-      const paddockCount = await ctx.db
+      const pastureCount = await ctx.db
         .query('paddocks')
         .withIndex('by_farm', (q) => q.eq('farmId', farm._id))
         .collect()
 
       await ctx.db.patch(farm._id, {
-        paddockCount: paddockCount.length,
+        paddockCount: pastureCount.length,
         updatedAt: now,
       })
     }
@@ -190,10 +190,10 @@ export const applyPaddockChanges = mutation({
 })
 
 /**
- * Get a paddock by farm and paddock external IDs.
+ * Get a pasture by farm and pasture external IDs.
  * Used by NDVI grid generation for coordinate bounds.
  */
-export const getPaddockByExternalId = query({
+export const getPastureByExternalId = query({
   args: {
     farmExternalId: v.string(),
     paddockExternalId: v.string(),
@@ -217,24 +217,24 @@ export const getPaddockByExternalId = query({
       return null
     }
 
-    // Find the paddock using helper to satisfy TypeScript
+    // Find the pasture using helper to satisfy TypeScript
     const farmId = farm._id
-    const paddock = await ctx.db
+    const pasture = await ctx.db
       .query('paddocks')
       .withIndex('by_farm_externalId', (q) => byFarmExternalId(q, farmId, args.paddockExternalId))
       .first()
 
-    return paddock
+    return pasture
   },
 })
 
-export const updatePaddockMetadata = mutation({
+export const updatePastureMetadata = mutation({
   args: {
     farmId: v.string(),
     paddockId: v.string(),
     metadata: v.object({
       name: v.optional(v.string()),
-      status: v.optional(paddockStatus),
+      status: v.optional(pastureStatus),
       ndvi: v.optional(v.number()),
       restDays: v.optional(v.number()),
       area: v.optional(v.number()),
@@ -252,13 +252,13 @@ export const updatePaddockMetadata = mutation({
       throw new Error('Farm not found.')
     }
 
-    const paddock = await ctx.db
+    const pasture = await ctx.db
       .query('paddocks')
       .withIndex('by_farm_externalId', (q) => byFarmExternalId(q, farm._id, args.paddockId))
       .first()
 
-    if (!paddock) {
-      throw new Error('Paddock not found.')
+    if (!pasture) {
+      throw new Error('Pasture not found.')
     }
 
     const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() }
@@ -270,7 +270,7 @@ export const updatePaddockMetadata = mutation({
     if (args.metadata.waterAccess !== undefined) updates.waterAccess = args.metadata.waterAccess
     if (args.metadata.lastGrazed !== undefined) updates.lastGrazed = args.metadata.lastGrazed
 
-    await ctx.db.patch(paddock._id, updates)
+    await ctx.db.patch(pasture._id, updates)
 
     return { updated: true }
   },

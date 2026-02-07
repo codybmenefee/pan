@@ -17,7 +17,7 @@ export function MeetFarmStep() {
         </h1>
 
         <p className="text-base text-white/70">
-          8 paddocks in various stages of recovery
+          8 pastures in various stages of recovery
         </p>
       </div>
 
@@ -63,7 +63,7 @@ export function MeetFarmStep() {
         <div className="bg-zinc-900/95 backdrop-blur-sm rounded-lg p-2 border border-white/10 text-center">
           <Fence className="h-4 w-4 text-white/40 mx-auto mb-1" />
           <div className="text-lg font-bold">8</div>
-          <div className="text-[10px] text-white/50">Paddocks</div>
+          <div className="text-[10px] text-white/50">Pastures</div>
         </div>
         <div className="bg-zinc-900/95 backdrop-blur-sm rounded-lg p-2 border border-white/10 text-center">
           <Leaf className="h-4 w-4 text-white/40 mx-auto mb-1" />

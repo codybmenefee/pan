@@ -76,10 +76,10 @@ function TechnologyPage() {
               <div className="bg-[#1a2429]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-5">
                 <div className="flex items-center gap-3 mb-3">
                   <MapPin className="h-5 w-5 text-[#075056]" />
-                  <h3 className="text-base font-semibold text-[#FDF6E3]">Paddock Boundaries</h3>
+                  <h3 className="text-base font-semibold text-[#FDF6E3]">Pasture Boundaries</h3>
                 </div>
                 <ul className="text-[#D3DBDD] space-y-1.5 text-sm">
-                  <li>GeoJSON fence lines and paddock shapes</li>
+                  <li>GeoJSON fence lines and pasture shapes</li>
                   <li>Water point and infrastructure locations</li>
                   <li>Exclusion zones and sensitive areas</li>
                 </ul>
@@ -379,7 +379,7 @@ function TechnologyPage() {
               <div className="bg-[#111719]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-5">
                 <h3 className="text-base font-semibold text-[#FDF6E3] mb-2">Data Export</h3>
                 <p className="text-[#D3DBDD] text-sm">
-                  GeoJSON for paddock boundaries, CSV for time-series data, PDF for reports. API access for custom integrations.
+                  GeoJSON for pasture boundaries, CSV for time-series data, PDF for reports. API access for custom integrations.
                 </p>
               </div>
 

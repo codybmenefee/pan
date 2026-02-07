@@ -24,7 +24,7 @@ export function ExpandableReasoning({ summary, details = [], className }: Expand
         disabled={!hasDetails}
       >
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-foreground">Why this paddock?</p>
+          <p className="text-xs font-medium text-foreground">Why this pasture?</p>
           <p className="text-xs text-muted-foreground truncate">{summary}</p>
         </div>
         {hasDetails && (

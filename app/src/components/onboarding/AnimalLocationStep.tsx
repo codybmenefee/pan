@@ -9,7 +9,7 @@ import { calculateAreaHectares } from '@/lib/geometry/geometryUtils'
 import { createSquareFromCorners } from '@/lib/geometry'
 import type { Feature, Polygon } from 'geojson'
 import type { Map as MapLibreMap, GeoJSONSource } from 'maplibre-gl'
-import type { Paddock } from '@/lib/types'
+import type { Pasture } from '@/lib/types'
 
 interface AnimalLocationStepProps {
   farmExternalId: string
@@ -18,13 +18,13 @@ interface AnimalLocationStepProps {
   onSkip?: () => void
 }
 
-const SECTION_PREVIEW_SOURCE = 'animal-location-section-preview'
-const SECTION_PREVIEW_FILL = 'animal-location-section-fill'
-const SECTION_PREVIEW_OUTLINE = 'animal-location-section-outline'
+const PADDOCK_PREVIEW_SOURCE = 'animal-location-paddock-preview'
+const PADDOCK_PREVIEW_FILL = 'animal-location-paddock-fill'
+const PADDOCK_PREVIEW_OUTLINE = 'animal-location-paddock-outline'
 const START_POINT_SOURCE = 'animal-location-start-point'
 const START_POINT_MARKER = 'animal-location-start-marker'
 
-type StepPhase = 'select-paddock' | 'draw-section' | 'confirm'
+type StepPhase = 'select-pasture' | 'draw-paddock' | 'confirm'
 
 export function AnimalLocationStep({
   farmExternalId,
@@ -32,19 +32,19 @@ export function AnimalLocationStep({
   onComplete,
   onSkip,
 }: AnimalLocationStepProps) {
-  const { paddocks } = useGeometry()
+  const { pastures } = useGeometry()
   const setInitialLocation = useMutation(api.onboarding.setInitialAnimalLocation)
 
-  const [phase, setPhase] = useState<StepPhase>('select-paddock')
-  const [selectedPaddock, setSelectedPaddock] = useState<Paddock | null>(null)
-  const [sectionGeometry, setSectionGeometry] = useState<Feature<Polygon> | null>(null)
+  const [phase, setPhase] = useState<StepPhase>('select-pasture')
+  const [selectedPasture, setSelectedPasture] = useState<Pasture | null>(null)
+  const [paddockGeometry, setPaddockGeometry] = useState<Feature<Polygon> | null>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [startPoint, setStartPoint] = useState<[number, number] | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
 
-  // Setup preview layer for section drawing
+  // Setup preview layer for paddock drawing
   useEffect(() => {
     if (!map) return
 
@@ -59,16 +59,16 @@ export function AnimalLocationStep({
         if (!map.getStyle()) return
 
         // Add source and layers if they don't exist
-        if (!map.getSource(SECTION_PREVIEW_SOURCE)) {
-          map.addSource(SECTION_PREVIEW_SOURCE, {
+        if (!map.getSource(PADDOCK_PREVIEW_SOURCE)) {
+          map.addSource(PADDOCK_PREVIEW_SOURCE, {
             type: 'geojson',
             data: emptyCollection,
           })
 
           map.addLayer({
-            id: SECTION_PREVIEW_FILL,
+            id: PADDOCK_PREVIEW_FILL,
             type: 'fill',
-            source: SECTION_PREVIEW_SOURCE,
+            source: PADDOCK_PREVIEW_SOURCE,
             paint: {
               'fill-color': '#f59e0b',
               'fill-opacity': 0.4,
@@ -76,9 +76,9 @@ export function AnimalLocationStep({
           })
 
           map.addLayer({
-            id: SECTION_PREVIEW_OUTLINE,
+            id: PADDOCK_PREVIEW_OUTLINE,
             type: 'line',
-            source: SECTION_PREVIEW_SOURCE,
+            source: PADDOCK_PREVIEW_SOURCE,
             paint: {
               'line-color': '#f59e0b',
               'line-width': 3,
@@ -122,14 +122,14 @@ export function AnimalLocationStep({
     return () => {
       try {
         if (map && map.getStyle()) {
-          if (map.getLayer(SECTION_PREVIEW_FILL)) {
-            map.removeLayer(SECTION_PREVIEW_FILL)
+          if (map.getLayer(PADDOCK_PREVIEW_FILL)) {
+            map.removeLayer(PADDOCK_PREVIEW_FILL)
           }
-          if (map.getLayer(SECTION_PREVIEW_OUTLINE)) {
-            map.removeLayer(SECTION_PREVIEW_OUTLINE)
+          if (map.getLayer(PADDOCK_PREVIEW_OUTLINE)) {
+            map.removeLayer(PADDOCK_PREVIEW_OUTLINE)
           }
-          if (map.getSource(SECTION_PREVIEW_SOURCE)) {
-            map.removeSource(SECTION_PREVIEW_SOURCE)
+          if (map.getSource(PADDOCK_PREVIEW_SOURCE)) {
+            map.removeSource(PADDOCK_PREVIEW_SOURCE)
           }
           if (map.getLayer(START_POINT_MARKER)) {
             map.removeLayer(START_POINT_MARKER)
@@ -152,30 +152,30 @@ export function AnimalLocationStep({
       if (!map.getStyle()) return
 
       // Ensure source exists
-      if (!map.getSource(SECTION_PREVIEW_SOURCE)) {
-        map.addSource(SECTION_PREVIEW_SOURCE, {
+      if (!map.getSource(PADDOCK_PREVIEW_SOURCE)) {
+        map.addSource(PADDOCK_PREVIEW_SOURCE, {
           type: 'geojson',
           data: { type: 'FeatureCollection', features: [] },
         })
       }
 
       // Ensure layers exist
-      if (!map.getLayer(SECTION_PREVIEW_FILL)) {
+      if (!map.getLayer(PADDOCK_PREVIEW_FILL)) {
         map.addLayer({
-          id: SECTION_PREVIEW_FILL,
+          id: PADDOCK_PREVIEW_FILL,
           type: 'fill',
-          source: SECTION_PREVIEW_SOURCE,
+          source: PADDOCK_PREVIEW_SOURCE,
           paint: {
             'fill-color': '#f59e0b',
             'fill-opacity': 0.4,
           },
         })
       }
-      if (!map.getLayer(SECTION_PREVIEW_OUTLINE)) {
+      if (!map.getLayer(PADDOCK_PREVIEW_OUTLINE)) {
         map.addLayer({
-          id: SECTION_PREVIEW_OUTLINE,
+          id: PADDOCK_PREVIEW_OUTLINE,
           type: 'line',
-          source: SECTION_PREVIEW_SOURCE,
+          source: PADDOCK_PREVIEW_SOURCE,
           paint: {
             'line-color': '#f59e0b',
             'line-width': 3,
@@ -184,13 +184,13 @@ export function AnimalLocationStep({
         })
       }
 
-      const source = map.getSource(SECTION_PREVIEW_SOURCE) as GeoJSONSource | undefined
+      const source = map.getSource(PADDOCK_PREVIEW_SOURCE) as GeoJSONSource | undefined
       if (!source) return
 
       if (geometry) {
         // Move preview layers to top for visibility
-        map.moveLayer(SECTION_PREVIEW_FILL)
-        map.moveLayer(SECTION_PREVIEW_OUTLINE)
+        map.moveLayer(PADDOCK_PREVIEW_FILL)
+        map.moveLayer(PADDOCK_PREVIEW_OUTLINE)
         source.setData({
           type: 'FeatureCollection',
           features: [geometry],
@@ -261,14 +261,14 @@ export function AnimalLocationStep({
     return createSquareFromCorners(map, p1, p2)
   }, [map])
 
-  // Handle paddock selection from list
-  const handlePaddockSelect = useCallback((paddock: Paddock) => {
-    setSelectedPaddock(paddock)
+  // Handle pasture selection from list
+  const handlePastureSelect = useCallback((pasture: Pasture) => {
+    setSelectedPasture(pasture)
     setPhase('confirm')
 
-    // Fit map to selected paddock
-    if (map && paddock.geometry) {
-      const coords = paddock.geometry.geometry.coordinates[0]
+    // Fit map to selected pasture
+    if (map && pasture.geometry) {
+      const coords = pasture.geometry.geometry.coordinates[0]
       let minLng = Infinity, maxLng = -Infinity
       let minLat = Infinity, maxLat = -Infinity
 
@@ -295,29 +295,29 @@ export function AnimalLocationStep({
       phase,
       isDrawing,
       startPoint,
-      paddocks,
+      pastures,
     }
 
     const handleClick = (e: maplibregl.MapMouseEvent) => {
-      // Paddock selection phase
-      if (stateRef.phase === 'select-paddock') {
+      // Pasture selection phase
+      if (stateRef.phase === 'select-pasture') {
         const features = map.queryRenderedFeatures(e.point, {
           layers: ['paddocks-fill'],
         })
 
         if (features.length > 0) {
           const feature = features[0]
-          const paddockId = feature.properties?.id
-          const paddock = stateRef.paddocks.find(p => p.id === paddockId)
-          if (paddock) {
-            handlePaddockSelect(paddock)
+          const pastureId = feature.properties?.id
+          const pasture = stateRef.pastures.find(p => p.id === pastureId)
+          if (pasture) {
+            handlePastureSelect(pasture)
           }
         }
         return
       }
 
-      // Section drawing phase
-      if (stateRef.phase === 'draw-section' && stateRef.isDrawing) {
+      // Paddock drawing phase
+      if (stateRef.phase === 'draw-paddock' && stateRef.isDrawing) {
         const clickPoint: [number, number] = [e.lngLat.lng, e.lngLat.lat]
 
         if (!stateRef.startPoint) {
@@ -327,7 +327,7 @@ export function AnimalLocationStep({
           // Complete the square
           const square = createSquare(stateRef.startPoint, clickPoint)
           if (square) {
-            setSectionGeometry(square)
+            setPaddockGeometry(square)
             updatePreview(square)
             updateStartPointMarker(null)
             setIsDrawing(false)
@@ -339,8 +339,8 @@ export function AnimalLocationStep({
     }
 
     const handleMouseMove = (e: maplibregl.MapMouseEvent) => {
-      // Only handle mouse move during section drawing with a start point
-      if (stateRef.phase !== 'draw-section' || !stateRef.isDrawing || !stateRef.startPoint) return
+      // Only handle mouse move during paddock drawing with a start point
+      if (stateRef.phase !== 'draw-paddock' || !stateRef.isDrawing || !stateRef.startPoint) return
 
       const currentPoint: [number, number] = [e.lngLat.lng, e.lngLat.lat]
       const preview = createSquare(stateRef.startPoint, currentPoint)
@@ -353,15 +353,15 @@ export function AnimalLocationStep({
     stateRef.phase = phase
     stateRef.isDrawing = isDrawing
     stateRef.startPoint = startPoint
-    stateRef.paddocks = paddocks
+    stateRef.pastures = pastures
 
     map.on('click', handleClick)
     map.on('mousemove', handleMouseMove)
 
     // Set cursor based on current phase
-    if (phase === 'select-paddock') {
+    if (phase === 'select-pasture') {
       map.getCanvas().style.cursor = 'pointer'
-    } else if (phase === 'draw-section' && isDrawing) {
+    } else if (phase === 'draw-paddock' && isDrawing) {
       map.getCanvas().style.cursor = 'crosshair'
     } else {
       map.getCanvas().style.cursor = ''
@@ -372,59 +372,59 @@ export function AnimalLocationStep({
       map.off('mousemove', handleMouseMove)
       map.getCanvas().style.cursor = ''
     }
-  }, [map, phase, isDrawing, startPoint, paddocks, handlePaddockSelect, createSquare, updatePreview, updateStartPointMarker])
+  }, [map, phase, isDrawing, startPoint, pastures, handlePastureSelect, createSquare, updatePreview, updateStartPointMarker])
 
-  // Start drawing a section
-  const handleStartDrawSection = useCallback(() => {
-    setPhase('draw-section')
+  // Start drawing a paddock
+  const handleStartDrawPaddock = useCallback(() => {
+    setPhase('draw-paddock')
     setIsDrawing(true)
     setStartPoint(null)
-    setSectionGeometry(null)
+    setPaddockGeometry(null)
     updatePreview(null)
     updateStartPointMarker(null)
   }, [updatePreview, updateStartPointMarker])
 
-  // Cancel section drawing
+  // Cancel paddock drawing
   const handleCancelDrawing = useCallback(() => {
     setIsDrawing(false)
     setStartPoint(null)
-    setSectionGeometry(null)
+    setPaddockGeometry(null)
     updatePreview(null)
     updateStartPointMarker(null)
     setPhase('confirm')
   }, [updatePreview, updateStartPointMarker])
 
-  // Clear section and go back to confirm
-  const handleClearSection = useCallback(() => {
-    setSectionGeometry(null)
+  // Clear paddock and go back to confirm
+  const handleClearPaddock = useCallback(() => {
+    setPaddockGeometry(null)
     updatePreview(null)
   }, [updatePreview])
 
-  // Go back to paddock selection
-  const handleBackToPaddockSelect = useCallback(() => {
-    setSelectedPaddock(null)
-    setSectionGeometry(null)
+  // Go back to pasture selection
+  const handleBackToPastureSelect = useCallback(() => {
+    setSelectedPasture(null)
+    setPaddockGeometry(null)
     updatePreview(null)
-    setPhase('select-paddock')
+    setPhase('select-pasture')
   }, [updatePreview])
 
   // Save and complete
   const handleConfirm = useCallback(async () => {
-    if (!selectedPaddock) return
+    if (!selectedPasture) return
 
     setIsSaving(true)
     setError(null)
 
     try {
-      const sectionArea = sectionGeometry
-        ? calculateAreaHectares(sectionGeometry)
+      const paddockArea = paddockGeometry
+        ? calculateAreaHectares(paddockGeometry)
         : undefined
 
       await setInitialLocation({
         farmExternalId,
-        paddockExternalId: selectedPaddock.id,
-        sectionGeometry: sectionGeometry?.geometry,
-        sectionAreaHectares: sectionArea,
+        pastureExternalId: selectedPasture.id,
+        sectionGeometry: paddockGeometry?.geometry,
+        sectionAreaHectares: paddockArea,
       })
 
       // Clear preview before completing
@@ -436,16 +436,16 @@ export function AnimalLocationStep({
     } finally {
       setIsSaving(false)
     }
-  }, [selectedPaddock, sectionGeometry, farmExternalId, setInitialLocation, updatePreview, onComplete])
+  }, [selectedPasture, paddockGeometry, farmExternalId, setInitialLocation, updatePreview, onComplete])
 
-  // Calculate section area for display
-  const sectionArea = useMemo(() => {
-    if (!sectionGeometry) return null
-    return calculateAreaHectares(sectionGeometry)
-  }, [sectionGeometry])
+  // Calculate paddock area for display
+  const paddockArea = useMemo(() => {
+    if (!paddockGeometry) return null
+    return calculateAreaHectares(paddockGeometry)
+  }, [paddockGeometry])
 
-  // Render paddock selection phase
-  if (phase === 'select-paddock') {
+  // Render pasture selection phase
+  if (phase === 'select-pasture') {
     return (
       <Card className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 shadow-lg border-2 border-amber-500/50">
         <CardContent className="p-3 flex items-center gap-3">
@@ -454,7 +454,7 @@ export function AnimalLocationStep({
           </div>
           <div className="text-xs text-muted-foreground">
             <span className="font-medium text-foreground">Where are your animals?</span>
-            {' · '}Click a paddock on the map
+            {' · '}Click a pasture on the map
           </div>
           {onSkip && (
             <Button variant="ghost" size="sm" onClick={onSkip} className="shrink-0 text-xs">
@@ -466,8 +466,8 @@ export function AnimalLocationStep({
     )
   }
 
-  // Render section drawing phase
-  if (phase === 'draw-section' && isDrawing) {
+  // Render paddock drawing phase
+  if (phase === 'draw-paddock' && isDrawing) {
     return (
       <Card className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 shadow-lg border-2 border-amber-500/50">
         <CardContent className="p-3 flex items-center gap-3">
@@ -492,8 +492,8 @@ export function AnimalLocationStep({
           <MapPin className="h-4 w-4 text-amber-600 dark:text-amber-400" />
         </div>
         <div className="text-xs text-muted-foreground">
-          <span className="font-medium text-foreground">Animals in {selectedPaddock?.name}</span>
-          {sectionGeometry && <> · {sectionArea?.toFixed(2)} ha section</>}
+          <span className="font-medium text-foreground">Animals in {selectedPasture?.name}</span>
+          {paddockGeometry && <> · {paddockArea?.toFixed(2)} ha paddock</>}
         </div>
         {error && (
           <span className="text-xs text-destructive">{error}</span>
@@ -502,27 +502,27 @@ export function AnimalLocationStep({
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleBackToPaddockSelect}
+            onClick={handleBackToPastureSelect}
             disabled={isSaving}
             className="h-8 px-2"
           >
             Back
           </Button>
-          {!sectionGeometry ? (
+          {!paddockGeometry ? (
             <Button
               variant="outline"
               size="sm"
-              onClick={handleStartDrawSection}
+              onClick={handleStartDrawPaddock}
               className="h-8 gap-1.5"
             >
               <Pencil className="h-3 w-3" />
-              Section
+              Paddock
             </Button>
           ) : (
             <Button
               variant="outline"
               size="sm"
-              onClick={handleClearSection}
+              onClick={handleClearPaddock}
               className="h-8 px-2"
             >
               Clear

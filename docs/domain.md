@@ -8,7 +8,7 @@ This document provides the minimum remote-sensing context needed to work confide
 
 Grazing decisions operate on daily to multi-day timescales. Grass doesn't change meaningfully hour-to-hour. Satellite revisit rates (2-5 days) align well with:
 
-- Pasture recovery cycles (7-60 days depending on conditions)
+- Grazing recovery cycles (7-60 days depending on conditions)
 - Rotational grazing patterns
 - Farmer decision rhythms
 
@@ -86,7 +86,7 @@ Where (Sentinel-2 coefficients):
 **When to use EVI:**
 - High-productivity pastures
 - Peak growing season
-- Comparing paddocks that all show high NDVI
+- Comparing pastures that all show high NDVI
 - Irrigated land
 
 **Practical note:** For most grazing applications, NDVI is sufficient. Use EVI when NDVI values cluster near saturation (> 0.65).
@@ -125,7 +125,7 @@ This produces a "clean" view even with intermittent clouds.
 
 ### Trend Detection
 
-For each paddock, track NDVI over time:
+For each pasture, track NDVI over time:
 
 ```
 Slope = (NDVI_recent - NDVI_prior) / days_between
@@ -146,27 +146,27 @@ Change = NDVI_current - NDVI_baseline
 
 Useful for:
 - Detecting overgrazing (rapid decline)
-- Identifying uneven utilization within paddock
+- Identifying uneven utilization within pasture
 - Spotting anomalies (disease, pests, damage)
 
 ## Zonal Statistics
 
-Converting raster imagery to paddock-level metrics.
+Converting raster imagery to pasture-level metrics.
 
-For each paddock polygon:
+For each pasture polygon:
 
 | Statistic | Purpose |
 |-----------|---------|
 | Mean | Overall condition |
 | Median | Robust central estimate |
 | Std Dev | Uniformity (low = even grazing) |
-| Min | Worst area within paddock |
-| Max | Best area within paddock |
+| Min | Worst area within pasture |
+| Max | Best area within pasture |
 | Count | Usable pixel count (coverage) |
 
 ### Handling Edge Effects
 
-Paddock boundaries may cut through pixels. Options:
+Pasture boundaries may cut through pixels. Options:
 - Include only pixels with centroid inside polygon
 - Weight partial pixels by overlap percentage
 - Buffer inward slightly to avoid boundary pixels
@@ -196,7 +196,7 @@ Unusable pixels must be excluded before analysis.
 
 ### Cloud-Free Percentage
 
-Track per-paddock:
+Track per-pasture:
 ```
 cloud_free_pct = usable_pixels / total_pixels
 ```
@@ -210,45 +210,45 @@ These are starting points - they should be configurable and refined with user fe
 ### Graze-Ready Conditions
 
 ```python
-def is_graze_ready(paddock):
+def is_graze_ready(pasture):
     return (
-        paddock.ndvi_mean >= 0.40
-        and paddock.ndvi_slope >= -0.01  # not declining
-        and paddock.days_since_graze >= 21  # minimum rest
-        and paddock.cloud_free_pct >= 0.50  # sufficient data
+        pasture.ndvi_mean >= 0.40
+        and pasture.ndvi_slope >= -0.01  # not declining
+        and pasture.days_since_graze >= 21  # minimum rest
+        and pasture.cloud_free_pct >= 0.50  # sufficient data
     )
 ```
 
 ### Recovery Estimate
 
 ```python
-def days_until_ready(paddock):
-    if paddock.ndvi_mean >= 0.40:
+def days_until_ready(pasture):
+    if pasture.ndvi_mean >= 0.40:
         return 0
-    if paddock.ndvi_slope <= 0:
+    if pasture.ndvi_slope <= 0:
         return float('inf')  # not recovering
-    
-    needed = 0.40 - paddock.ndvi_mean
-    days = needed / paddock.ndvi_slope
+
+    needed = 0.40 - pasture.ndvi_mean
+    days = needed / pasture.ndvi_slope
     return max(0, int(days))
 ```
 
 ### Confidence Scoring
 
 ```python
-def plan_confidence(paddock, observation):
+def plan_confidence(pasture, observation):
     confidence = 1.0
-    
+
     # Data quality factors
     if observation.cloud_free_pct < 0.75:
         confidence *= 0.8
     if observation.age_days > 5:
         confidence *= 0.9
-    
+
     # Certainty factors
-    if paddock.ndvi_std > 0.15:  # uneven paddock
+    if pasture.ndvi_std > 0.15:  # uneven pasture
         confidence *= 0.85
-    if abs(paddock.ndvi_slope) < 0.005:  # ambiguous trend
+    if abs(pasture.ndvi_slope) < 0.005:  # ambiguous trend
         confidence *= 0.9
     
     return round(confidence, 2)
@@ -257,13 +257,13 @@ def plan_confidence(paddock, observation):
 ## Common Pitfalls
 
 ### Seasonal Calibration
-NDVI thresholds vary by season. A paddock at 0.35 in summer may be doing well; the same in spring may indicate stress. Consider seasonal adjustment or relative ranking.
+NDVI thresholds vary by season. A pasture at 0.35 in summer may be doing well; the same in spring may indicate stress. Consider seasonal adjustment or relative ranking.
 
 ### Mixed Land Cover
-Paddocks with trees, ponds, or buildings will have biased statistics. Either mask these features or accept the noise.
+Pastures with trees, ponds, or buildings will have biased statistics. Either mask these features or accept the noise.
 
 ### Drought Conditions
-During severe drought, all paddocks may show low NDVI. Shift to relative ranking rather than absolute thresholds.
+During severe drought, all pastures may show low NDVI. Shift to relative ranking rather than absolute thresholds.
 
 ### Senescence
 Mature grass yellowing (senescence) looks like stress in NDVI. Consider grazing timing to capture value before quality loss.

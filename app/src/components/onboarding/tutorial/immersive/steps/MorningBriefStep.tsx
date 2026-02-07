@@ -17,7 +17,7 @@ export function MorningBriefStep() {
         </h1>
 
         <p className="text-base text-white/70">
-          AI analyzes your farm and recommends which paddock to graze today.
+          AI analyzes your farm and recommends which pasture to graze today.
         </p>
       </div>
 
@@ -28,7 +28,7 @@ export function MorningBriefStep() {
             <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-2">
               <Leaf className="h-5 w-5 text-green-400" />
             </div>
-            <div className="text-sm font-medium text-white mb-1">Best Paddock</div>
+            <div className="text-sm font-medium text-white mb-1">Best Pasture</div>
             <div className="text-xs text-white/50">Based on NDVI satellite data</div>
           </div>
 
@@ -45,7 +45,7 @@ export function MorningBriefStep() {
               <Brain className="h-5 w-5 text-purple-400" />
             </div>
             <div className="text-sm font-medium text-white mb-1">Clear Reasoning</div>
-            <div className="text-xs text-white/50">Explains why it chose this paddock</div>
+            <div className="text-xs text-white/50">Explains why it chose this pasture</div>
           </div>
         </div>
 

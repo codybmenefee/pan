@@ -210,7 +210,7 @@ export const completeJob = mutation({
           type: 'satellite_failed',
           title: 'Satellite imagery unavailable',
           message: args.failureReason === 'boundary_overlap'
-            ? 'Paddocks don\'t overlap with farm boundary. Please update your farm boundary to receive satellite data.'
+            ? 'Pastures don\'t overlap with farm boundary. Please update your farm boundary to receive satellite data.'
             : args.errorMessage ?? 'Failed to fetch satellite imagery. We\'ll retry later.',
           metadata,
         })
@@ -287,7 +287,7 @@ export const completeJobByFarm = mutation({
             type: 'satellite_failed',
             title: 'Satellite imagery unavailable',
             message: args.failureReason === 'boundary_overlap'
-              ? 'Paddocks don\'t overlap with farm boundary. Please update your farm boundary to receive satellite data.'
+              ? 'Pastures don\'t overlap with farm boundary. Please update your farm boundary to receive satellite data.'
               : args.errorMessage ?? 'Failed to fetch satellite imagery. We\'ll retry later.',
             metadata,
           })

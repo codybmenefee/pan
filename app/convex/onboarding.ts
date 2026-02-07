@@ -10,13 +10,13 @@ const rawPolygon = v.object({
  * Set the initial animal location during onboarding.
  * This establishes the starting point for grazing plan generation.
  *
- * Creates a grazing event for the selected paddock, and optionally
- * creates a day-0 approved plan with section geometry if provided.
+ * Creates a grazing event for the selected pasture, and optionally
+ * creates a day-0 approved plan with paddock geometry if provided.
  */
 export const setInitialAnimalLocation = mutation({
   args: {
     farmExternalId: v.string(),
-    paddockExternalId: v.string(),
+    pastureExternalId: v.string(),
     sectionGeometry: v.optional(rawPolygon),
     sectionAreaHectares: v.optional(v.number()),
   },
@@ -31,19 +31,19 @@ export const setInitialAnimalLocation = mutation({
     // 1. Create grazing event (establishes where animals were yesterday)
     await ctx.db.insert('grazingEvents', {
       farmExternalId: args.farmExternalId,
-      paddockExternalId: args.paddockExternalId,
+      paddockExternalId: args.pastureExternalId,
       date: yesterdayStr,
       durationDays: 1,
       notes: 'Initial location set during onboarding',
       createdAt: nowStr,
     })
 
-    // 2. If section drawn, create yesterday's approved plan
+    // 2. If paddock drawn, create yesterday's approved plan
     if (args.sectionGeometry) {
       await ctx.db.insert('plans', {
         farmExternalId: args.farmExternalId,
         date: yesterdayStr,
-        primaryPaddockExternalId: args.paddockExternalId,
+        primaryPaddockExternalId: args.pastureExternalId,
         alternativePaddockExternalIds: [],
         confidenceScore: 100,
         reasoning: ['Initial location set by farmer during onboarding'],

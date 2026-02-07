@@ -50,7 +50,7 @@ export function ThresholdSettings({ settings, onChange }: ThresholdSettingsProps
       <div className="space-y-1">
         <CompactSlider
           label="Min NDVI"
-          description="Paddocks below this vegetation index won't be recommended for grazing"
+          description="Pastures below this vegetation index won't be recommended for grazing"
           value={settings.minNDVIThreshold}
           min={0.2}
           max={0.6}
@@ -62,7 +62,7 @@ export function ThresholdSettings({ settings, onChange }: ThresholdSettingsProps
 
         <CompactSlider
           label="Rest Period"
-          description="Minimum days since last grazing before recommending a paddock"
+          description="Minimum days since last grazing before recommending a pasture"
           value={settings.minRestPeriod}
           min={7}
           max={42}
@@ -84,7 +84,7 @@ export function ThresholdSettings({ settings, onChange }: ThresholdSettingsProps
 
         <CompactSlider
           label="Rotation Frequency"
-          description="Days to graze each paddock before moving"
+          description="Days to graze each pasture before moving"
           value={settings.rotationFrequency}
           min={1}
           max={10}

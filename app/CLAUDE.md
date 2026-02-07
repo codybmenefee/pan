@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-OpenPasture - an open-source AI-powered decision support system that translates satellite-derived vegetation data into daily grazing recommendations. The core experience is a "Morning Farm Brief" that recommends which paddock to graze today.
+OpenPasture - an open-source AI-powered decision support system that translates satellite-derived vegetation data into daily grazing recommendations. The core experience is a "Morning Farm Brief" that recommends which pasture to graze today.
 
 ## Commands
 
@@ -69,7 +69,7 @@ const { BraintrustSpanProcessor } = dynamicRequire('@braintrust/otel')
 
 ## Key Types
 
-Domain types in `src/lib/types.ts`: `Plan`, `Paddock`, `Farm`, `Section`, `Observation`, `GrazingEvent`
+Domain types in `src/lib/types.ts`: `Plan`, `Pasture`, `Farm`, `Paddock`, `Observation`, `GrazingEvent`
 
 ## Environment Variables
 

@@ -32,16 +32,16 @@ Continuous grazing (animals always present) keeps pastures in permanent partial 
 **Rotational grazing** concentrates animals in smaller areas for shorter periods. Higher **stock density** (animals per unit area) forces less selective grazing. Result: more uniform utilization, then complete rest.
 
 The platform supports this by:
-- Dividing paddocks into sections (~20% of area)
-- Recommending one section per day
+- Dividing pastures into paddocks (~20% of area)
+- Recommending one paddock per day
 - Tracking recovery time since last grazing
 
-Higher stock density per section means:
+Higher stock density per paddock means:
 - More complete utilization of available forage
-- Shorter grazing periods per section
+- Shorter grazing periods per paddock
 - Longer rest periods between return visits
 
-The trade-off: Very high density can cause compaction and excessive stress. The platform's default 20% sections balance utilization against these concerns.`,
+The trade-off: Very high density can cause compaction and excessive stress. The platform's default 20% paddocks balance utilization against these concerns.`,
     },
     {
       heading: 'Compounding Land Health',
@@ -61,7 +61,7 @@ A single season of overgrazing can set back years of progress. The platform's ro
     },
     {
       heading: 'Platform Tracking: Rest Days',
-      content: `The platform calculates \`restDays\` for each paddock:`,
+      content: `The platform calculates \`restDays\` for each pasture:`,
       codeExample: {
         language: 'typescript',
         filename: 'grazingAgentTools.ts',
@@ -77,8 +77,8 @@ if (mostRecentEvent?.date && latestObservation?.date) {
       },
     },
     {
-      heading: 'Paddock Status Logic',
-      content: `Rest days combine with NDVI to determine paddock status:`,
+      heading: 'Pasture Status Logic',
+      content: `Rest days combine with NDVI to determine pasture status:`,
       codeExample: {
         language: 'typescript',
         filename: 'grazingAgentTools.ts',
@@ -108,15 +108,15 @@ These thresholds are starting points. Your farm's optimal values depend on:
 - Animal type and stocking rate
 - Management goals (growth vs. maintenance)
 
-The platform allows per-paddock overrides for areas with known differences (e.g., irrigated vs. dryland, improved vs. native pasture).`,
+The platform allows per-pasture overrides for areas with known differences (e.g., irrigated vs. dryland, improved vs. native pasture).`,
     },
     {
       heading: 'Why Recovery is Non-Negotiable',
-      content: `The platform will not recommend a paddock that hasn't met minimum rest requirements, even if NDVI looks acceptable.
+      content: `The platform will not recommend a pasture that hasn't met minimum rest requirements, even if NDVI looks acceptable.
 
 This is intentional. NDVI can appear adequate while root systems remain depleted. Visual forage availability doesn't indicate below-ground recovery.
 
-If no paddocks meet both NDVI and rest thresholds, the platform selects the **best available option** with reduced confidence and explicit warning. Animals must eat somewhere—but the recommendation acknowledges suboptimal conditions.
+If no pastures meet both NDVI and rest thresholds, the platform selects the **best available option** with reduced confidence and explicit warning. Animals must eat somewhere—but the recommendation acknowledges suboptimal conditions.
 
 This design choice reflects a core principle: **never sacrifice long-term land health for short-term convenience**. The platform will help you make the best of a difficult situation, but it won't pretend that overgrazing is acceptable.`,
     },
@@ -124,6 +124,6 @@ This design choice reflects a core principle: **never sacrifice long-term land h
   relatedArticles: [
     '/docs/core-concepts/grazing-control-system',
     '/docs/core-concepts/time-constraint',
-    '/docs/farm-setup/paddocks',
+    '/docs/farm-setup/pastures',
   ],
 }

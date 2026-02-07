@@ -17,7 +17,7 @@ export interface PlanData {
   reasoning: string[]
 }
 
-export interface SectionModification {
+export interface PaddockModification {
   _id: string
   planId: string
   rationale?: string
@@ -28,8 +28,8 @@ export interface SectionModification {
 
 interface HistoryEventCardProps {
   plan: PlanData
-  paddockName: string
-  modification?: SectionModification
+  pastureName: string
+  modification?: PaddockModification
   isLast?: boolean
   isExpanded?: boolean
   onToggleExpand?: () => void
@@ -70,7 +70,7 @@ const statusConfig = {
 
 export function HistoryEventCard({
   plan,
-  paddockName,
+  pastureName,
   modification,
   isLast,
   isExpanded,
@@ -116,7 +116,7 @@ export function HistoryEventCard({
         <div className="flex items-start justify-between gap-2">
           <div>
             <p className="font-medium text-sm">{formatDate(plan.date)}</p>
-            <p className="text-base font-semibold mt-0.5">{paddockName}</p>
+            <p className="text-base font-semibold mt-0.5">{pastureName}</p>
           </div>
           <Badge variant="outline" className={cn('flex-shrink-0', config.badge)}>
             {config.label}
@@ -126,12 +126,12 @@ export function HistoryEventCard({
         {/* Details row */}
         <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
           {plan.sectionAreaHectares !== undefined && plan.sectionAreaHectares > 0 && (
-            <span>{format(plan.sectionAreaHectares)} section</span>
+            <span>{format(plan.sectionAreaHectares)} paddock</span>
           )}
           <span>{Math.round(plan.confidenceScore)}% confidence</span>
         </div>
 
-        {/* Structured feedback for modified plans with section modification data */}
+        {/* Structured feedback for modified plans with paddock modification data */}
         {plan.status === 'modified' && modification && (
           <div className="mt-3 rounded-md border border-border bg-muted/30 p-3">
             <div className="flex items-start justify-between gap-2">

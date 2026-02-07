@@ -1,7 +1,7 @@
 /**
  * Input component for farmer observations.
  *
- * Allows farmers to add observations at farm, paddock, or zone level.
+ * Allows farmers to add observations at farm, pasture, or zone level.
  */
 
 import React, { useState } from 'react'
@@ -21,7 +21,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 interface FarmerObservationInputProps {
   farmId: Id<'farms'>
   authorId: string
-  paddocks?: Array<{ externalId: string; name: string }>
+  pastures?: Array<{ externalId: string; name: string }>
   onSuccess?: () => void
   onCancel?: () => void
 }
@@ -29,7 +29,7 @@ interface FarmerObservationInputProps {
 export function FarmerObservationInput({
   farmId,
   authorId,
-  paddocks = [],
+  pastures = [],
   onSuccess,
   onCancel,
 }: FarmerObservationInputProps) {
@@ -51,7 +51,7 @@ export function FarmerObservationInput({
 
     // Determine target ID based on level
     const finalTargetId =
-      level === 'farm' ? farmId : targetId || paddocks[0]?.externalId || ''
+      level === 'farm' ? farmId : targetId || pastures[0]?.externalId || ''
 
     if (!finalTargetId) {
       console.error('No target ID available')
@@ -101,7 +101,7 @@ export function FarmerObservationInput({
       <CardHeader>
         <CardTitle>Add Observation</CardTitle>
         <CardDescription>
-          Record your observations about the farm, paddock, or zone
+          Record your observations about the farm, pasture, or zone
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -120,7 +120,7 @@ export function FarmerObservationInput({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="farm">Farm</SelectItem>
-                <SelectItem value="paddock">Paddock</SelectItem>
+                <SelectItem value="paddock">Pasture</SelectItem>
                 <SelectItem value="zone">Zone</SelectItem>
               </SelectContent>
             </Select>
@@ -129,16 +129,16 @@ export function FarmerObservationInput({
           {(level === 'paddock' || level === 'zone') && (
             <div className="space-y-2">
               <Label htmlFor="target">
-                {level === 'paddock' ? 'Paddock' : 'Zone'}
+                {level === 'paddock' ? 'Pasture' : 'Zone'}
               </Label>
               <Select value={targetId} onValueChange={setTargetId}>
                 <SelectTrigger id="target">
                   <SelectValue placeholder={`Select ${level}`} />
                 </SelectTrigger>
                 <SelectContent>
-                  {paddocks.map((paddock) => (
-                    <SelectItem key={paddock.externalId} value={paddock.externalId}>
-                      {paddock.name}
+                  {pastures.map((pasture) => (
+                    <SelectItem key={pasture.externalId} value={pasture.externalId}>
+                      {pasture.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

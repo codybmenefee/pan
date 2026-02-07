@@ -47,7 +47,7 @@ export function FeedbackEditDialog({
   const [rationale, setRationale] = useState(initialRationale ?? '')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const updateFeedback = useMutation(api.intelligence.updateSectionModificationFeedback)
+  const updateFeedback = useMutation(api.intelligence.updatePaddockModificationFeedback)
 
   // Reset form when dialog opens with new data
   useEffect(() => {
@@ -86,7 +86,7 @@ export function FeedbackEditDialog({
         <DialogHeader>
           <DialogTitle>Edit Feedback</DialogTitle>
           <DialogDescription>
-            Update your feedback for this section modification.
+            Update your feedback for this paddock modification.
           </DialogDescription>
         </DialogHeader>
 

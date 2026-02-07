@@ -60,7 +60,7 @@ export function RasterTileLayer({
   visible = true,
   opacity = 1,
   layerId = 'date-imagery',
-  beforeLayerId = 'paddocks-fill',
+  beforeLayerId = 'pastures-fill',
 }: RasterTileLayerProps) {
   const sourceId = `${layerId}-source`
   const layerIdRef = useRef(`${layerId}-layer`)

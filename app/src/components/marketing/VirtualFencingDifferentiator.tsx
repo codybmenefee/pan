@@ -75,7 +75,7 @@ export function VirtualFencingDifferentiator() {
                   <div>
                     <span className="text-[#FDF6E3] font-medium">WHERE</span>
                     <p className="text-sm text-[#D3DBDD]">
-                      "Graze the northeast section of Paddock 3."
+                      "Graze the northeast paddock of Pasture 3."
                     </p>
                   </div>
                 </div>
@@ -84,7 +84,7 @@ export function VirtualFencingDifferentiator() {
                   <div>
                     <span className="text-[#FDF6E3] font-medium">WHEN</span>
                     <p className="text-sm text-[#D3DBDD]">
-                      "Today. Paddock 7 needs 4 more days to recover."
+                      "Today. Pasture 7 needs 4 more days to recover."
                     </p>
                   </div>
                 </div>

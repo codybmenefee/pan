@@ -2,7 +2,7 @@ import { createPortal } from 'react-dom'
 import { Pentagon, Ban, Droplet, MapPin } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export type DragEntityType = 'paddock' | 'noGrazeZone' | 'waterPoint' | 'waterPolygon'
+export type DragEntityType = 'pasture' | 'noGrazeZone' | 'waterPoint' | 'waterPolygon'
 
 interface DragPreviewProps {
   type: DragEntityType
@@ -16,9 +16,9 @@ const entityConfig: Record<DragEntityType, {
   colorClass: string
   bgClass: string
 }> = {
-  paddock: {
+  pasture: {
     icon: Pentagon,
-    label: 'Paddock',
+    label: 'Pasture',
     colorClass: 'text-green-500',
     bgClass: 'bg-green-500/10 border-green-500/30',
   },

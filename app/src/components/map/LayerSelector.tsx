@@ -13,11 +13,11 @@ interface LayerSelectorProps {
   satelliteLayer: SatelliteLayer
   onSatelliteLayerChange: (value: SatelliteLayer) => void
   layers: {
+    pastures: boolean
     paddocks: boolean
-    sections: boolean
     labels: boolean
   }
-  onToggleLayer: (layer: 'paddocks' | 'sections' | 'labels') => void
+  onToggleLayer: (layer: 'pastures' | 'paddocks' | 'labels') => void
 }
 
 export function LayerSelector({
@@ -61,19 +61,19 @@ export function LayerSelector({
         {/* Visibility layers - multi-select */}
         <DropdownMenuCheckboxItem
           className="text-xs py-1"
+          checked={layers.pastures}
+          onCheckedChange={() => onToggleLayer('pastures')}
+          onSelect={(e) => e.preventDefault()}
+        >
+          Pastures
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem
+          className="text-xs py-1"
           checked={layers.paddocks}
           onCheckedChange={() => onToggleLayer('paddocks')}
           onSelect={(e) => e.preventDefault()}
         >
           Paddocks
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem
-          className="text-xs py-1"
-          checked={layers.sections}
-          onCheckedChange={() => onToggleLayer('sections')}
-          onSelect={(e) => e.preventDefault()}
-        >
-          Sections
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
           className="text-xs py-1"

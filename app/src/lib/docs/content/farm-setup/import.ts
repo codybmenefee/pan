@@ -10,7 +10,7 @@ export const importData: ArticleContent = {
       content: `Data enters the platform through two pathways:
 
 **Manual entry:**
-- Drawing paddock boundaries on the map
+- Drawing pasture boundaries on the map
 - Recording grazing events through the interface
 - Entering farmer observations
 - Configuring settings and thresholds
@@ -20,24 +20,24 @@ export const importData: ArticleContent = {
 - Weather data (when integrated)
 - Sync from connected systems (future)
 
-Most farms start with manual setup (defining paddocks and initial state) then transition to automated observation updates. The morning brief workflow handles daily operations without manual data entry.`,
+Most farms start with manual setup (defining pastures and initial state) then transition to automated observation updates. The morning brief workflow handles daily operations without manual data entry.`,
     },
     {
       heading: 'Supported Import Formats',
       content: `**GeoJSON (recommended)**
 Standard format for geographic data. Most GIS software exports GeoJSON.
 
-Example paddock import:`,
+Example pasture import:`,
       codeExample: {
         language: 'json',
-        filename: 'paddocks.geojson',
+        filename: 'pastures.geojson',
         code: `{
   "type": "FeatureCollection",
   "features": [
     {
       "type": "Feature",
       "properties": {
-        "name": "North Paddock",
+        "name": "North Pasture",
         "externalId": "north-1",
         "area": 45.2
       },
@@ -62,14 +62,14 @@ Common GIS format. Requires conversion to GeoJSON before import.
 For point data or simple boundary lists. Limited support—primarily for observation data.
 
 **Property boundary services**
-Some regions offer digital property boundaries. These can be imported as starting points for paddock definition.`,
+Some regions offer digital property boundaries. These can be imported as starting points for pasture definition.`,
     },
     {
       heading: 'Why Incomplete Data Is Acceptable',
       content: `The platform is designed to work with whatever data you have:
 
 **Missing boundaries:**
-You can start with one paddock defined and add others over time. Recommendations work with available paddocks.
+You can start with one pasture defined and add others over time. Recommendations work with available pastures.
 
 **No historical data:**
 New farms have no grazing history. The platform starts fresh—first recommendations won't have historical overlap to avoid.
@@ -78,7 +78,7 @@ New farms have no grazing history. The platform starts fresh—first recommendat
 Cloud cover or provider gaps mean some days have no satellite data. Status calculations use most recent available observation.
 
 **Estimated areas:**
-If you don't know exact hectares, estimates work. Section sizing scales proportionally.
+If you don't know exact hectares, estimates work. Paddock sizing scales proportionally.
 
 Incomplete data affects confidence scores but doesn't prevent operation. The platform is honest about data quality through confidence indicators.`,
     },
@@ -87,13 +87,13 @@ Incomplete data affects confidence scores but doesn't prevent operation. The pla
       content: `Data completeness affects recommendation quality:
 
 **High confidence factors:**
-- All paddocks have defined boundaries
+- All pastures have defined boundaries
 - Recent satellite observations (< 3 days old)
 - Historical grazing events recorded
 - Thresholds calibrated to your conditions
 
 **Lower confidence factors:**
-- Some paddocks missing boundaries
+- Some pastures missing boundaries
 - Stale observations (> 7 days old)
 - No grazing history (fresh start)
 - Default thresholds in use
@@ -121,19 +121,19 @@ npx convex run seedData:seedSampleFarm
 - Location and coordinates
 - Farm-level settings with defaults
 
-**Sample paddocks:**
-- Multiple paddocks with realistic geometries
+**Sample pastures:**
+- Multiple pastures with realistic geometries
 - Initial NDVI values and status
 - Varied sizes and configurations
 
 **Sample observations:**
-- Recent satellite readings for each paddock
+- Recent satellite readings for each pasture
 - NDVI, EVI, NDWI values
 - Cloud coverage data
 
 **Sample grazing events:**
 - Historical events showing rotation pattern
-- Dates and paddock associations
+- Dates and pasture associations
 
 This provides enough data to explore the platform without setting up real farm data first.`,
     },
@@ -147,19 +147,19 @@ This provides enough data to explore the platform without setting up real farm d
 - Valid coordinate ranges (-180 to 180 longitude, -90 to 90 latitude)
 
 **Required fields:**
-- Paddocks need name, externalId, and geometry
-- Observations need paddockId, date, and NDVI values
+- Pastures need name, externalId, and geometry
+- Observations need pastureId, date, and NDVI values
 
 **Duplicate handling:**
-- Observations upsert by paddock+date (new data replaces old)
-- Paddocks can be updated by matching externalId
+- Observations upsert by pasture+date (new data replaces old)
+- Pastures can be updated by matching externalId
 
 **Error responses:**
 Invalid imports return descriptive errors. Fix the data and retry—partial imports don't corrupt existing data.`,
     },
   ],
   relatedArticles: [
-    '/docs/farm-setup/paddocks',
+    '/docs/farm-setup/pastures',
     '/docs/getting-started/quick-start',
     '/docs/core-concepts/partial-data',
   ],

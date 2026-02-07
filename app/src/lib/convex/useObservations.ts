@@ -52,7 +52,7 @@ export function useObservations(
   const observations = useQuery(
     api.observations.getObservations,
     farmId
-      ? { farmId, paddockId: options?.paddockId, days: options?.days }
+      ? { farmId, pastureId: options?.paddockId, days: options?.days }
       : 'skip'
   ) as Observation[] | undefined
 
@@ -73,7 +73,7 @@ export function useLatestObservation(
   const observation = useQuery(
     api.observations.getLatestObservation,
     farmId && paddockId
-      ? { farmId, paddockId }
+      ? { farmId, pastureId: paddockId }
       : 'skip'
   ) as Observation | null | undefined
 
@@ -113,7 +113,7 @@ export function useObservationsTrend(
   const trend = useQuery(
     api.observations.getObservationsTrend,
     paddockId
-      ? { paddockId, days }
+      ? { pastureId: paddockId, days }
       : 'skip'
   ) as ObservationTrend[] | undefined
 

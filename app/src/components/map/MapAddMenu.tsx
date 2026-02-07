@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import type { DragEntityType } from './DragPreview'
 
 interface MapAddMenuProps {
-  onAddPaddock: () => void
+  onAddPasture: () => void
   onAddNoGrazeZone: () => void
   onAddWaterSource: (geometryType: 'point' | 'polygon') => void
   onDragStart?: (type: DragEntityType, startPosition: { x: number; y: number }) => void
@@ -15,7 +15,7 @@ interface MapAddMenuProps {
 const DRAG_THRESHOLD = 4 // pixels before drag starts
 
 export function MapAddMenu({
-  onAddPaddock,
+  onAddPasture,
   onAddNoGrazeZone,
   onAddWaterSource,
   onDragStart,
@@ -94,9 +94,9 @@ export function MapAddMenu({
     })
   }, [onDragStart])
 
-  const handleAddPaddock = () => {
+  const handleAddPasture = () => {
     setIsOpen(false)
-    onAddPaddock()
+    onAddPasture()
   }
 
   const handleAddNoGrazeZone = () => {
@@ -130,17 +130,17 @@ export function MapAddMenu({
       {/* Dropdown menu */}
       {isOpen && (
         <div className="absolute top-9 right-0 w-40 rounded-lg border border-border bg-card shadow-lg overflow-hidden">
-          {/* Add Paddock */}
+          {/* Add Pasture */}
           <button
             className={cn(
               "flex w-full items-center gap-2 px-2.5 py-2 text-xs hover:bg-accent transition-colors touch-none select-none",
               onDragStart && "cursor-grab active:cursor-grabbing"
             )}
-            onClick={handleAddPaddock}
-            onPointerDown={(e) => handlePointerDown('paddock', e)}
+            onClick={handleAddPasture}
+            onPointerDown={(e) => handlePointerDown('pasture', e)}
           >
             <Pentagon className="h-3.5 w-3.5 text-green-500" />
-            <span>Add Paddock</span>
+            <span>Add Pasture</span>
           </button>
 
           {/* Add No-graze Zone */}

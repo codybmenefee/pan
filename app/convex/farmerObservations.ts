@@ -45,7 +45,7 @@ export const listByFarm = query({
 })
 
 /**
- * List observations for a specific target (paddock, zone, or farm).
+ * List observations for a specific target (pasture, zone, or farm).
  */
 export const listByTarget = query({
   args: {

@@ -47,7 +47,7 @@ export function HeroSection() {
         <div className="mt-12 max-w-5xl mx-auto">
           <ScreenshotDisplay
             src="/marketing/hero-dashboard.png"
-            alt="OpenPasture dashboard showing paddock map with NDVI vegetation health overlay and daily grazing recommendations"
+            alt="OpenPasture dashboard showing pasture map with NDVI vegetation health overlay and daily grazing recommendations"
           />
         </div>
       </div>

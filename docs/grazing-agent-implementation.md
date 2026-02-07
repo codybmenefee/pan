@@ -11,30 +11,30 @@ This document describes the implementation of a Convex Agent for generating dail
 
 ### 2. Schema Updates (`convex/schema.ts`)
 Added two new fields to the `plans` table:
-- `sectionJustification`: Natural language explanation (3-5 sentences) from the LLM
-- `paddockGrazedPercentage`: Percentage of paddock already grazed
+- `paddockJustification`: Natural language explanation (3-5 sentences) from the LLM
+- `pastureGrazedPercentage`: Percentage of pasture already grazed
 
 ### 3. Agent Tools (`convex/grazingAgentTools.ts`)
 
 #### Queries
-1. **getPaddockData**
-   - Returns current paddock state including NDVI, rest days, rotation progress
+1. **getPastureData**
+   - Returns current pasture state including NDVI, rest days, rotation progress
    - Includes latest observation data and geometry
 
-2. **getPreviousSections**
-   - Returns previously grazed sections in a specific paddock
-   - Includes section geometry, area, date, and justification
+2. **getPreviousPaddocks**
+   - Returns previously grazed paddocks in a specific pasture
+   - Includes paddock geometry, area, date, and justification
 
 3. **getFarmSettings**
    - Returns user preferences (NDVI threshold, rest period)
 
-4. **calculatePaddockGrazedPercentage**
-   - Calculates percentage of paddock already grazed based on previous plans
+4. **calculatePastureGrazedPercentage**
+   - Calculates percentage of pasture already grazed based on previous plans
 
 #### Mutations
-1. **createPlanWithSection**
-   - Creates or updates a plan with section data
-   - Stores section geometry, justification, confidence, and reasoning
+1. **createPlanWithPaddock**
+   - Creates or updates a plan with paddock data
+   - Stores paddock geometry, justification, confidence, and reasoning
 
 2. **finalizePlan**
    - Sets plan status to 'pending' for user approval
@@ -52,8 +52,8 @@ Added two new fields to the `plans` table:
 
 ### 6. UI Updates
 Updated `MorningBrief.tsx`, `BriefCard.tsx`, and `ApprovedState.tsx`:
-- Display section justification (3-5 sentences from LLM)
-- Show paddock grazed percentage
+- Display paddock justification (3-5 sentences from LLM)
+- Show pasture grazed percentage
 - Visual distinction for agent recommendations
 
 ## Data Flow
@@ -61,9 +61,9 @@ Updated `MorningBrief.tsx`, `BriefCard.tsx`, and `ApprovedState.tsx`:
 ```
 1. User triggers plan generation
 2. Action creates agent thread
-3. Agent calls getPaddockData → gets current state
-4. Agent calls getPreviousSections → gets grazed geometries
-5. Agent analyzes and calls createPlanWithSection
+3. Agent calls getPastureData → gets current state
+4. Agent calls getPreviousPaddocks → gets grazed geometries
+5. Agent analyzes and calls createPlanWithPaddock
 6. Agent calls finalizePlan
 7. Plan ready for user approval
 ```

@@ -16,9 +16,9 @@ export function EvolutionStep() {
         </h1>
       </div>
 
-      {/* Large paddock divided into sections */}
+      {/* Large pasture divided into paddocks */}
       <div className="bg-zinc-900/95 backdrop-blur-sm rounded-xl p-5 border border-white/10 max-w-lg mx-auto mb-4">
-        {/* Single paddock with internal divisions */}
+        {/* Single pasture with internal divisions */}
         <div className="border-2 border-amber-700 rounded-lg overflow-hidden">
           <div className="grid grid-cols-4 grid-rows-2">
             {[
@@ -30,17 +30,17 @@ export function EvolutionStep() {
               { id: '6', color: 'bg-green-800/80', label: '' },
               { id: '7', color: 'bg-green-700/80', label: 'Ready' },
               { id: '8', color: 'bg-green-600/80', label: '' },
-            ].map((section, i) => (
+            ].map((paddock, i) => (
               <div
-                key={section.id}
-                className={`${section.color} h-14 flex items-center justify-center relative ${
+                key={paddock.id}
+                className={`${paddock.color} h-14 flex items-center justify-center relative ${
                   i % 4 !== 3 ? 'border-r border-dashed border-amber-700/50' : ''
                 } ${i < 4 ? 'border-b border-dashed border-amber-700/50' : ''}`}
               >
-                <span className="text-[10px] text-white/60">{section.id}</span>
-                {section.label && (
+                <span className="text-[10px] text-white/60">{paddock.id}</span>
+                {paddock.label && (
                   <span className="absolute bottom-1 text-[8px] text-white/80 font-medium">
-                    {section.label}
+                    {paddock.label}
                   </span>
                 )}
               </div>
@@ -50,7 +50,7 @@ export function EvolutionStep() {
 
         {/* Arrow showing rotation */}
         <div className="flex items-center justify-center gap-2 mt-3 text-xs text-white/50">
-          <span>Rotate through sections</span>
+          <span>Rotate through paddocks</span>
           <span className="text-green-400">1 → 2 → 3 → ... → 8 → 1</span>
         </div>
       </div>

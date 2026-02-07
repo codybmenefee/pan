@@ -19,27 +19,27 @@ export const dataFetchTools = {
     }),
   },
 
-  getPaddockStatus: {
-    name: 'getPaddockStatus',
-    description: 'Get current status and metrics for a specific paddock',
+  getPastureStatus: {
+    name: 'getPastureStatus',
+    description: 'Get current status and metrics for a specific pasture',
     parameters: z.object({
-      paddockId: z.string(),
+      pastureId: z.string(),
     }),
   },
 
   getRecentObservations: {
     name: 'getRecentObservations',
-    description: 'Get recent satellite observations for a farm or paddock',
+    description: 'Get recent satellite observations for a farm or pasture',
     parameters: z.object({
       farmId: z.string(),
-      paddockId: z.string().optional(),
+      pastureId: z.string().optional(),
       days: z.number().optional(),
     }),
   },
 
   getFarmerObservations: {
     name: 'getFarmerObservations',
-    description: 'Get recent farmer observations for a farm, paddock, or zone',
+    description: 'Get recent farmer observations for a farm, pasture, or zone',
     parameters: z.object({
       farmId: z.string(),
       level: z.enum(['farm', 'paddock', 'zone']).optional(),
@@ -55,28 +55,28 @@ export const dataFetchTools = {
 export const actionTools = {
   createPlan: {
     name: 'createPlan',
-    description: 'Create a new grazing plan with recommended paddock and section',
+    description: 'Create a new grazing plan with recommended pasture and paddock',
     parameters: z.object({
       farmId: z.string(),
       date: z.string(),
-      primaryPaddockId: z.string(),
-      alternativePaddockIds: z.array(z.string()).optional(),
+      primaryPastureId: z.string(),
+      alternativePastureIds: z.array(z.string()).optional(),
       confidenceScore: z.number().min(0).max(1),
       reasoning: z.array(z.string()),
-      sectionGeometry: z.any().optional(), // GeoJSON Polygon
-      sectionAreaHectares: z.number().optional(),
-      sectionCentroid: z.array(z.number()).optional(),
-      sectionAvgNdvi: z.number().optional(),
-      sectionJustification: z.string().optional(),
-      paddockGrazedPercentage: z.number().optional(),
+      paddockGeometry: z.any().optional(), // GeoJSON Polygon
+      paddockAreaHectares: z.number().optional(),
+      paddockCentroid: z.array(z.number()).optional(),
+      paddockAvgNdvi: z.number().optional(),
+      paddockJustification: z.string().optional(),
+      pastureGrazedPercentage: z.number().optional(),
     }),
   },
 
-  updatePaddockSettings: {
-    name: 'updatePaddockSettings',
-    description: 'Update paddock-specific settings overrides',
+  updatePastureSettings: {
+    name: 'updatePastureSettings',
+    description: 'Update pasture-specific settings overrides',
     parameters: z.object({
-      paddockId: z.string(),
+      pastureId: z.string(),
       overrideMinNDVIThreshold: z.number().optional(),
       overrideMinRestPeriodDays: z.number().optional(),
     }),
@@ -84,10 +84,10 @@ export const actionTools = {
 
   requestVirtualFence: {
     name: 'requestVirtualFence',
-    description: 'Request virtual fence geometry for a grazing section',
+    description: 'Request virtual fence geometry for a grazing paddock',
     parameters: z.object({
       planId: z.string(),
-      sectionGeometry: z.any(), // GeoJSON Polygon
+      paddockGeometry: z.any(), // GeoJSON Polygon
       provider: z.string().optional(),
     }),
   },

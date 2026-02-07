@@ -1,5 +1,5 @@
 import type { Feature, Point, Polygon } from 'geojson'
-import type { Farm, FarmSettings, MapPreferences, Paddock, Section, NoGrazeZone, WaterSource, WaterSourceType } from '@/lib/types'
+import type { Farm, FarmSettings, MapPreferences, Pasture, Paddock, NoGrazeZone, WaterSource, WaterSourceType } from '@/lib/types'
 
 export interface FarmDoc {
   _id: string
@@ -14,11 +14,11 @@ export interface FarmDoc {
   geometry: Feature<Polygon>
 }
 
-export interface PaddockDoc {
+export interface PastureDoc {
   _id: string
   externalId: string
   name: string
-  status: Paddock['status']
+  status: Pasture['status']
   ndvi: number
   restDays: number
   area: number
@@ -63,7 +63,7 @@ export function mapFarmDoc(doc: FarmDoc): Farm {
   }
 }
 
-export function mapPaddockDoc(doc: PaddockDoc): Paddock {
+export function mapPastureDoc(doc: PastureDoc): Pasture {
   return {
     id: doc.externalId,
     name: doc.name,
@@ -94,7 +94,7 @@ export function mapFarmSettingsDoc(doc: FarmSettingsDoc): FarmSettings {
 }
 
 
-export interface SectionDoc {
+export interface PaddockDoc {
   id: string
   paddockId: string
   date: string
@@ -103,11 +103,11 @@ export interface SectionDoc {
   reasoning: string[]
 }
 
-export function mapSectionDoc(doc: SectionDoc): Section {
-  console.log('[mapSectionDoc] Mapping section:', doc.id, 'paddockId:', doc.paddockId, 'geometry:', doc.geometry)
+export function mapPaddockDoc(doc: PaddockDoc): Paddock {
+  console.log('[mapPaddockDoc] Mapping paddock:', doc.id, 'pastureId:', doc.paddockId, 'geometry:', doc.geometry)
   return {
     id: doc.id,
-    paddockId: doc.paddockId,
+    pastureId: doc.paddockId,
     date: doc.date,
     geometry: {
       type: 'Feature',

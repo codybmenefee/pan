@@ -33,7 +33,7 @@ An 80% confidence doesn't mean 80% chance of good grazing. It means 80% data qua
 The AI doesn't have doubt in the human sense. Confidence reflects data coverage.
 
 **Not recommendation strength:**
-A low-confidence recommendation to paddock A isn't weaker than high-confidence to paddock B. They're about data quality, not preference.
+A low-confidence recommendation to pasture A isn't weaker than high-confidence to pasture B. They're about data quality, not preference.
 
 **Not a guarantee:**
 High confidence with bad underlying conditions still produces bad outcomes.
@@ -123,7 +123,7 @@ Confidence adjusts the weight you give to the recommendation, not whether you co
       content: `The system handles confidence robustly:
 
 **Extraction:**
-If the AI includes confidence in the section justification (malformed output), the system extracts it:`,
+If the AI includes confidence in the paddock justification (malformed output), the system extracts it:`,
       codeExample: {
         language: 'typescript',
         filename: 'grazingAgentTools.ts',

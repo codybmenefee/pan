@@ -8,45 +8,45 @@ import {
 } from '@/components/history'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { samplePaddocks } from '../../../convex/seedData'
+import { samplePastures } from '../../../convex/seedData'
 import type { PlanData } from '@/components/history/HistoryEventCard'
 
 export const Route = createFileRoute('/demo/history')({
   component: DemoHistoryPage,
 })
 
-// Generate sample plans based on the demo paddocks
+// Generate sample plans based on the demo pastures
 function generateDemoPlans(): PlanData[] {
   const today = new Date()
   const plans: PlanData[] = []
 
   // Generate 12 plans over the last 30 days with realistic distribution
   const planConfigs = [
-    { daysAgo: 1, paddockId: 'p4', status: 'pending' as const, confidence: 87, reasoning: ['East Ridge has the highest NDVI at 0.52', 'Adequate rest period of 24 days since last graze', 'Good water access from creek'] },
-    { daysAgo: 3, paddockId: 'p2', status: 'approved' as const, confidence: 82, reasoning: ['North Flat showing strong recovery', 'NDVI trending upward over past week', 'Stream access on west side'] },
-    { daysAgo: 5, paddockId: 'p5', status: 'approved' as const, confidence: 78, reasoning: ['Creek Bend ready after 3-day graze cycle', 'Good forage density observed'] },
-    { daysAgo: 7, paddockId: 'p7', status: 'modified' as const, confidence: 75, reasoning: ['Creek Side initially recommended', 'Farmer adjusted based on weather forecast'] },
-    { daysAgo: 10, paddockId: 'p3', status: 'approved' as const, confidence: 84, reasoning: ['Top Block well-rested at 16 days', 'Central trough accessible', 'NDVI at 0.39 indicates adequate forage'] },
-    { daysAgo: 12, paddockId: 'p6', status: 'approved' as const, confidence: 79, reasoning: ['West Slope recovering well', 'Strategic rotation maintains pasture health'] },
-    { daysAgo: 15, paddockId: 'p1', status: 'modified' as const, confidence: 71, reasoning: ['South Valley suggested for rotation', 'Farmer preferred different timing'] },
-    { daysAgo: 18, paddockId: 'p8', status: 'approved' as const, confidence: 83, reasoning: ['Lower Paddock at optimal recovery', 'Good southern trough access'] },
-    { daysAgo: 21, paddockId: 'p4', status: 'approved' as const, confidence: 86, reasoning: ['East Ridge cycle complete', 'Strong NDVI readings'] },
-    { daysAgo: 24, paddockId: 'p2', status: 'approved' as const, confidence: 80, reasoning: ['North Flat rotation scheduled', 'Stream water level adequate'] },
-    { daysAgo: 27, paddockId: 'p7', status: 'modified' as const, confidence: 74, reasoning: ['Creek Side recommended', 'Adjusted for herd movement'] },
-    { daysAgo: 30, paddockId: 'p5', status: 'approved' as const, confidence: 81, reasoning: ['Creek Bend optimal for month start', 'Consistent grazing pattern established'] },
+    { daysAgo: 1, pastureId: 'p4', status: 'pending' as const, confidence: 87, reasoning: ['East Ridge has the highest NDVI at 0.52', 'Adequate rest period of 24 days since last graze', 'Good water access from creek'] },
+    { daysAgo: 3, pastureId: 'p2', status: 'approved' as const, confidence: 82, reasoning: ['North Flat showing strong recovery', 'NDVI trending upward over past week', 'Stream access on west side'] },
+    { daysAgo: 5, pastureId: 'p5', status: 'approved' as const, confidence: 78, reasoning: ['Creek Bend ready after 3-day graze cycle', 'Good forage density observed'] },
+    { daysAgo: 7, pastureId: 'p7', status: 'modified' as const, confidence: 75, reasoning: ['Creek Side initially recommended', 'Farmer adjusted based on weather forecast'] },
+    { daysAgo: 10, pastureId: 'p3', status: 'approved' as const, confidence: 84, reasoning: ['Top Block well-rested at 16 days', 'Central trough accessible', 'NDVI at 0.39 indicates adequate forage'] },
+    { daysAgo: 12, pastureId: 'p6', status: 'approved' as const, confidence: 79, reasoning: ['West Slope recovering well', 'Strategic rotation maintains pasture health'] },
+    { daysAgo: 15, pastureId: 'p1', status: 'modified' as const, confidence: 71, reasoning: ['South Valley suggested for rotation', 'Farmer preferred different timing'] },
+    { daysAgo: 18, pastureId: 'p8', status: 'approved' as const, confidence: 83, reasoning: ['Lower Pasture at optimal recovery', 'Good southern trough access'] },
+    { daysAgo: 21, pastureId: 'p4', status: 'approved' as const, confidence: 86, reasoning: ['East Ridge cycle complete', 'Strong NDVI readings'] },
+    { daysAgo: 24, pastureId: 'p2', status: 'approved' as const, confidence: 80, reasoning: ['North Flat rotation scheduled', 'Stream water level adequate'] },
+    { daysAgo: 27, pastureId: 'p7', status: 'modified' as const, confidence: 74, reasoning: ['Creek Side recommended', 'Adjusted for herd movement'] },
+    { daysAgo: 30, pastureId: 'p5', status: 'approved' as const, confidence: 81, reasoning: ['Creek Bend optimal for month start', 'Consistent grazing pattern established'] },
   ]
 
   planConfigs.forEach((config, idx) => {
     const planDate = new Date(today)
     planDate.setDate(planDate.getDate() - config.daysAgo)
 
-    const paddock = samplePaddocks.find(p => p.externalId === config.paddockId)
+    const pasture = samplePastures.find(p => p.externalId === config.pastureId)
 
     plans.push({
       _id: `demo-plan-${idx}`,
       date: planDate.toISOString().split('T')[0],
-      primaryPaddockExternalId: config.paddockId,
-      sectionAreaHectares: paddock?.area ?? 15,
+      primaryPaddockExternalId: config.pastureId,
+      sectionAreaHectares: pasture?.area ?? 15,
       confidenceScore: config.confidence,
       status: config.status,
       reasoning: config.reasoning,
@@ -56,9 +56,9 @@ function generateDemoPlans(): PlanData[] {
   return plans
 }
 
-// Build paddock name lookup from sample data
-const paddockNameMap = new Map(
-  samplePaddocks.map(p => [p.externalId, p.name])
+// Build pasture name lookup from sample data
+const pastureNameMap: Map<string, string> = new Map(
+  samplePastures.map(p => [p.externalId, p.name])
 )
 
 function DemoHistoryPage() {
@@ -129,7 +129,7 @@ function DemoHistoryPage() {
         {/* Timeline */}
         <HistoryTimeline
           plans={plans}
-          paddockNameMap={paddockNameMap}
+          pastureNameMap={pastureNameMap}
         />
 
         {/* Sign up CTA */}
@@ -138,7 +138,7 @@ function DemoHistoryPage() {
             <div>
               <h3 className="font-medium">Track your real grazing history</h3>
               <p className="text-sm text-muted-foreground mt-1">
-                Sign up to see AI recommendations for your actual paddocks with real satellite data.
+                Sign up to see AI recommendations for your actual pastures with real satellite data.
               </p>
             </div>
             <Link to="/sign-in">

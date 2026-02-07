@@ -29,8 +29,8 @@ import { scaling } from './system-architecture/scaling'
 
 // Farm Setup
 import { modelingPhilosophy } from './farm-setup/modeling-philosophy'
+import { pastures } from './farm-setup/pastures'
 import { paddocks } from './farm-setup/paddocks'
-import { sections } from './farm-setup/sections'
 import { waterSources } from './farm-setup/water-sources'
 import { importData } from './farm-setup/import'
 
@@ -76,8 +76,8 @@ export const contentRegistry: ContentRegistry = {
 
   // Farm Setup
   'farm-setup/modeling-philosophy': modelingPhilosophy,
+  'farm-setup/pastures': pastures,
   'farm-setup/paddocks': paddocks,
-  'farm-setup/sections': sections,
   'farm-setup/water-sources': waterSources,
   'farm-setup/import': importData,
 

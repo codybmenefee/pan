@@ -6,8 +6,8 @@ export function StatusStep() {
     <div className="flex flex-col items-center gap-6">
       {/* Visual - screenshot or fallback */}
       <ScreenshotFrame
-        src="/tutorial/paddock-status.png"
-        alt="Paddock cards showing status badges"
+        src="/tutorial/pasture-status.png"
+        alt="Pasture cards showing status badges"
         className="w-full"
       />
 
@@ -17,8 +17,8 @@ export function StatusStep() {
           Know When to Move
         </h2>
         <p className="mt-3 text-muted-foreground max-w-md mx-auto">
-          Each paddock gets a status based on vegetation health and rest days.
-          We track recovery so you always know which paddocks are ready for
+          Each pasture gets a status based on vegetation health and rest days.
+          We track recovery so you always know which pastures are ready for
           grazing.
         </p>
       </div>

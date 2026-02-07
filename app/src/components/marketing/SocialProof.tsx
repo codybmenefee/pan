@@ -7,12 +7,12 @@ const testimonials = [
   {
     quote: "Finally, data that actually helps me make decisions instead of just more numbers to look at.",
     author: "Texas rancher",
-    detail: "Multi-paddock rotational grazing",
+    detail: "Multi-pasture rotational grazing",
   },
   {
-    quote: "The daily brief saves me 30 minutes every morning I used to spend walking paddocks.",
+    quote: "The daily brief saves me 30 minutes every morning I used to spend walking pastures.",
     author: "Kentucky dairy farmer",
-    detail: "45 paddock system",
+    detail: "45 pasture system",
   },
 ]
 

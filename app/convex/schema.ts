@@ -24,7 +24,7 @@ const rawPolygon = v.object({
   coordinates: v.array(v.array(v.array(v.number()))),
 })
 
-const paddockStatus = v.union(
+const pastureStatus = v.union(
   v.literal('ready'),
   v.literal('almost_ready'),
   v.literal('recovering'),
@@ -84,7 +84,7 @@ export default defineSchema({
     farmId: v.id('farms'),
     externalId: v.string(),
     name: v.string(),
-    status: paddockStatus,
+    status: pastureStatus,
     ndvi: v.number(),
     restDays: v.number(),
     area: v.number(),
@@ -381,7 +381,7 @@ export default defineSchema({
     .index('by_farm_status', ['farmExternalId', 'status'])
     .index('by_status', ['status']),
 
-  // Track section modifications with rationale for AI training/RAG retrieval
+  // Track paddock modifications with rationale for AI training/RAG retrieval
   sectionModifications: defineTable({
     planId: v.id('plans'),
     farmExternalId: v.string(),

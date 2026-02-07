@@ -15,14 +15,14 @@ export interface FarmContext {
     name: string
     location: string
     totalArea: number
-    paddockCount: number
+    pastureCount: number
   }
   settings: {
     minNDVIThreshold: number
     minRestPeriod: number
     cloudCoverTolerance: number
   }
-  paddocks: Array<{
+  pastures: Array<{
     id: string
     externalId: string
     name: string
@@ -66,7 +66,7 @@ export async function assembleFarmContext(
   const [
     farm,
     settings,
-    paddocks,
+    pastures,
     latestObservations,
     recentFarmerObservations,
     recentPlans,
@@ -94,18 +94,18 @@ export async function assembleFarmContext(
     throw new Error(`Farm not found: ${farmExternalId}`)
   }
 
-  // Get latest observation per paddock
-  const observationsByPaddock = new Map<string, any>()
+  // Get latest observation per pasture
+  const observationsByPasture = new Map<string, any>()
   for (const obs of latestObservations || []) {
-    const existing = observationsByPaddock.get(obs.paddockExternalId)
+    const existing = observationsByPasture.get(obs.paddockExternalId)
     if (!existing || new Date(obs.date) > new Date(existing.date)) {
-      observationsByPaddock.set(obs.paddockExternalId, obs)
+      observationsByPasture.set(obs.paddockExternalId, obs)
     }
   }
 
-  // Map paddocks with their latest observations
-  const paddocksWithData = (paddocks || []).map((p) => {
-    const obs = observationsByPaddock.get(p.externalId)
+  // Map pastures with their latest observations
+  const pasturesWithData = (pastures || []).map((p) => {
+    const obs = observationsByPasture.get(p.externalId)
     return {
       id: p._id,
       externalId: p.externalId,
@@ -125,15 +125,15 @@ export async function assembleFarmContext(
       name: farm.name,
       location: farm.location,
       totalArea: farm.totalArea,
-      paddockCount: farm.paddockCount,
+      pastureCount: farm.paddockCount,
     },
     settings: {
       minNDVIThreshold: settings?.minNDVIThreshold ?? 0.4,
       minRestPeriod: settings?.minRestPeriod ?? 21,
       cloudCoverTolerance: settings?.cloudCoverTolerance ?? 50,
     },
-    paddocks: paddocksWithData,
-    observations: Array.from(observationsByPaddock.values()),
+    pastures: pasturesWithData,
+    observations: Array.from(observationsByPasture.values()),
     farmerObservations: (recentFarmerObservations || []).map((fo) => ({
       level: fo.level,
       targetId: fo.targetId,
@@ -157,7 +157,7 @@ export function formatContextForPrompt(context: FarmContext): string {
   lines.push(`Farm: ${context.farm.name}`)
   lines.push(`Location: ${context.farm.location}`)
   lines.push(`Total Area: ${context.farm.totalArea} hectares`)
-  lines.push(`Paddocks: ${context.farm.paddockCount}`)
+  lines.push(`Pastures: ${context.farm.pastureCount}`)
   lines.push('')
 
   lines.push('Farm Settings:')
@@ -166,11 +166,11 @@ export function formatContextForPrompt(context: FarmContext): string {
   lines.push(`  Cloud Cover Tolerance: ${context.settings.cloudCoverTolerance}%`)
   lines.push('')
 
-  lines.push('Paddocks:')
-  for (const paddock of context.paddocks) {
+  lines.push('Pastures:')
+  for (const pasture of context.pastures) {
     lines.push(
-      `  ${paddock.name} (${paddock.externalId}): NDVI ${paddock.ndvi.toFixed(2)}, ` +
-        `${paddock.restDays} rest days, Status: ${paddock.status}`
+      `  ${pasture.name} (${pasture.externalId}): NDVI ${pasture.ndvi.toFixed(2)}, ` +
+        `${pasture.restDays} rest days, Status: ${pasture.status}`
     )
   }
   lines.push('')

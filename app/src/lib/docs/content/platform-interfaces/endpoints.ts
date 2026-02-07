@@ -104,13 +104,13 @@ const settings = await ctx.runQuery(
     },
     {
       heading: 'Key Mutations',
-      content: `**createPlanWithSection**
+      content: `**createPlanWithPaddock**
 Creates or updates today's grazing plan:`,
       codeExample: {
         language: 'typescript',
-        code: `// Mutation: grazingAgentTools.createPlanWithSection
+        code: `// Mutation: grazingAgentTools.createPlanWithPaddock
 await ctx.runMutation(
-  api.grazingAgentTools.createPlanWithSection,
+  api.grazingAgentTools.createPlanWithPaddock,
   {
     farmExternalId: 'farm-1',
     targetPaddockId: 'paddock-3',

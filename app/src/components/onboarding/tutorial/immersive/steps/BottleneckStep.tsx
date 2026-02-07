@@ -26,13 +26,13 @@ export function BottleneckStep() {
           </div>
 
           <p className="text-sm text-white/70 mb-3">
-            Tracking paddock status across your farm
+            Tracking pasture status across your farm
           </p>
 
           <div className="space-y-2 text-left">
             <div className="flex items-center gap-2 text-xs text-white/60">
               <HelpCircle className="h-3.5 w-3.5 text-amber-400/70" />
-              <span>"Which paddock is ready?"</span>
+              <span>"Which pasture is ready?"</span>
             </div>
             <div className="flex items-center gap-2 text-xs text-white/60">
               <Clock className="h-3.5 w-3.5 text-amber-400/70" />
@@ -53,7 +53,7 @@ export function BottleneckStep() {
           </div>
 
           <p className="text-sm text-white/70 mb-3">
-            Physically moving animals between paddocks
+            Physically moving animals between pastures
           </p>
 
           <div className="space-y-2 text-left">

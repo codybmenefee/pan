@@ -29,11 +29,11 @@ function calculateAreaHectares(feature: Feature<Polygon>, decimals = 1): number 
 
 // Rotation configuration constants
 export const ROTATION_CONFIG = {
-  /** Minimum days to spend in a paddock before moving */
-  MIN_DAYS_IN_PADDOCK: 3,
-  /** Maximum days to spend in a paddock before moving */
-  MAX_DAYS_IN_PADDOCK: 4,
-  /** Minimum rest period between grazing same paddock (days) */
+  /** Minimum days to spend in a pasture before moving */
+  MIN_DAYS_IN_PASTURE: 3,
+  /** Maximum days to spend in a pasture before moving */
+  MAX_DAYS_IN_PASTURE: 4,
+  /** Minimum rest period between grazing same pasture (days) */
   MIN_REST_PERIOD: 21,
   /** NDVI recovery rate per day (approximate) */
   NDVI_RECOVERY_RATE_PER_DAY: 0.025,
@@ -41,12 +41,12 @@ export const ROTATION_CONFIG = {
   MIN_NDVI_AFTER_GRAZING: 0.20,
   /** Maximum NDVI when fully recovered */
   MAX_NDVI_RECOVERED: 0.70,
-  /** Default number of strips per paddock */
-  DEFAULT_STRIPS_PER_PADDOCK: 3,
+  /** Default number of paddocks (strips) per pasture */
+  DEFAULT_STRIPS_PER_PASTURE: 3,
 }
 
-// Real paddock geometries from production (oriented over actual Columbia, TN fields)
-export const paddockGeometries: Record<string, Feature<Polygon>> = {
+// Real pasture geometries from production (oriented over actual Columbia, TN fields)
+export const pastureGeometries: Record<string, Feature<Polygon>> = {
   p1: {
     type: 'Feature',
     properties: { entityId: 'p1', entityType: 'paddock' },
@@ -176,7 +176,7 @@ export const paddockGeometries: Record<string, Feature<Polygon>> = {
   },
 }
 
-// Real farm boundary that encompasses all paddocks
+// Real farm boundary that encompasses all pastures
 const farmGeometry: Feature<Polygon> = {
   type: 'Feature',
   properties: {},
@@ -194,7 +194,7 @@ const farmGeometry: Feature<Polygon> = {
 
 const farmCoordinates: [number, number] = [-87.03813603002601, 35.642060410398756]
 
-const basePaddocks = [
+const basePastures = [
   {
     externalId: 'p1',
     name: 'South Valley',
@@ -203,7 +203,7 @@ const basePaddocks = [
     restDays: 14,
     waterAccess: 'Trough (north)',
     lastGrazed: 'Jan 2',
-    geometry: paddockGeometries.p1,
+    geometry: pastureGeometries.p1,
   },
   {
     externalId: 'p2',
@@ -213,7 +213,7 @@ const basePaddocks = [
     restDays: 19,
     waterAccess: 'Stream (west)',
     lastGrazed: 'Dec 28',
-    geometry: paddockGeometries.p2,
+    geometry: pastureGeometries.p2,
   },
   {
     externalId: 'p3',
@@ -223,7 +223,7 @@ const basePaddocks = [
     restDays: 16,
     waterAccess: 'Trough (center)',
     lastGrazed: 'Dec 31',
-    geometry: paddockGeometries.p3,
+    geometry: pastureGeometries.p3,
   },
   {
     externalId: 'p4',
@@ -233,7 +233,7 @@ const basePaddocks = [
     restDays: 24,
     waterAccess: 'Creek (east)',
     lastGrazed: 'Dec 23',
-    geometry: paddockGeometries.p4,
+    geometry: pastureGeometries.p4,
   },
   {
     externalId: 'p5',
@@ -243,7 +243,7 @@ const basePaddocks = [
     restDays: 3,
     waterAccess: 'Creek (south)',
     lastGrazed: 'Jan 13',
-    geometry: paddockGeometries.p5,
+    geometry: pastureGeometries.p5,
   },
   {
     externalId: 'p6',
@@ -253,7 +253,7 @@ const basePaddocks = [
     restDays: 12,
     waterAccess: 'Trough (west)',
     lastGrazed: 'Jan 4',
-    geometry: paddockGeometries.p6,
+    geometry: pastureGeometries.p6,
   },
   {
     externalId: 'p7',
@@ -263,23 +263,23 @@ const basePaddocks = [
     restDays: 28,
     waterAccess: 'Creek (east)',
     lastGrazed: 'Dec 19',
-    geometry: paddockGeometries.p7,
+    geometry: pastureGeometries.p7,
   },
   {
     externalId: 'p8',
-    name: 'Lower Paddock',
+    name: 'Lower Pasture',
     status: 'grazed' as const,
     ndvi: 0.19,
     restDays: 5,
     waterAccess: 'Trough (south)',
     lastGrazed: 'Jan 11',
-    geometry: paddockGeometries.p8,
+    geometry: pastureGeometries.p8,
   },
 ]
 
-export const samplePaddocks = basePaddocks.map((paddock) => ({
-  ...paddock,
-  area: calculateAreaHectares(paddock.geometry),
+export const samplePastures = basePastures.map((pasture) => ({
+  ...pasture,
+  area: calculateAreaHectares(pasture.geometry),
 }))
 
 export const sampleFarm = {
@@ -287,7 +287,7 @@ export const sampleFarm = {
   name: 'The Other Side',
   location: '120 River Heights Drive, Columbia, Tennessee, 38401',
   totalArea: 142,
-  paddockCount: samplePaddocks.length,
+  paddockCount: samplePastures.length,
   coordinates: farmCoordinates,
   geometry: farmGeometry,
 }
@@ -314,7 +314,7 @@ export const sampleWaterSources: Array<{
       },
     },
     status: 'active',
-    description: 'Main water trough near paddocks p1 and p2',
+    description: 'Main water trough near pastures p1 and p2',
   },
   {
     name: 'Creek Access',
@@ -344,7 +344,7 @@ export const sampleWaterSources: Array<{
       },
     },
     status: 'active',
-    description: 'Storage tank for southern paddocks',
+    description: 'Storage tank for southern pastures',
   },
 ]
 
@@ -397,7 +397,7 @@ export const sampleLivestock: Array<{
   },
 ]
 
-// Sample plans with sections for strip grazing demonstration
+// Sample plans with paddocks (strips) for strip grazing demonstration
 // These are generated dynamically based on current date
 export function generateSamplePlans(farmExternalId: string) {
   const today = new Date()
@@ -409,7 +409,7 @@ export function generateSamplePlans(farmExternalId: string) {
     return date.toISOString().split('T')[0]
   }
 
-  // East Ridge (p4) strip grazing sections - within the paddock bounds
+  // East Ridge (p4) strip grazing paddocks - within the pasture bounds
   // p4 coordinates roughly: west=-87.0375, east=-87.0348, north=35.6426, south=35.6404
   const createEastRidgeStrip = (stripIndex: number): { type: 'Polygon'; coordinates: number[][][] } => {
     const westLng = -87.0370
@@ -417,8 +417,8 @@ export function generateSamplePlans(farmExternalId: string) {
     const northLat = 35.6422
     const southLat = 35.6408
 
-    const paddockHeight = northLat - southLat
-    const stripHeight = paddockHeight * 0.30
+    const pastureHeight = northLat - southLat
+    const stripHeight = pastureHeight * 0.30
 
     const stripNorth = northLat - (stripIndex * stripHeight)
     const stripSouth = stripNorth - stripHeight
@@ -436,7 +436,7 @@ export function generateSamplePlans(farmExternalId: string) {
   }
 
   return [
-    // Day -2: First strip (northern section)
+    // Day -2: First strip (northern paddock)
     {
       farmExternalId,
       date: getDateString(2),
@@ -446,15 +446,15 @@ export function generateSamplePlans(farmExternalId: string) {
       reasoning: [
         'Day 1 of East Ridge rotation',
         'Starting from northern boundary for progressive strip grazing',
-        'Good NDVI values in this section',
+        'Good NDVI values in this paddock',
       ],
       status: 'executed' as const,
       sectionGeometry: createEastRidgeStrip(0),
       sectionAreaHectares: 1.1,
-      sectionJustification: 'Progressive strip grazing - northern section',
+      sectionJustification: 'Progressive strip grazing - northern paddock',
       paddockGrazedPercentage: 30,
     },
-    // Day -1: Second strip (middle section)
+    // Day -1: Second strip (middle paddock)
     {
       farmExternalId,
       date: getDateString(1),
@@ -463,16 +463,16 @@ export function generateSamplePlans(farmExternalId: string) {
       confidenceScore: 85,
       reasoning: [
         'Day 2 of East Ridge rotation',
-        'Adjacent to previous section for efficient movement',
+        'Adjacent to previous paddock for efficient movement',
         'Continuing progressive strip pattern',
       ],
       status: 'executed' as const,
       sectionGeometry: createEastRidgeStrip(1),
       sectionAreaHectares: 1.1,
-      sectionJustification: 'Progressive strip grazing - middle section',
+      sectionJustification: 'Progressive strip grazing - middle paddock',
       paddockGrazedPercentage: 60,
     },
-    // Today: Third strip (southern section) - pending approval
+    // Today: Third strip (southern paddock) - pending approval
     {
       farmExternalId,
       date: getDateString(0),
@@ -481,13 +481,13 @@ export function generateSamplePlans(farmExternalId: string) {
       confidenceScore: 88,
       reasoning: [
         'Day 3 of East Ridge rotation',
-        'Final strip completes paddock coverage',
-        'Southern section has highest remaining NDVI',
+        'Final strip completes pasture coverage',
+        'Southern paddock has highest remaining NDVI',
       ],
       status: 'pending' as const,
       sectionGeometry: createEastRidgeStrip(2),
       sectionAreaHectares: 1.1,
-      sectionJustification: 'Progressive strip grazing - southern section to complete rotation',
+      sectionJustification: 'Progressive strip grazing - southern paddock to complete rotation',
       paddockGrazedPercentage: 90,
     },
   ]
@@ -519,7 +519,7 @@ export const sampleGrazingEvents = [
 
 // Tutorial Demo Data - Ideal values for compelling screenshots
 // Status distribution: 2 Ready, 2 Almost Ready, 2 Recovering, 2 Grazed (25% each)
-export const tutorialDemoPaddocks = [
+export const tutorialDemoPastures = [
   { externalId: 'p1', name: 'South Valley', ndvi: 0.52, restDays: 28, status: 'ready' as const },     // Ready - fully recovered
   { externalId: 'p2', name: 'North Flat', ndvi: 0.48, restDays: 24, status: 'ready' as const },       // Ready - good candidate
   { externalId: 'p3', name: 'East Ridge', ndvi: 0.45, restDays: 18, status: 'almost_ready' as const }, // Almost Ready
@@ -527,7 +527,7 @@ export const tutorialDemoPaddocks = [
   { externalId: 'p5', name: 'Top Block', ndvi: 0.38, restDays: 12, status: 'recovering' as const },    // Recovering
   { externalId: 'p6', name: 'West Slope', ndvi: 0.35, restDays: 9, status: 'recovering' as const },    // Recovering
   { externalId: 'p7', name: 'Creek Side', ndvi: 0.28, restDays: 4, status: 'grazed' as const },        // Grazed
-  { externalId: 'p8', name: 'Lower Paddock', ndvi: 0.22, restDays: 2, status: 'grazed' as const },     // Grazed
+  { externalId: 'p8', name: 'Lower Pasture', ndvi: 0.22, restDays: 2, status: 'grazed' as const },     // Grazed
 ]
 
 // Tutorial Demo Grazing Events - ~10 events over past 60 days showing healthy rotation
@@ -535,20 +535,20 @@ export const tutorialDemoPaddocks = [
 export function generateTutorialDemoGrazingEvents(farmExternalId: string) {
   const today = new Date()
   const events = [
-    // Recent events (grazed paddocks)
-    { paddockExternalId: 'p8', daysAgo: 2, status: 'approved', notes: 'Moved herd to Lower Paddock' },
-    { paddockExternalId: 'p7', daysAgo: 6, status: 'approved', notes: 'Grazing Creek Side section' },
-    // Recovering paddocks were grazed earlier
+    // Recent events (grazed pastures)
+    { paddockExternalId: 'p8', daysAgo: 2, status: 'approved', notes: 'Moved herd to Lower Pasture' },
+    { paddockExternalId: 'p7', daysAgo: 6, status: 'approved', notes: 'Grazing Creek Side paddock' },
+    // Recovering pastures were grazed earlier
     { paddockExternalId: 'p6', daysAgo: 17, status: 'modified', notes: 'Adjusted to West Slope based on conditions' },
     { paddockExternalId: 'p5', daysAgo: 14, status: 'approved', notes: 'Top Block rotation' },
-    // Almost ready paddocks grazed 2-3 weeks ago
+    // Almost ready pastures grazed 2-3 weeks ago
     { paddockExternalId: 'p4', daysAgo: 26, status: 'approved', notes: 'Creek Bend looking good' },
     { paddockExternalId: 'p3', daysAgo: 22, status: 'approved', notes: 'East Ridge pasture quality excellent' },
-    // Ready paddocks haven't been grazed in a while
+    // Ready pastures haven't been grazed in a while
     { paddockExternalId: 'p2', daysAgo: 48, status: 'approved', notes: 'North Flat rotation complete' },
-    { paddockExternalId: 'p1', daysAgo: 56, status: 'modified', notes: 'Started with South Valley section' },
+    { paddockExternalId: 'p1', daysAgo: 56, status: 'modified', notes: 'Started with South Valley paddock' },
     // Some additional historical events
-    { paddockExternalId: 'p8', daysAgo: 38, status: 'approved', notes: 'Lower Paddock cycle' },
+    { paddockExternalId: 'p8', daysAgo: 38, status: 'approved', notes: 'Lower Pasture cycle' },
     { paddockExternalId: 'p5', daysAgo: 45, status: 'rejected', notes: 'Skipped - weather conditions' },
   ]
 
@@ -569,16 +569,16 @@ export function generateTutorialDemoGrazingEvents(farmExternalId: string) {
 export function generateTutorialDemoObservations(farmExternalId: string) {
   const today = new Date().toISOString().split('T')[0]
 
-  return tutorialDemoPaddocks.map(paddock => ({
+  return tutorialDemoPastures.map(pasture => ({
     farmExternalId,
-    paddockExternalId: paddock.externalId,
+    paddockExternalId: pasture.externalId,
     date: today,
-    ndviMean: paddock.ndvi,
-    ndviMin: Math.round((paddock.ndvi - 0.12) * 100) / 100,
-    ndviMax: Math.round((paddock.ndvi + 0.10) * 100) / 100,
+    ndviMean: pasture.ndvi,
+    ndviMin: Math.round((pasture.ndvi - 0.12) * 100) / 100,
+    ndviMax: Math.round((pasture.ndvi + 0.10) * 100) / 100,
     ndviStd: 0.05,
-    eviMean: Math.round(paddock.ndvi * 0.85 * 100) / 100,
-    ndwiMean: Math.round((paddock.ndvi * 0.6 - 0.1) * 100) / 100,
+    eviMean: Math.round(pasture.ndvi * 0.85 * 100) / 100,
+    ndwiMean: Math.round((pasture.ndvi * 0.6 - 0.1) * 100) / 100,
     cloudFreePct: 92,
     pixelCount: 1100,
     isValid: true,

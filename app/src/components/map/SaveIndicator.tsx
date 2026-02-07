@@ -7,7 +7,7 @@ import { useFarmContext } from '@/lib/farm'
 import { useTodayPlan } from '@/lib/convex/usePlan'
 import { useAppAuth } from '@/lib/auth'
 import { cn } from '@/lib/utils'
-import { SectionModificationDialog } from './SectionModificationDialog'
+import { PaddockModificationDialog } from './PaddockModificationDialog'
 
 interface SaveIndicatorProps {
   className?: string
@@ -24,45 +24,45 @@ export function SaveIndicator({ className }: SaveIndicatorProps) {
 
   const unsavedCount = pendingChanges.filter((c) => !c.synced).length
 
-  // Detect if there's a section update for today's plan
-  const todaySectionChange = useMemo(() => {
+  // Detect if there's a paddock (daily strip) update for today's plan
+  const todayPaddockChange = useMemo(() => {
     if (!plan?._id) return null
-    // Find unsynced section updates that match today's plan ID
+    // Find unsynced paddock updates that match today's plan ID
     return pendingChanges.find(
       (c) =>
         !c.synced &&
-        c.entityType === 'section' &&
+        c.entityType === 'paddock' &&
         c.changeType === 'update' &&
-        c.id === plan._id && // Section ID matches plan ID
+        c.id === plan._id && // Paddock ID matches plan ID
         c.originalGeometry && // Has original geometry (AI-suggested)
         c.geometry // Has modified geometry
     )
   }, [pendingChanges, plan])
 
   // Calculate areas for the dialog
-  const sectionChangeData = useMemo(() => {
-    if (!todaySectionChange || !todaySectionChange.originalGeometry || !todaySectionChange.geometry) {
+  const paddockChangeData = useMemo(() => {
+    if (!todayPaddockChange || !todayPaddockChange.originalGeometry || !todayPaddockChange.geometry) {
       return null
     }
     return {
-      originalAreaHectares: calculateAreaHectares(todaySectionChange.originalGeometry),
-      modifiedAreaHectares: calculateAreaHectares(todaySectionChange.geometry),
-      originalGeometry: todaySectionChange.originalGeometry.geometry as {
+      originalAreaHectares: calculateAreaHectares(todayPaddockChange.originalGeometry),
+      modifiedAreaHectares: calculateAreaHectares(todayPaddockChange.geometry),
+      originalGeometry: todayPaddockChange.originalGeometry.geometry as {
         type: 'Polygon'
         coordinates: number[][][]
       },
-      modifiedGeometry: todaySectionChange.geometry.geometry as {
+      modifiedGeometry: todayPaddockChange.geometry.geometry as {
         type: 'Polygon'
         coordinates: number[][][]
       },
     }
-  }, [todaySectionChange])
+  }, [todayPaddockChange])
 
   const handleSave = useCallback(async () => {
     setError(null)
 
-    // If there's a today's section change with original geometry, show rationale dialog
-    if (todaySectionChange && sectionChangeData && plan?._id) {
+    // If there's a today's paddock change with original geometry, show rationale dialog
+    if (todayPaddockChange && paddockChangeData && plan?._id) {
       setShowRationaleDialog(true)
       return
     }
@@ -76,7 +76,7 @@ export function SaveIndicator({ className }: SaveIndicatorProps) {
       setError(err instanceof Error ? err.message : 'Failed to save changes')
       setTimeout(() => setError(null), 3000)
     }
-  }, [saveChanges, todaySectionChange, sectionChangeData, plan])
+  }, [saveChanges, todayPaddockChange, paddockChangeData, plan])
 
   // Called after rationale dialog submission/skip
   const handleRationaleComplete = useCallback(async () => {
@@ -160,22 +160,22 @@ export function SaveIndicator({ className }: SaveIndicatorProps) {
               Reset
             </Button>
             <span className="text-xs text-muted-foreground hidden sm:inline">
-              {navigator.platform.includes('Mac') ? '⌘S' : 'Ctrl+S'}
+              {navigator.platform.includes('Mac') ? '\u2318S' : 'Ctrl+S'}
             </span>
           </>
         )}
       </div>
 
-      {/* Section Modification Rationale Dialog */}
-      {plan?._id && sectionChangeData && (
-        <SectionModificationDialog
+      {/* Paddock Modification Rationale Dialog */}
+      {plan?._id && paddockChangeData && (
+        <PaddockModificationDialog
           open={showRationaleDialog}
           onOpenChange={setShowRationaleDialog}
           planId={plan._id}
-          originalAreaHectares={sectionChangeData.originalAreaHectares}
-          modifiedAreaHectares={sectionChangeData.modifiedAreaHectares}
-          originalGeometry={sectionChangeData.originalGeometry}
-          modifiedGeometry={sectionChangeData.modifiedGeometry}
+          originalAreaHectares={paddockChangeData.originalAreaHectares}
+          modifiedAreaHectares={paddockChangeData.modifiedAreaHectares}
+          originalGeometry={paddockChangeData.originalGeometry}
+          modifiedGeometry={paddockChangeData.modifiedGeometry}
           onComplete={handleRationaleComplete}
           userId={userId ?? undefined}
         />
