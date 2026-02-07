@@ -444,7 +444,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   selectedPastureId: _selectedPastureId,
   selectedPaddockId,
   showNdviHeat = false,
-  showPastures: _showPastures = true,
+  showPastures = true,
   showLabels = true,
   showPaddocks = true,
   showRGBSatellite = false,
@@ -2647,10 +2647,10 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
   }, [mapInstance, isMapLoaded, isEditActive, selectedFeatureIds])
 
-  // Hide native paddock layers when editing paddocks (Draw will render them)
+  // Toggle pasture boundary/fill visibility
   useEffect(() => {
     if (!mapInstance || !isMapLoaded) {
-      log('[Paddocks] Visibility effect: map not ready')
+      log('[Pastures] Visibility effect: map not ready')
       return
     }
     const map = mapInstance
@@ -2658,39 +2658,30 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     // Safety check - ensure map style is available (may be destroyed during navigation)
     try {
       if (!map.getStyle()) {
-        log('[Paddocks] Visibility effect: map style not available, skipping')
+        log('[Pastures] Visibility effect: map style not available, skipping')
         return
       }
     } catch {
-      log('[Paddocks] Visibility effect: map is being destroyed, skipping')
+      log('[Pastures] Visibility effect: map is being destroyed, skipping')
       return
     }
 
-    const paddockLayers = ['pastures-fill', 'pastures-outline']
-    // Always show native paddock layers - Draw's inactive polygons are transparent
-    // so native layers show through with proper status colors
-    const visibility = showPaddocks ? 'visible' : 'none'
-    log('[Paddocks] Setting visibility:', { showPaddocks, visibility, isEditActive, hasDraw: !!draw })
-
-    // Log all paddocks for debugging
-    log('[Paddocks] Current paddocks:', paddocks.map(p => ({
-      id: p.id,
-      pastureId: p.pastureId,
-      date: p.date,
-    })))
+    const pastureLayers = ['pastures-fill', 'pastures-outline']
+    const visibility = showPastures ? 'visible' : 'none'
+    log('[Pastures] Setting visibility:', { showPastures, visibility })
 
     try {
-      paddockLayers.forEach(layerId => {
+      pastureLayers.forEach(layerId => {
         const layerExists = !!map.getLayer(layerId)
-        log('[Paddocks] Layer check', { layerId, exists: layerExists })
+        log('[Pastures] Layer check', { layerId, exists: layerExists })
         if (layerExists) {
           map.setLayoutProperty(layerId, 'visibility', visibility)
         }
       })
     } catch (err) {
-      log('[Paddocks] Visibility effect: error accessing map layers, likely destroyed', err)
+      log('[Pastures] Visibility effect: error accessing map layers, likely destroyed', err)
     }
-  }, [mapInstance, isMapLoaded, showPaddocks, paddocks])
+  }, [mapInstance, isMapLoaded, showPastures])
 
   // Update selected paddock highlight
   useEffect(() => {
@@ -2865,4 +2856,3 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     </div>
   )
 })
-
