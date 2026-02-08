@@ -1,5 +1,15 @@
 import { v } from 'convex/values'
-import { mutation, query } from './_generated/server'
+import { internalQuery, mutation, query } from './_generated/server'
+
+/**
+ * Get a tile by its document ID. Internal-only (used by HTTP tile server).
+ */
+export const getTileById = internalQuery({
+  args: { id: v.id('satelliteImageTiles') },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id)
+  },
+})
 
 /**
  * Get satellite tiles for a farm within an optional date range.

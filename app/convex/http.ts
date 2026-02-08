@@ -3,6 +3,8 @@ import { httpAction } from './_generated/server'
 import type { ActionCtx } from './_generated/server'
 import { api, internal } from './_generated/api'
 import { createLogger } from './lib/logger'
+import { presignR2Url } from './lib/s3Signer'
+import type { Id } from './_generated/dataModel'
 
 const log = createLogger('http')
 
@@ -396,7 +398,120 @@ http.route({
 })
 
 /**
- * Satellite Tile Proxy
+ * Satellite Tile Server
+ *
+ * Serves satellite tiles by database ID, generating fresh presigned R2 URLs
+ * on demand. This eliminates expiration issues with stored presigned URLs.
+ *
+ * Usage: GET /tiles/serve?id=<satelliteImageTile document _id>
+ */
+http.route({
+  path: '/tiles/serve',
+  method: 'GET',
+  handler: httpAction(async (ctx, request) => {
+    const url = new URL(request.url)
+    const tileId = url.searchParams.get('id')
+
+    if (!tileId) {
+      return new Response('Missing id parameter', {
+        status: 400,
+        headers: corsHeaders(),
+      })
+    }
+
+    try {
+      // Look up tile by ID
+      let tile
+      try {
+        tile = await ctx.runQuery(internal.satelliteTiles.getTileById, {
+          id: tileId as Id<'satelliteImageTiles'>,
+        })
+      } catch {
+        return new Response('Invalid tile ID', {
+          status: 400,
+          headers: corsHeaders(),
+        })
+      }
+
+      if (!tile) {
+        return new Response('Tile not found', {
+          status: 404,
+          headers: corsHeaders(),
+        })
+      }
+
+      // Read R2 credentials from env
+      const accountId = process.env.R2_ACCOUNT_ID
+      const accessKeyId = process.env.R2_ACCESS_KEY
+      const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY
+      const bucket = process.env.R2_BUCKET_NAME
+
+      if (!accountId || !accessKeyId || !secretAccessKey || !bucket) {
+        log.error('Missing R2 credentials in environment variables')
+        return new Response('Server configuration error', {
+          status: 500,
+          headers: corsHeaders(),
+        })
+      }
+
+      // Generate fresh presigned URL
+      const presignedUrl = await presignR2Url({
+        accountId,
+        accessKeyId,
+        secretAccessKey,
+        bucket,
+        key: tile.r2Key,
+      })
+
+      // Fetch the image from R2
+      const r2Response = await fetch(presignedUrl)
+
+      if (!r2Response.ok) {
+        log.error('R2 fetch failed', {
+          status: r2Response.status,
+          key: tile.r2Key,
+        })
+        return new Response('Failed to fetch tile from storage', {
+          status: 502,
+          headers: corsHeaders(),
+        })
+      }
+
+      const imageData = await r2Response.arrayBuffer()
+      const contentType = r2Response.headers.get('content-type') || 'image/png'
+
+      return new Response(imageData, {
+        status: 200,
+        headers: {
+          ...corsHeaders(),
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=86400',
+        },
+      })
+    } catch (error) {
+      log.error('Tile serve error', { error: String(error), tileId })
+      return new Response('Internal error', {
+        status: 500,
+        headers: corsHeaders(),
+      })
+    }
+  }),
+})
+
+// Handle CORS preflight for tile serve
+http.route({
+  path: '/tiles/serve',
+  method: 'OPTIONS',
+  handler: httpAction(async () => {
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders(),
+    })
+  }),
+})
+
+/**
+ * Satellite Tile Proxy (Legacy)
  *
  * Proxies satellite tile images from R2 with proper CORS headers.
  * This is needed because R2 presigned URLs don't include CORS headers.
