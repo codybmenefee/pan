@@ -313,6 +313,9 @@
   .rsc-d3 { animation-delay: 0.3s; opacity: 0; }
 
   /* Clerk PricingTable -- Olive Cobalt overrides */
+  .cl-pricingTable {
+    justify-items: center !important;
+  }
   .cl-pricingTableCard {
     max-width: 28rem !important;
     background: var(--panel) !important;
