@@ -314,6 +314,7 @@
 
   /* Clerk PricingTable -- Olive Cobalt overrides */
   .cl-pricingTableCard {
+    max-width: 28rem !important;
     background: var(--panel) !important;
     background-image: none !important;
     border: 2px solid var(--dark) !important;
