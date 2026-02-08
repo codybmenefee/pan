@@ -93,7 +93,7 @@ export function useSatelliteTiles(
  */
 export function useAvailableDates(
   farmId: string | undefined,
-  _tileType?: TileType
+  tileType?: TileType
 ): {
   dates: AvailableDate[]
   isLoading: boolean
@@ -104,11 +104,16 @@ export function useAvailableDates(
   )
 
   // Map to AvailableDate format
-  const dates: AvailableDate[] = (rawDates ?? []).map(d => ({
-    date: d.date,
-    cloudCoverPct: d.cloudCoverPct,
-    tileTypes: ['ndvi'], // Observations always have NDVI
-    provider: d.provider,
+  const availableDates = (rawDates ?? []) as Array<{
+    date: string
+    cloudCoverPct: number
+    provider: string
+  }>
+  const dates: AvailableDate[] = availableDates.map((rawDate) => ({
+    date: rawDate.date,
+    cloudCoverPct: rawDate.cloudCoverPct,
+    tileTypes: [tileType ?? 'ndvi'],
+    provider: rawDate.provider,
   }))
 
   return {
@@ -192,6 +197,7 @@ export function useStorageUsage(_farmId: string | undefined): {
   } | null
   isLoading: boolean
 } {
+  void _farmId
   // Note: Returns stub data; wire up to Convex when tile usage tracking is implemented
   return {
     usage: null,

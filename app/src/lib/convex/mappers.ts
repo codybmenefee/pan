@@ -48,6 +48,8 @@ export interface FarmSettingsDoc {
   pushNotifications: boolean
   virtualFenceProvider?: string
   apiKey?: string
+  areaUnit?: FarmSettings['areaUnit']
+  agentProfileId?: 'conservative' | 'balanced' | 'aggressive' | 'custom'
   mapPreferences?: MapPreferences
 }
 
@@ -88,8 +90,9 @@ export function mapFarmSettingsDoc(doc: FarmSettingsDoc): FarmSettings {
     pushNotifications: doc.pushNotifications,
     virtualFenceProvider: doc.virtualFenceProvider,
     apiKey: doc.apiKey,
+    agentProfileId: doc.agentProfileId ?? 'balanced',
     mapPreferences: doc.mapPreferences ?? { showRGBSatellite: false },
-    areaUnit: (doc as any).areaUnit ?? 'hectares',
+    areaUnit: doc.areaUnit ?? 'hectares',
   }
 }
 
@@ -98,7 +101,7 @@ export interface PaddockDoc {
   id: string
   paddockId: string
   date: string
-  geometry: any
+  geometry: Polygon
   targetArea: number
   reasoning: string[]
 }

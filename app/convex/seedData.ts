@@ -15,6 +15,7 @@ export const defaultFarmSettings = {
   pushNotifications: false,
   virtualFenceProvider: '',
   apiKey: '',
+  agentProfileId: 'balanced' as const,
   areaUnit: 'hectares' as const,
 }
 

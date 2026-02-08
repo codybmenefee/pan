@@ -31,6 +31,24 @@ const pastureStatus = v.union(
   v.literal('grazed'),
 )
 
+const rotationStatus = v.union(
+  v.literal('active'),      // Currently grazing
+  v.literal('completed'),   // Finished, paddock resting
+  v.literal('interrupted'), // Moved out early
+)
+
+const startingCorner = v.union(
+  v.literal('NW'),
+  v.literal('NE'),
+  v.literal('SW'),
+  v.literal('SE'),
+)
+
+const progressionDirection = v.union(
+  v.literal('horizontal'),
+  v.literal('vertical'),
+)
+
 const noGrazeZoneType = v.union(
   v.literal('environmental'),
   v.literal('hazard'),
@@ -59,7 +77,163 @@ const livestockSettings = v.object({
   lambAU: v.number(),
   // Daily dry matter consumption per AU (default: 12 kg)
   dailyDMPerAU: v.number(),
+  // Pasture yield in kg dry matter per hectare (default: 2500)
+  pastureYieldKgPerHa: v.optional(v.number()),
 })
+
+const progressionSettings = v.object({
+  defaultStartCorner: v.union(
+    v.literal('NW'),
+    v.literal('NE'),
+    v.literal('SW'),
+    v.literal('SE'),
+    v.literal('auto'),  // AI chooses based on water/terrain
+  ),
+  defaultDirection: v.union(
+    v.literal('horizontal'),
+    v.literal('vertical'),
+    v.literal('auto'),
+  ),
+  trackUngrazedAreas: v.boolean(), // Whether to track skipped sections
+})
+
+const ungrazedArea = v.object({
+  approximateCentroid: v.array(v.number()), // [lng, lat]
+  approximateAreaHa: v.number(),
+  reason: v.string(),
+  ndviAtSkip: v.number(),
+})
+
+const progressionContext = v.object({
+  rotationId: v.id('paddockRotations'),
+  sequenceNumber: v.number(),
+  progressionQuadrant: v.string(),
+  wasUngrazedAreaReturn: v.boolean(), // Returning to previously skipped area
+})
+
+// Daily brief decision type
+const briefDecision = v.union(
+  v.literal('MOVE'),
+  v.literal('STAY'),
+)
+
+// Daily brief status
+const briefStatus = v.union(
+  v.literal('pending'),
+  v.literal('approved'),
+  v.literal('rejected'),
+  v.literal('executed'),
+)
+
+
+// Forecasted section in a paddock forecast
+const forecastedSection = v.object({
+  index: v.number(),              // 0, 1, 2, ... (order)
+  geometry: rawPolygon,
+  centroid: v.array(v.number()),
+  areaHa: v.number(),
+  quadrant: v.string(),
+  estimatedDays: v.number(),
+})
+
+// Agent modification types for autonomous section control
+const agentModificationType = v.union(
+  v.literal('extended_to_edge'),
+  v.literal('wrapped_remaining'),
+  v.literal('custom_section'),
+)
+
+// Track when agent deviates from forecast
+const agentModification = v.object({
+  date: v.string(),
+  originalSectionIndex: v.number(),
+  modificationType: agentModificationType,
+  originalAreaHa: v.number(),
+  modifiedAreaHa: v.number(),
+  reasoning: v.string(),
+})
+
+// Grazing history record (what actually happened)
+const grazingHistoryEntry = v.object({
+  sectionIndex: v.number(),
+  geometry: rawPolygon,           // May differ from forecast if adjusted
+  areaHa: v.number(),
+  startedDate: v.string(),
+  endedDate: v.string(),
+  actualDays: v.number(),
+})
+
+// Daily plan status
+const dailyPlanStatus = v.union(
+  v.literal('pending'),
+  v.literal('approved'),
+  v.literal('rejected'),
+)
+
+// Paddock forecast status
+const forecastStatus = v.union(
+  v.literal('active'),
+  v.literal('completed'),
+  v.literal('paused'),
+)
+
+const agentProfileId = v.union(
+  v.literal('conservative'),
+  v.literal('balanced'),
+  v.literal('aggressive'),
+  v.literal('custom'),
+)
+
+const agentRiskPosture = v.union(
+  v.literal('low'),
+  v.literal('medium'),
+  v.literal('high'),
+)
+
+const agentExplanationStyle = v.union(
+  v.literal('concise'),
+  v.literal('balanced'),
+  v.literal('detailed'),
+)
+
+const agentBehaviorConfig = v.object({
+  riskPosture: agentRiskPosture,
+  explanationStyle: agentExplanationStyle,
+  forageSensitivity: v.number(),
+  movementBias: v.number(),
+  enableWeatherSignals: v.boolean(),
+})
+
+const agentRunStatus = v.union(
+  v.literal('started'),
+  v.literal('succeeded'),
+  v.literal('failed'),
+  v.literal('blocked'),
+)
+
+const agentRunStepType = v.union(
+  v.literal('prompt'),
+  v.literal('tool_call'),
+  v.literal('tool_result'),
+  v.literal('decision'),
+  v.literal('error'),
+  v.literal('info'),
+)
+
+const agentMemoryScope = v.union(
+  v.literal('farm'),
+  v.literal('paddock'),
+)
+
+const agentMemoryStatus = v.union(
+  v.literal('active'),
+  v.literal('archived'),
+)
+
+const agentMemorySource = v.union(
+  v.literal('farmer'),
+  v.literal('system'),
+)
 
 export default defineSchema({
   farms: defineTable({
@@ -114,6 +288,8 @@ export default defineSchema({
     subscriptionPlanId: v.optional(v.string()),     // Clerk plan ID
     subscriptionId: v.optional(v.string()),         // Clerk subscription ID
     subscriptionCurrentPeriodEnd: v.optional(v.string()),
+    // Mirrored entitlement for backend enforcement of power-user features
+    agentDashboardEnabled: v.optional(v.boolean()),
     createdAt: v.string(),
     updatedAt: v.string(),
   }).index('by_externalId', ['externalId']),
@@ -130,17 +306,23 @@ export default defineSchema({
     pushNotifications: v.boolean(),
     virtualFenceProvider: v.optional(v.string()),
     apiKey: v.optional(v.string()),
+    // Default profile for the Agent Command Center
+    agentProfileId: v.optional(agentProfileId),
     mapPreferences: v.optional(v.object({
       showRGBSatellite: v.boolean(),
       showNDVIHeatmap: v.optional(v.boolean()),
     })),
     // Livestock settings for animal unit calculations
     livestockSettings: v.optional(livestockSettings),
+    // Minimum section size as percentage of paddock (default: 5%)
+    minSectionPct: v.optional(v.number()),
     // Area unit preference (hectares or acres)
     areaUnit: v.optional(v.union(v.literal('hectares'), v.literal('acres'))),
     // Imagery check tracking for smart scheduling
     lastImageryCheckAt: v.optional(v.string()),   // When we last checked for new imagery (ISO timestamp)
     lastNewImageryDate: v.optional(v.string()),   // Date of newest imagery found (YYYY-MM-DD)
+    // Progressive grazing settings
+    progressionSettings: v.optional(progressionSettings),
     createdAt: v.string(),
     updatedAt: v.string(),
   })    .index('by_farm', ['farmExternalId']),
@@ -208,6 +390,8 @@ export default defineSchema({
     sectionAvgNdvi: v.optional(v.number()),
     sectionJustification: v.optional(v.string()),
     paddockGrazedPercentage: v.optional(v.number()),
+    // Progressive grazing context
+    progressionContext: v.optional(progressionContext),
     createdAt: v.string(),
     updatedAt: v.string(),
   })
@@ -464,4 +648,278 @@ export default defineSchema({
     updatedAt: v.string(),
   })
     .index('by_user', ['userExternalId']),
+
+  // Track complete grazing cycles through a paddock
+  paddockRotations: defineTable({
+    farmExternalId: v.string(),
+    paddockExternalId: v.string(),
+
+    // Lifecycle
+    status: rotationStatus,
+
+    // Timing
+    startDate: v.string(),
+    endDate: v.optional(v.string()),
+
+    // Entry conditions
+    entryNdviMean: v.number(),
+
+    // Progression config
+    startingCorner: v.optional(startingCorner),
+    progressionDirection: v.optional(progressionDirection),
+
+    // Progress tracking
+    totalSectionsGrazed: v.number(),
+    totalAreaGrazedHa: v.number(),
+    grazedPercentage: v.number(),
+
+    // Ungrazed tracking (for next rotation)
+    ungrazedAreas: v.optional(v.array(ungrazedArea)),
+
+    // Completion metrics
+    exitNdviMean: v.optional(v.number()),
+    daysInRotation: v.optional(v.number()),
+
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index('by_farm', ['farmExternalId'])
+    .index('by_paddock', ['farmExternalId', 'paddockExternalId'])
+    .index('by_active', ['farmExternalId', 'paddockExternalId', 'status']),
+
+  // Record each section grazed with progression context
+  sectionGrazingEvents: defineTable({
+    farmExternalId: v.string(),
+    paddockExternalId: v.string(),
+    rotationId: v.id('paddockRotations'),
+    planId: v.optional(v.id('plans')),  // Optional for migration - links to legacy plans
+    dailyBriefId: v.optional(v.id('dailyBriefs')),  // Links to new daily briefs
+
+    date: v.string(),
+    sequenceNumber: v.number(),  // 1, 2, 3... within rotation
+
+    // Section data
+    sectionGeometry: rawPolygon,
+    sectionAreaHa: v.number(),
+    centroid: v.array(v.number()),
+    sectionNdviMean: v.number(),
+
+    // Progression context
+    progressionQuadrant: v.optional(v.string()), // 'NW', 'NE', 'SW', 'SE'
+    adjacentToPrevious: v.boolean(),
+
+    // Cumulative progress
+    cumulativeAreaGrazedHa: v.number(),
+    cumulativeGrazedPct: v.number(),
+
+    createdAt: v.string(),
+  })
+    .index('by_rotation', ['rotationId'])
+    .index('by_paddock_date', ['paddockExternalId', 'date']),
+
+  // ============================================================================
+  // PADDOCK FORECASTS
+  // The baseline rotation forecast for a paddock - pre-generated sections
+  // ============================================================================
+  paddockForecasts: defineTable({
+    farmExternalId: v.string(),
+    paddockExternalId: v.string(),
+
+    // Status
+    status: forecastStatus,
+
+    // Progression pattern (agent-determined or farmer-set)
+    startingCorner: startingCorner,
+    progressionDirection: progressionDirection,
+
+    // Sizing
+    targetSectionHa: v.number(),           // Based on livestock at forecast creation
+    targetSectionPct: v.number(),          // As percentage of paddock
+
+    // THE FORECAST: All sections for the rotation
+    forecastedSections: v.array(forecastedSection),
+    estimatedTotalDays: v.number(),
+
+    // Current progress
+    activeSectionIndex: v.number(),        // Which forecast section is active
+    daysInActiveSection: v.number(),
+
+    // History (what actually happened)
+    grazingHistory: v.array(grazingHistoryEntry),
+
+    // Agent modifications (when agent deviates from forecast)
+    agentModifications: v.optional(v.array(agentModification)),
+
+    // Metadata
+    createdAt: v.string(),
+    createdBy: v.union(v.literal('agent'), v.literal('farmer')),
+    updatedAt: v.string(),
+  })
+    .index('by_farm', ['farmExternalId'])
+    .index('by_paddock', ['farmExternalId', 'paddockExternalId'])
+    .index('by_active', ['farmExternalId', 'paddockExternalId', 'status']),
+
+  // ============================================================================
+  // DAILY PLANS
+  // Today's concrete grazing recommendation
+  // ============================================================================
+  dailyPlans: defineTable({
+    farmExternalId: v.string(),
+    date: v.string(),
+
+    // Link to forecast
+    forecastId: v.id('paddockForecasts'),
+    paddockExternalId: v.string(),
+
+    // Today's recommendation
+    recommendedSectionIndex: v.number(),   // Which forecast section
+    sectionGeometry: rawPolygon,           // May be adjusted from forecast
+    sectionAreaHa: v.number(),
+    sectionCentroid: v.array(v.number()),
+
+    // Context
+    daysInSection: v.number(),
+    estimatedForageRemaining: v.optional(v.number()),
+    currentNdvi: v.optional(v.number()),
+
+    // Justification
+    reasoning: v.array(v.string()),
+    confidence: v.number(),
+
+    // Status
+    status: dailyPlanStatus,
+
+    // Timestamps
+    createdAt: v.string(),
+    approvedAt: v.optional(v.string()),
+    approvedBy: v.optional(v.string()),
+  })
+    .index('by_farm_date', ['farmExternalId', 'date'])
+    .index('by_farm', ['farmExternalId']),
+
+  // ============================================================================
+  // LEGACY: DAILY BRIEFS (kept for backward compatibility during migration)
+  // ============================================================================
+  dailyBriefs: defineTable({
+    farmExternalId: v.string(),
+    date: v.string(),
+    decision: briefDecision,
+    paddockExternalId: v.string(),
+    sectionGeometry: v.optional(rawPolygon),
+    sectionAreaHa: v.optional(v.number()),
+    sectionCentroid: v.optional(v.array(v.number())),
+    daysInCurrentSection: v.number(),
+    estimatedForageRemaining: v.optional(v.number()),
+    currentNdvi: v.optional(v.number()),
+    reasoning: v.array(v.string()),
+    confidence: v.number(),
+    status: briefStatus,
+    forecastId: v.optional(v.id('paddockForecasts')),
+    grazingPlanId: v.optional(v.string()),  // DEPRECATED: Legacy field for backward compatibility
+    createdAt: v.string(),
+    approvedAt: v.optional(v.string()),
+    approvedBy: v.optional(v.string()),
+  })
+    .index('by_farm_date', ['farmExternalId', 'date'])
+    .index('by_farm', ['farmExternalId']),
+
+  // ============================================================================
+  // GRAZING PRINCIPLES
+  // Farm-level overrides for global grazing rules
+  // ============================================================================
+  grazingPrinciples: defineTable({
+    farmExternalId: v.string(),
+
+    // Overrides (null/undefined = use global default)
+    minDaysPerSection: v.optional(v.number()),
+    maxDaysPerSection: v.optional(v.number()),
+    minNdviThreshold: v.optional(v.number()),
+    preferHighNdviAreas: v.optional(v.boolean()),
+    requireAdjacentSections: v.optional(v.boolean()),
+    allowSectionOverlapPct: v.optional(v.number()),
+
+    // Custom rules (free text for agent to interpret)
+    customRules: v.optional(v.array(v.string())),
+
+    updatedAt: v.string(),
+  })
+    .index('by_farm', ['farmExternalId']),
+
+  // ============================================================================
+  // AGENT COMMAND CENTER
+  // ============================================================================
+  agentRuns: defineTable({
+    farmExternalId: v.string(),
+    trigger: v.union(
+      v.literal('morning_brief'),
+      v.literal('observation_refresh'),
+      v.literal('plan_execution'),
+    ),
+    profileId: agentProfileId,
+    adapterId: v.string(),
+    provider: v.optional(v.string()),
+    model: v.optional(v.string()),
+    status: agentRunStatus,
+    dryRun: v.boolean(),
+    requestedBy: v.string(),
+    toolCallCount: v.optional(v.number()),
+    toolSummary: v.optional(v.array(v.string())),
+    outputPlanId: v.optional(v.id('plans')),
+    errorCode: v.optional(v.string()),
+    errorMessage: v.optional(v.string()),
+    startedAt: v.string(),
+    completedAt: v.optional(v.string()),
+    latencyMs: v.optional(v.number()),
+  })
+    .index('by_farm_startedAt', ['farmExternalId', 'startedAt'])
+    .index('by_farm_status', ['farmExternalId', 'status']),
+
+  agentRunSteps: defineTable({
+    runId: v.id('agentRuns'),
+    farmExternalId: v.string(),
+    stepIndex: v.number(),
+    stepType: agentRunStepType,
+    title: v.string(),
+    toolName: v.optional(v.string()),
+    justification: v.optional(v.string()),
+    input: v.optional(v.any()),
+    output: v.optional(v.any()),
+    error: v.optional(v.string()),
+    createdAt: v.string(),
+  })
+    .index('by_run_step', ['runId', 'stepIndex'])
+    .index('by_farm_run', ['farmExternalId', 'runId']),
+
+  agentConfigs: defineTable({
+    farmExternalId: v.string(),
+    profileId: agentProfileId,
+    behaviorConfig: agentBehaviorConfig,
+    promptOverrideEnabled: v.boolean(),
+    promptOverrideText: v.optional(v.string()),
+    promptOverrideVersion: v.number(),
+    updatedBy: v.string(),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index('by_farm', ['farmExternalId']),
+
+  agentMemories: defineTable({
+    farmExternalId: v.string(),
+    scope: agentMemoryScope,
+    targetId: v.optional(v.string()),
+    title: v.string(),
+    content: v.string(),
+    tags: v.optional(v.array(v.string())),
+    priority: v.number(),
+    status: agentMemoryStatus,
+    source: agentMemorySource,
+    createdBy: v.string(),
+    updatedBy: v.string(),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    lastUsedAt: v.optional(v.string()),
+  })
+    .index('by_farm_status', ['farmExternalId', 'status'])
+    .index('by_target_status', ['targetId', 'status'])
+    .index('by_farm_priority', ['farmExternalId', 'priority']),
 })

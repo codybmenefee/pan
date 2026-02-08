@@ -8,6 +8,7 @@ import {
   DateRangeSelector,
   type DateRange
 } from '@/components/history'
+import type { PaddockModification, PlanData } from '@/components/history/HistoryEventCard'
 import { Card, CardContent } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/ui/loading'
 import { ErrorState } from '@/components/ui/error'
@@ -41,14 +42,14 @@ function HistoryPage() {
 
   // Build pasture name lookup map
   const pastureNameMap = useMemo(() => {
-    if (!pastures) return new Map<string, string>()
-    return new Map(pastures.map(p => [p.externalId, p.name]))
+    const pastureList = (pastures ?? []) as Array<{ externalId: string; name: string }>
+    return new Map<string, string>(pastureList.map((pasture) => [pasture.externalId, pasture.name]))
   }, [pastures])
 
   // Get plan IDs for fetching modifications
   const planIds = useMemo(() => {
-    if (!plans) return []
-    return plans.map(p => p._id as Id<'plans'>)
+    const planList = (plans ?? []) as PlanData[]
+    return planList.map((plan) => plan._id as Id<'plans'>)
   }, [plans])
 
   // Fetch paddock modifications for all plans
@@ -59,18 +60,21 @@ function HistoryPage() {
 
   // Build modification lookup map by planId
   const modificationsMap = useMemo(() => {
-    if (!modifications) return new Map()
-    return new Map(modifications.map(m => [m.planId, m]))
+    const modificationList = (modifications ?? []) as PaddockModification[]
+    return new Map<string, PaddockModification>(
+      modificationList.map((modification) => [modification.planId, modification])
+    )
   }, [modifications])
 
   // Simple stats from real data
   const stats = useMemo(() => {
     if (!plans) return null
+    const planList = plans as PlanData[]
     return {
-      total: plans.length,
-      approved: plans.filter(p => p.status === 'approved').length,
-      modified: plans.filter(p => p.status === 'modified').length,
-      pending: plans.filter(p => p.status === 'pending').length,
+      total: planList.length,
+      approved: planList.filter((plan) => plan.status === 'approved').length,
+      modified: planList.filter((plan) => plan.status === 'modified').length,
+      pending: planList.filter((plan) => plan.status === 'pending').length,
     }
   }, [plans])
 

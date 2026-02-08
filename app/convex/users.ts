@@ -109,6 +109,7 @@ export const getUserSubscription = query({
       planId: user.subscriptionPlanId,
       subscriptionId: user.subscriptionId,
       currentPeriodEnd: user.subscriptionCurrentPeriodEnd,
+      agentDashboardEnabled: user.agentDashboardEnabled ?? false,
     }
   },
 })
@@ -128,6 +129,7 @@ export const syncUserSubscription = mutation({
       v.literal('canceled')
     ),
     currentPeriodEnd: v.string(),
+    agentDashboardEnabled: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const now = new Date().toISOString()
@@ -147,6 +149,7 @@ export const syncUserSubscription = mutation({
         subscriptionId: args.subscriptionId,
         subscriptionPlanId: args.planId,
         subscriptionCurrentPeriodEnd: args.currentPeriodEnd,
+        agentDashboardEnabled: args.agentDashboardEnabled ?? false,
         createdAt: now,
         updatedAt: now,
       })
@@ -158,6 +161,7 @@ export const syncUserSubscription = mutation({
       subscriptionId: args.subscriptionId,
       subscriptionPlanId: args.planId,
       subscriptionCurrentPeriodEnd: args.currentPeriodEnd,
+      agentDashboardEnabled: args.agentDashboardEnabled ?? false,
       updatedAt: now,
     })
 
@@ -186,6 +190,7 @@ export const cancelUserSubscription = mutation({
 
     await ctx.db.patch(user._id, {
       subscriptionStatus: 'canceled',
+      agentDashboardEnabled: false,
       updatedAt: now,
     })
 

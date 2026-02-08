@@ -27,6 +27,12 @@ const settingsShape = {
   pushNotifications: v.boolean(),
   virtualFenceProvider: v.optional(v.string()),
   apiKey: v.optional(v.string()),
+  agentProfileId: v.optional(v.union(
+    v.literal('conservative'),
+    v.literal('balanced'),
+    v.literal('aggressive'),
+    v.literal('custom'),
+  )),
   mapPreferences: v.optional(mapPreferencesShape),
   areaUnit: areaUnitShape,
 }
@@ -250,6 +256,12 @@ export const updateFarmSettings = mutation({
     settings: v.object({
       virtualFenceProvider: v.optional(v.string()),
       apiKey: v.optional(v.string()),
+      agentProfileId: v.optional(v.union(
+        v.literal('conservative'),
+        v.literal('balanced'),
+        v.literal('aggressive'),
+        v.literal('custom'),
+      )),
       areaUnit: v.optional(v.union(v.literal('hectares'), v.literal('acres'))),
     }),
   },

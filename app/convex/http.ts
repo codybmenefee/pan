@@ -151,6 +151,18 @@ const PLAN_TO_TIER: Record<string, 'free' | 'starter' | 'professional' | 'enterp
   'plan_enterprise': 'enterprise',
 }
 
+function hasAgentDashboardEntitlement(planId: string | undefined): boolean {
+  if (!planId) return false
+  const normalized = planId.toLowerCase()
+  return (
+    normalized.includes('producer') ||
+    normalized.includes('commercial') ||
+    normalized.includes('professional') ||
+    normalized.includes('enterprise') ||
+    normalized.includes('agent_dashboard')
+  )
+}
+
 /**
  * Clerk Billing Webhook Handler
  *
@@ -269,6 +281,7 @@ async function handleUserSubscriptionUpdate(
       planId: normalized.planId,
       status: normalized.status,
       currentPeriodEnd: normalized.currentPeriodEnd,
+      agentDashboardEnabled: hasAgentDashboardEntitlement(normalized.planId),
     })
 
     log(`User subscription synced for ${normalized.userId}: ${normalized.planId} (${normalized.status})`)

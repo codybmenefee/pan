@@ -1,5 +1,5 @@
 import { Link, useLocation } from '@tanstack/react-router'
-import { Map, History, Settings, BarChart3 } from 'lucide-react'
+import { Map, History, Settings, BarChart3, Bot } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -8,6 +8,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { useAppAuth } from '@/lib/auth'
+import { hasAgentDashboardAccess } from '@/lib/agentAccess'
 
 interface NavItem {
   label: string
@@ -29,6 +31,8 @@ export function Sidebar() {
   const isDemo = location.pathname.startsWith('/demo')
   const navItems = getNavItems(isDemo)
   const settingsPath = isDemo ? '/demo/settings' : '/app/settings'
+  const { hasFeature, hasPlan, isDevAuth } = useAppAuth()
+  const canAccessAgentDashboard = hasAgentDashboardAccess({ hasFeature, hasPlan, isDevAuth })
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -65,6 +69,27 @@ export function Sidebar() {
         {/* Bottom section */}
         <div className="flex flex-col items-center gap-0.5">
           <Separator className="mb-0.5 w-4 bg-sidebar-border" />
+
+          {!isDemo && canAccessAgentDashboard && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link
+                  to="/app/agent"
+                  className={cn(
+                    'flex h-6 w-6 items-center justify-center transition-colors',
+                    location.pathname.startsWith('/app/agent')
+                      ? 'bg-sidebar-accent text-sidebar-accent-foreground border border-olive/40'
+                      : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                  )}
+                >
+                  <Bot className="h-3.5 w-3.5" />
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>Agent</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
 
           <Tooltip>
             <TooltipTrigger asChild>

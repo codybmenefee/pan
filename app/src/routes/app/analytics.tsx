@@ -14,6 +14,10 @@ import {
   AIPartnershipChart,
 } from '@/components/analytics'
 
+type RecoveryPoint = {
+  recoveryPct: number
+}
+
 export const Route = createFileRoute('/app/analytics')({
   component: AnalyticsPage,
 })
@@ -84,11 +88,12 @@ function AnalyticsPage() {
   }
 
   // Calculate summary metrics
-  const avgRecovery = recoveryData.length > 0
-    ? Math.round(recoveryData.reduce((sum, p) => sum + p.recoveryPct, 0) / recoveryData.length)
+  const recoveryPoints = recoveryData as RecoveryPoint[]
+  const avgRecovery = recoveryPoints.length > 0
+    ? Math.round(recoveryPoints.reduce((sum, pasture) => sum + pasture.recoveryPct, 0) / recoveryPoints.length)
     : 0
 
-  const readyPastures = recoveryData.filter(p => p.recoveryPct >= 80).length
+  const readyPastures = recoveryPoints.filter((pasture) => pasture.recoveryPct >= 80).length
 
   return (
     <div className="h-full overflow-auto">
@@ -118,7 +123,7 @@ function AnalyticsPage() {
         />
         <MetricCard
           title="Ready Pastures"
-          value={`${readyPastures} of ${recoveryData.length}`}
+          value={`${readyPastures} of ${recoveryPoints.length}`}
           trendDirection={readyPastures > 0 ? 'up' : 'stable'}
           tooltip="Pastures with 80%+ recovery, ready for grazing."
         />

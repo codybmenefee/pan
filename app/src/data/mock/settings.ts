@@ -10,6 +10,7 @@ export const defaultSettings: FarmSettings = {
   pushNotifications: false,
   virtualFenceProvider: '',
   apiKey: '',
+  agentProfileId: 'balanced',
   mapPreferences: { showRGBSatellite: false, showNDVIHeatmap: false },
   areaUnit: 'hectares',
 }

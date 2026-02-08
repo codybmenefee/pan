@@ -10,7 +10,7 @@ import { PlanModifyView } from './PlanModifyView'
 import { BriefSkeleton } from '@/components/ui/loading'
 import { LowConfidenceWarning } from '@/components/ui/error'
 import { getFormattedDate } from '@/data/mock/plan'
-import type { PlanStatus, Paddock } from '@/lib/types'
+import type { PlanStatus, Paddock, BriefDecision } from '@/lib/types'
 import { useGeometry } from '@/lib/geometry'
 import { useTodayPlan } from '@/lib/convex/usePlan'
 import { NoPlanState } from './NoPlanState'
@@ -67,8 +67,6 @@ function planDocToPaddock(plan: PlanDocument | null | undefined): Paddock | unde
 export function MorningBrief({
   farmExternalId,
   compact = false,
-  onClose: _onClose,
-  onZoomToPaddock: _onZoomToPaddock,
   onEnterModifyMode,
   modifyModeActive = false,
   onSaveModification,
@@ -202,6 +200,54 @@ export function MorningBrief({
   // Compute grass quality from pasture NDVI
   const grassQuality = recommendedPasture ? getGrassQuality(recommendedPasture.ndvi) : undefined
 
+  // Extract decision from justification or reasoning (legacy support)
+  // New plans will have "Decision: MOVE" or "Decision: STAY" as first reasoning item
+  // or "MOVE to new section:" or "STAY in current section:" in justification
+  let briefDecision: BriefDecision | undefined
+  let daysInCurrentSection: number | undefined
+  let estimatedForageRemaining: number | undefined
+
+  // Check justification for decision prefix
+  if (plan.sectionJustification) {
+    if (plan.sectionJustification.startsWith('MOVE')) {
+      briefDecision = 'MOVE'
+    } else if (plan.sectionJustification.startsWith('STAY')) {
+      briefDecision = 'STAY'
+    }
+  }
+
+  // Check reasoning for decision
+  if (!briefDecision && plan.reasoning && plan.reasoning.length > 0) {
+    const firstReason = plan.reasoning[0]
+    if (firstReason.includes('Decision: MOVE')) {
+      briefDecision = 'MOVE'
+    } else if (firstReason.includes('Decision: STAY')) {
+      briefDecision = 'STAY'
+    }
+  }
+
+  // Extract days and forage info from reasoning if available
+  if (plan.reasoning) {
+    for (const reason of plan.reasoning) {
+      // Look for "Day X in section" or "X days in section"
+      const daysMatch = reason.match(/Day\s+(\d+)|(\d+)\s+days?\s+in\s+section/i)
+      if (daysMatch) {
+        daysInCurrentSection = parseInt(daysMatch[1] || daysMatch[2], 10)
+      }
+      // Look for "X% forage" patterns
+      const forageMatch = reason.match(/(\d+)%\s+forage/i)
+      if (forageMatch) {
+        estimatedForageRemaining = parseInt(forageMatch[1], 10)
+      }
+    }
+  }
+
+  // When decision is MOVE, the parsed days refer to the OLD section.
+  // The new section should start at Day 1.
+  if (briefDecision === 'MOVE') {
+    daysInCurrentSection = 1
+  }
+
   // Generate summary reason from first reasoning item or justification
   const summaryReason = plan.sectionJustification
     || (plan.reasoning && plan.reasoning.length > 0
@@ -211,8 +257,9 @@ export function MorningBrief({
         : 'Analyzing pasture conditions')
 
   // Use remaining reasoning items as expandable details
+  // Filter out the "Decision: X" line if present
   const reasoningDetails = plan.reasoning && plan.reasoning.length > 1
-    ? plan.reasoning.slice(1)
+    ? plan.reasoning.slice(1).filter((r: string) => !r.startsWith('Decision:'))
     : []
 
   if (planStatus === 'approved' || planStatus === 'modified') {
@@ -270,6 +317,9 @@ export function MorningBrief({
               daysInCurrentPasture={2}
               totalDaysPlanned={4}
               previousPaddocks={[]}
+              decision={briefDecision}
+              daysInCurrentSection={daysInCurrentSection}
+              estimatedForageRemaining={estimatedForageRemaining}
               grassQuality={grassQuality}
               summaryReason={summaryReason}
               reasoningDetails={reasoningDetails}
@@ -372,6 +422,9 @@ export function MorningBrief({
               daysInCurrentPasture={2}
               totalDaysPlanned={4}
               previousPaddocks={[]}
+              decision={briefDecision}
+              daysInCurrentSection={daysInCurrentSection}
+              estimatedForageRemaining={estimatedForageRemaining}
               grassQuality={grassQuality}
               summaryReason={summaryReason}
               reasoningDetails={reasoningDetails}

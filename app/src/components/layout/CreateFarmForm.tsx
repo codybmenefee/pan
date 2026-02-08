@@ -4,6 +4,7 @@ import { useAction, useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { AddressAutocomplete } from '@/components/ui/address-autocomplete'
 import { Loader2, MapPin, AlertTriangle } from 'lucide-react'
 
 interface CreateFarmFormProps {
@@ -107,18 +108,14 @@ export function CreateFarmForm({ onSuccess, onCancel }: CreateFarmFormProps) {
         <label htmlFor="farm-address" className="text-sm font-medium">
           Address
         </label>
-        <div className="relative">
-          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            id="farm-address"
-            type="text"
-            placeholder="e.g., 123 Rural Road, Nashville, TN"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            disabled={isSubmitting}
-            className="pl-9"
-          />
-        </div>
+        <AddressAutocomplete
+          id="farm-address"
+          value={address}
+          onChange={setAddress}
+          placeholder="e.g., 123 Rural Road, Nashville, TN"
+          disabled={isSubmitting}
+          icon={MapPin}
+        />
         <p className="text-xs text-muted-foreground">
           Enter a street address, city, or region to center the map on your farm location.
         </p>

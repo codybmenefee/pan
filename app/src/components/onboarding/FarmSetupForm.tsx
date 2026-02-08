@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { AddressAutocomplete } from '@/components/ui/address-autocomplete'
 import { Loader2 } from 'lucide-react'
 
 interface FarmData {
@@ -62,10 +63,10 @@ export function FarmSetupForm({
             <label htmlFor="location" className="text-sm font-medium">
               Location
             </label>
-            <Input
+            <AddressAutocomplete
               id="location"
               value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              onChange={(value) => setFormData({ ...formData, location: value })}
               placeholder="e.g., 943 Riverview Ln, Columbia, TN 38401"
               disabled={isSubmitting}
             />

@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as agentAdmin from "../agentAdmin.js";
 import type * as bugReports from "../bugReports.js";
 import type * as bugReportsAction from "../bugReportsAction.js";
 import type * as crons from "../crons.js";
@@ -24,9 +25,14 @@ import type * as http from "../http.js";
 import type * as intelligence from "../intelligence.js";
 import type * as intelligenceActions from "../intelligenceActions.js";
 import type * as internal_ from "../internal.js";
+import type * as lib_agentAccess from "../lib/agentAccess.js";
 import type * as lib_areaConstants from "../lib/areaConstants.js";
+import type * as lib_geoCompat from "../lib/geoCompat.js";
+import type * as lib_grazingPrinciples from "../lib/grazingPrinciples.js";
 import type * as lib_logger from "../lib/logger.js";
+import type * as lib_paddockVisualization from "../lib/paddockVisualization.js";
 import type * as lib_s3Signer from "../lib/s3Signer.js";
+import type * as lib_sectionSizing from "../lib/sectionSizing.js";
 import type * as livestock from "../livestock.js";
 import type * as migrations_deleteBadFarmSettings from "../migrations/deleteBadFarmSettings.js";
 import type * as migrations_migrateToClerkOrgs from "../migrations/migrateToClerkOrgs.js";
@@ -54,6 +60,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  agentAdmin: typeof agentAdmin;
   bugReports: typeof bugReports;
   bugReportsAction: typeof bugReportsAction;
   crons: typeof crons;
@@ -70,9 +77,14 @@ declare const fullApi: ApiFromModules<{
   intelligence: typeof intelligence;
   intelligenceActions: typeof intelligenceActions;
   internal: typeof internal_;
+  "lib/agentAccess": typeof lib_agentAccess;
   "lib/areaConstants": typeof lib_areaConstants;
+  "lib/geoCompat": typeof lib_geoCompat;
+  "lib/grazingPrinciples": typeof lib_grazingPrinciples;
   "lib/logger": typeof lib_logger;
+  "lib/paddockVisualization": typeof lib_paddockVisualization;
   "lib/s3Signer": typeof lib_s3Signer;
+  "lib/sectionSizing": typeof lib_sectionSizing;
   livestock: typeof livestock;
   "migrations/deleteBadFarmSettings": typeof migrations_deleteBadFarmSettings;
   "migrations/migrateToClerkOrgs": typeof migrations_migrateToClerkOrgs;

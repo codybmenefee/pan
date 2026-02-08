@@ -2,12 +2,13 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { GrassQualityBadge } from './GrassQualityBadge'
 import { DaysRemainingIndicator } from './DaysRemainingIndicator'
+import { DecisionBadge } from './DecisionBadge'
 import { ExpandableReasoning } from './ExpandableReasoning'
 import { PastureMiniMap } from './PastureMiniMap'
-import type { Pasture, Paddock } from '@/lib/types'
+import type { Pasture, Paddock, BriefDecision } from '@/lib/types'
 import type { GrassQuality } from '@/lib/grassQuality'
 import { getGrassQuality } from '@/lib/grassQuality'
-import { MapPin } from 'lucide-react'
+import { MapPin, Timer } from 'lucide-react'
 import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 
 interface BriefCardProps {
@@ -20,6 +21,10 @@ interface BriefCardProps {
   daysInCurrentPasture?: number
   totalDaysPlanned?: number
   previousPaddocks?: Paddock[]
+  // New decision-based props
+  decision?: BriefDecision
+  daysInCurrentSection?: number
+  estimatedForageRemaining?: number
   // Computed props for simplified display
   grassQuality?: GrassQuality
   summaryReason?: string
@@ -37,6 +42,9 @@ export function BriefCard({
   daysInCurrentPasture = 1,
   totalDaysPlanned = 4,
   previousPaddocks = [],
+  decision,
+  daysInCurrentSection,
+  estimatedForageRemaining,
   grassQuality,
   summaryReason,
   reasoningDetails = [],
@@ -50,6 +58,9 @@ export function BriefCard({
 
   // Generate summary from reasoning if not provided
   const summary = summaryReason ?? `Best forage available after ${pasture.restDays} days rest`
+
+  // Use daysInCurrentSection if provided, otherwise fall back to daysInCurrentPasture
+  const displayDaysInSection = daysInCurrentSection ?? daysInCurrentPasture
 
   return (
     <Card className="overflow-hidden !p-0 !gap-0">
@@ -72,12 +83,30 @@ export function BriefCard({
           <div className="flex items-center gap-2 mb-1">
             <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
             <span className="font-semibold text-sm truncate">{pasture.name}</span>
-            <GrassQualityBadge quality={quality} className="shrink-0" />
+            {decision && <DecisionBadge decision={decision} className="shrink-0" />}
+            {!decision && <GrassQualityBadge quality={quality} className="shrink-0" />}
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <DaysRemainingIndicator daysRemaining={daysRemaining} />
-            <span className="text-muted-foreground/50">-</span>
-            <span>{paddock ? format(paddock.targetArea) : format(pasture.area)} paddock</span>
+            {decision ? (
+              <>
+                <span className="flex items-center gap-1">
+                  <Timer className="h-3 w-3" />
+                  Day {displayDaysInSection} in section
+                </span>
+                {estimatedForageRemaining !== undefined && (
+                  <>
+                    <span className="text-muted-foreground/50">-</span>
+                    <span>{estimatedForageRemaining}% forage left</span>
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                <DaysRemainingIndicator daysRemaining={daysRemaining} />
+                <span className="text-muted-foreground/50">-</span>
+                <span>{paddock ? format(paddock.targetArea) : format(pasture.area)} paddock</span>
+              </>
+            )}
           </div>
         </div>
       </div>

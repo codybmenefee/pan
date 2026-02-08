@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
-import { RotateCcw } from 'lucide-react'
+import { Link, createFileRoute } from '@tanstack/react-router'
+import { Bot, RotateCcw } from 'lucide-react'
 import {
   FarmInfoStrip,
   GeneralSettings,
@@ -15,6 +15,8 @@ import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
 import { useFarmSettings } from '@/lib/convex/useFarmSettings'
 import { useFarmContext } from '@/lib/farm'
 import type { FarmSettings } from '@/lib/types'
+import { useAppAuth } from '@/lib/auth'
+import { hasAgentDashboardAccess } from '@/lib/agentAccess'
 
 export const Route = createFileRoute('/app/settings')({
   component: SettingsPage,
@@ -23,8 +25,10 @@ export const Route = createFileRoute('/app/settings')({
 function SettingsPage() {
   const { settings, isLoading, saveSettings, resetSettings } = useFarmSettings()
   const { activeFarmId } = useFarmContext()
+  const { hasFeature, hasPlan, isDevAuth } = useAppAuth()
   const [pendingSettings, setPendingSettings] = useState<FarmSettings | null>(null)
   const [saved, setSaved] = useState(false)
+  const canAccessAgentDashboard = hasAgentDashboardAccess({ hasFeature, hasPlan, isDevAuth })
 
   const displaySettings = pendingSettings ?? settings
   const hasChanges = pendingSettings !== null
@@ -66,6 +70,27 @@ function SettingsPage() {
       <h1 className="text-xl font-semibold mb-3">Settings</h1>
 
       <FarmInfoStrip />
+
+      {canAccessAgentDashboard && (
+        <Card className="mt-3 border-2 border-cobalt/40">
+          <CardContent className="py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Bot className="h-4 w-4 text-cobalt" />
+                <div>
+                  <p className="text-sm font-medium">Agent Command Center</p>
+                  <p className="text-xs text-muted-foreground">
+                    Monitor runs, tune behavior, manage memory and rules.
+                  </p>
+                </div>
+              </div>
+              <Button asChild size="sm" variant="outline">
+                <Link to="/app/agent">Open</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="mt-3">
         <Tabs defaultValue="general">

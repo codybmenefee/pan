@@ -1,5 +1,6 @@
-import { query, mutation } from './_generated/server'
+import { query, mutation, internalMutation } from './_generated/server'
 import { v } from 'convex/values'
+import { internal } from './_generated/api'
 import { DEFAULT_FARM_EXTERNAL_ID } from './seedData'
 import { HECTARES_PER_SQUARE_METER } from './lib/areaConstants'
 import { createLogger } from './lib/logger'
@@ -151,14 +152,297 @@ export const approvePlan = mutation({
       throw new Error('Plan not found')
     }
 
+    const now = new Date().toISOString()
+    const today = now.split('T')[0]
+
     await ctx.db.patch(args.planId, {
       status: 'approved',
-      approvedAt: new Date().toISOString(),
+      approvedAt: now,
       approvedBy: args.userId,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now,
     })
 
+    // Record section grazing event for progressive grazing tracking
+    if (plan.sectionGeometry && plan.primaryPaddockExternalId) {
+      // Schedule the internal mutation to record the section
+      await ctx.scheduler.runAfter(0, internal.intelligence.recordApprovedSection, {
+        planId: args.planId,
+        farmExternalId: plan.farmExternalId,
+        paddockExternalId: plan.primaryPaddockExternalId,
+        sectionGeometry: plan.sectionGeometry,
+        sectionAreaHa: plan.sectionAreaHectares ?? 0,
+        sectionNdviMean: plan.sectionAvgNdvi ?? 0,
+        progressionContext: plan.progressionContext,
+      })
+    }
+
+    // Update the associated paddockForecasts record to progress sections
+    // This fixes the bug where the agent always recommends section 0
+    const dailyBrief = await ctx.db
+      .query('dailyBriefs')
+      .withIndex('by_farm_date', (q: any) => q.eq('farmExternalId', plan.farmExternalId))
+      .filter((q: any) => q.eq(q.field('date'), plan.date))
+      .first()
+
+    if (dailyBrief?.forecastId) {
+      const forecast = await ctx.db.get(dailyBrief.forecastId)
+      if (forecast && forecast.status === 'active') {
+        const isMove = dailyBrief.decision === 'MOVE'
+        const currentSection = forecast.forecastedSections[forecast.activeSectionIndex]
+
+        if (isMove && currentSection) {
+          // Record section in history
+          const grazingHistory = [...forecast.grazingHistory, {
+            sectionIndex: forecast.activeSectionIndex,
+            geometry: currentSection.geometry,
+            areaHa: currentSection.areaHa,
+            startedDate: dailyBrief.date,
+            endedDate: today,
+            actualDays: forecast.daysInActiveSection,
+          }]
+
+          // Move to next section
+          const nextIndex = Math.min(
+            forecast.activeSectionIndex + 1,
+            forecast.forecastedSections.length - 1
+          )
+
+          await ctx.db.patch(forecast._id, {
+            activeSectionIndex: nextIndex,
+            daysInActiveSection: 1,
+            grazingHistory,
+            updatedAt: now,
+          })
+
+          log.debug('Forecast progressed to next section', {
+            forecastId: forecast._id.toString(),
+            previousSection: forecast.activeSectionIndex,
+            nextSection: nextIndex,
+            historyLength: grazingHistory.length,
+          })
+        } else {
+          // STAY - increment days in section
+          await ctx.db.patch(forecast._id, {
+            daysInActiveSection: forecast.daysInActiveSection + 1,
+            updatedAt: now,
+          })
+
+          log.debug('Forecast staying in current section', {
+            forecastId: forecast._id.toString(),
+            sectionIndex: forecast.activeSectionIndex,
+            daysInSection: forecast.daysInActiveSection + 1,
+          })
+        }
+      }
+    }
+
     return args.planId
+  },
+})
+
+/**
+ * Internal mutation to record approved section for progressive grazing.
+ * Called after plan approval to update rotation tracking.
+ */
+export const recordApprovedSection = internalMutation({
+  args: {
+    planId: v.id('plans'),
+    farmExternalId: v.string(),
+    paddockExternalId: v.string(),
+    sectionGeometry: v.any(),
+    sectionAreaHa: v.number(),
+    sectionNdviMean: v.number(),
+    progressionContext: v.optional(v.object({
+      rotationId: v.id('paddockRotations'),
+      sequenceNumber: v.number(),
+      progressionQuadrant: v.string(),
+      wasUngrazedAreaReturn: v.boolean(),
+    })),
+  },
+  handler: async (ctx, args) => {
+    const now = new Date().toISOString()
+    const today = now.split('T')[0]
+
+    // Calculate section centroid (simple average of polygon vertices)
+    let sectionCentroid: number[] = [0, 0]
+    try {
+      const coords = args.sectionGeometry?.coordinates?.[0]
+      if (coords && coords.length > 0) {
+        let sumLng = 0
+        let sumLat = 0
+        // Exclude the last point if it's the same as the first (closed polygon)
+        const points = coords.length > 1 &&
+          coords[0][0] === coords[coords.length - 1][0] &&
+          coords[0][1] === coords[coords.length - 1][1]
+          ? coords.slice(0, -1)
+          : coords
+        for (const point of points) {
+          sumLng += point[0]
+          sumLat += point[1]
+        }
+        sectionCentroid = [sumLng / points.length, sumLat / points.length]
+      }
+    } catch {
+      // If centroid calculation fails, use first coordinate
+      const coords = args.sectionGeometry?.coordinates?.[0]?.[0]
+      if (coords) {
+        sectionCentroid = coords
+      }
+    }
+
+    // Get or create active rotation
+    let rotationId = args.progressionContext?.rotationId
+
+    if (!rotationId) {
+      // Check for existing active rotation
+      const activeRotation = await ctx.db
+        .query('paddockRotations')
+        .withIndex('by_active', (q: any) =>
+          q.eq('farmExternalId', args.farmExternalId)
+           .eq('paddockExternalId', args.paddockExternalId)
+           .eq('status', 'active')
+        )
+        .first()
+
+      if (activeRotation) {
+        rotationId = activeRotation._id
+      } else {
+        // Create new rotation
+        // Get farm settings for default progression settings
+        const settings = await ctx.db
+          .query('farmSettings')
+          .withIndex('by_farm', (q: any) => q.eq('farmExternalId', args.farmExternalId))
+          .first()
+
+        const progressionSettings = settings?.progressionSettings
+        const defaultCorner = progressionSettings?.defaultStartCorner !== 'auto'
+          ? progressionSettings?.defaultStartCorner
+          : 'NW'
+        const defaultDirection = progressionSettings?.defaultDirection !== 'auto'
+          ? progressionSettings?.defaultDirection
+          : 'horizontal'
+
+        // Check for previous rotation's ungrazed areas
+        const previousRotation = await ctx.db
+          .query('paddockRotations')
+          .withIndex('by_paddock', (q: any) =>
+            q.eq('farmExternalId', args.farmExternalId)
+             .eq('paddockExternalId', args.paddockExternalId)
+          )
+          .order('desc')
+          .first()
+
+        rotationId = await ctx.db.insert('paddockRotations', {
+          farmExternalId: args.farmExternalId,
+          paddockExternalId: args.paddockExternalId,
+          status: 'active',
+          startDate: today,
+          entryNdviMean: args.sectionNdviMean,
+          startingCorner: (defaultCorner as 'NW' | 'NE' | 'SW' | 'SE') ?? 'NW',
+          progressionDirection: (defaultDirection as 'horizontal' | 'vertical') ?? 'horizontal',
+          totalSectionsGrazed: 0,
+          totalAreaGrazedHa: 0,
+          grazedPercentage: 0,
+          ungrazedAreas: previousRotation?.ungrazedAreas,
+          createdAt: now,
+          updatedAt: now,
+        })
+
+        log.debug('Created new rotation on plan approval', {
+          rotationId: rotationId.toString(),
+          paddockExternalId: args.paddockExternalId,
+        })
+      }
+    }
+
+    // Get rotation to update
+    const rotation = await ctx.db.get(rotationId)
+    if (!rotation) {
+      log.error('Rotation not found', { rotationId: rotationId.toString() })
+      return
+    }
+
+    // Get previous sections to calculate sequence number
+    const previousSections = await ctx.db
+      .query('sectionGrazingEvents')
+      .withIndex('by_rotation', (q: any) => q.eq('rotationId', rotationId))
+      .collect()
+
+    const sequenceNumber = previousSections.length + 1
+    const cumulativeAreaGrazedHa = rotation.totalAreaGrazedHa + args.sectionAreaHa
+
+    // Get paddock area for percentage calculation
+    const farm = await ctx.db
+      .query('farms')
+      .withIndex('by_externalId', (q: any) => q.eq('externalId', args.farmExternalId))
+      .first()
+
+    let paddockArea = 1
+    if (farm) {
+      const paddock = await ctx.db
+        .query('paddocks')
+        .withIndex('by_farm_externalId', (q: any) =>
+          q.eq('farmId', farm._id).eq('externalId', args.paddockExternalId)
+        )
+        .first()
+      if (paddock) {
+        paddockArea = paddock.area || 1
+      }
+    }
+
+    const cumulativeGrazedPct = Math.min(100, (cumulativeAreaGrazedHa / paddockArea) * 100)
+
+    // Record section event
+    await ctx.db.insert('sectionGrazingEvents', {
+      farmExternalId: args.farmExternalId,
+      paddockExternalId: args.paddockExternalId,
+      rotationId,
+      planId: args.planId,
+      date: today,
+      sequenceNumber,
+      sectionGeometry: args.sectionGeometry,
+      sectionAreaHa: args.sectionAreaHa,
+      centroid: sectionCentroid,
+      sectionNdviMean: args.sectionNdviMean,
+      progressionQuadrant: args.progressionContext?.progressionQuadrant,
+      adjacentToPrevious: sequenceNumber > 1, // Assume adjacent if not first section
+      cumulativeAreaGrazedHa,
+      cumulativeGrazedPct,
+      createdAt: now,
+    })
+
+    // Update rotation totals
+    await ctx.db.patch(rotationId, {
+      totalSectionsGrazed: sequenceNumber,
+      totalAreaGrazedHa: cumulativeAreaGrazedHa,
+      grazedPercentage: cumulativeGrazedPct,
+      updatedAt: now,
+    })
+
+    // Check if rotation should be marked as complete (>90% grazed)
+    if (cumulativeGrazedPct >= 90) {
+      await ctx.db.patch(rotationId, {
+        status: 'completed',
+        endDate: today,
+        exitNdviMean: args.sectionNdviMean,
+        daysInRotation: Math.floor(
+          (new Date(today).getTime() - new Date(rotation.startDate).getTime()) / (1000 * 60 * 60 * 24)
+        ),
+        updatedAt: now,
+      })
+
+      log.debug('Rotation completed (>90% grazed)', {
+        rotationId: rotationId.toString(),
+        cumulativeGrazedPct,
+      })
+    }
+
+    log.debug('Recorded section grazing event', {
+      planId: args.planId.toString(),
+      rotationId: rotationId.toString(),
+      sequenceNumber,
+      cumulativeGrazedPct,
+    })
   },
 })
 
@@ -940,5 +1224,165 @@ export const getPlanApprovalStats = query({
       },
       weeklyTrend,
     }
+  },
+})
+
+
+// Utility mutation for testing - update plan date
+export const updatePlanDate = mutation({
+  args: {
+    planId: v.id("plans"),
+    newDate: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.planId, {
+      date: args.newDate,
+      updatedAt: new Date().toISOString(),
+    })
+    return { success: true }
+  },
+})
+
+// Dev utility: Reset all paddock grazing data for a farm
+// Clears forecasts, sections, rotations, and daily briefs - returns paddocks to clean state
+export const resetAllPaddockGrazingData = mutation({
+  args: {
+    farmExternalId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
+
+    const results = {
+      paddockForecasts: 0,
+      sectionGrazingEvents: 0,
+      paddockRotations: 0,
+      dailyPlans: 0,
+      dailyBriefs: 0,
+      plans: 0,
+      grazingEvents: 0,
+    }
+
+    // Delete paddockForecasts
+    const forecasts = await ctx.db
+      .query('paddockForecasts')
+      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
+      .collect()
+    for (const forecast of forecasts) {
+      await ctx.db.delete(forecast._id)
+      results.paddockForecasts++
+    }
+
+    // Delete sectionGrazingEvents
+    const sectionEvents = await ctx.db
+      .query('sectionGrazingEvents')
+      .filter((q: any) => q.eq(q.field('farmExternalId'), farmExternalId))
+      .collect()
+    for (const event of sectionEvents) {
+      await ctx.db.delete(event._id)
+      results.sectionGrazingEvents++
+    }
+
+    // Delete paddockRotations
+    const rotations = await ctx.db
+      .query('paddockRotations')
+      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
+      .collect()
+    for (const rotation of rotations) {
+      await ctx.db.delete(rotation._id)
+      results.paddockRotations++
+    }
+
+    // Delete dailyPlans
+    const dailyPlans = await ctx.db
+      .query('dailyPlans')
+      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
+      .collect()
+    for (const plan of dailyPlans) {
+      await ctx.db.delete(plan._id)
+      results.dailyPlans++
+    }
+
+    // Delete dailyBriefs
+    const dailyBriefs = await ctx.db
+      .query('dailyBriefs')
+      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
+      .collect()
+    for (const brief of dailyBriefs) {
+      await ctx.db.delete(brief._id)
+      results.dailyBriefs++
+    }
+
+    // Delete plans (legacy)
+    const plans = await ctx.db
+      .query('plans')
+      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
+      .collect()
+    for (const plan of plans) {
+      await ctx.db.delete(plan._id)
+      results.plans++
+    }
+
+    // Delete grazingEvents
+    const grazingEvents = await ctx.db
+      .query('grazingEvents')
+      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
+      .collect()
+    for (const event of grazingEvents) {
+      await ctx.db.delete(event._id)
+      results.grazingEvents++
+    }
+
+    log.debug('Reset all paddock grazing data', {
+      farmExternalId,
+      ...results,
+    })
+
+    return results
+  },
+})
+
+// Dev utility: Shift all plan dates back by one day for a paddock
+// This allows testing progressive section generation by making "today's" plan become "yesterday's"
+export const shiftPlanDatesBack = mutation({
+  args: {
+    farmExternalId: v.optional(v.string()),
+    paddockExternalId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
+    const now = new Date().toISOString()
+
+    // Get all plans for this farm
+    const plans = await ctx.db
+      .query('plans')
+      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
+      .collect()
+
+    // Filter by paddock if specified
+    const targetPlans = args.paddockExternalId
+      ? plans.filter((p: any) => p.primaryPaddockExternalId === args.paddockExternalId)
+      : plans
+
+    let updatedCount = 0
+    for (const plan of targetPlans) {
+      // Shift date back by one day
+      const currentDate = new Date(plan.date)
+      currentDate.setDate(currentDate.getDate() - 1)
+      const newDate = currentDate.toISOString().split('T')[0]
+
+      await ctx.db.patch(plan._id, {
+        date: newDate,
+        updatedAt: now,
+      })
+      updatedCount++
+    }
+
+    log.debug('Shifted plan dates back', {
+      farmExternalId,
+      paddockExternalId: args.paddockExternalId,
+      plansUpdated: updatedCount,
+    })
+
+    return { success: true, plansUpdated: updatedCount }
   },
 })

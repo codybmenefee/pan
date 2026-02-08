@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
-import { useAppAuth, DEV_USER_EXTERNAL_ID, DEV_DEFAULT_ORG_ID } from '@/lib/auth'
+import { useAppAuth } from '@/lib/auth'
+import { DEV_DEFAULT_ORG_ID, DEV_USER_EXTERNAL_ID } from '@/lib/auth/constants'
 import { DEFAULT_FARM_ID } from '@/lib/convex/constants'
 import type { UserDoc } from '@/lib/convex/mappers'
 

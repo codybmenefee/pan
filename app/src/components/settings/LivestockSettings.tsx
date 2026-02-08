@@ -63,7 +63,8 @@ export function LivestockSettings() {
     settings.calfAU !== DEFAULT_LIVESTOCK_SETTINGS.calfAU ||
     settings.sheepAU !== DEFAULT_LIVESTOCK_SETTINGS.sheepAU ||
     settings.lambAU !== DEFAULT_LIVESTOCK_SETTINGS.lambAU ||
-    settings.dailyDMPerAU !== DEFAULT_LIVESTOCK_SETTINGS.dailyDMPerAU
+    settings.dailyDMPerAU !== DEFAULT_LIVESTOCK_SETTINGS.dailyDMPerAU ||
+    (settings.pastureYieldKgPerHa ?? 2500) !== (DEFAULT_LIVESTOCK_SETTINGS.pastureYieldKgPerHa ?? 2500)
 
   return (
     <div className="space-y-4">
@@ -146,6 +147,22 @@ export function LivestockSettings() {
           unit="kg"
           formatValue={(v) => v.toFixed(1)}
           onChange={(v) => handleChange('dailyDMPerAU', v)}
+        />
+      </div>
+
+      {/* Pasture Yield */}
+      <div>
+        <h4 className="text-sm font-medium mb-2">Pasture Yield</h4>
+        <CompactSlider
+          label="Pasture Yield"
+          description="Available dry matter per hectare for section sizing"
+          value={settings.pastureYieldKgPerHa ?? 2500}
+          min={1500}
+          max={5000}
+          step={100}
+          unit="kg/ha"
+          formatValue={(v) => v.toFixed(0)}
+          onChange={(v) => handleChange('pastureYieldKgPerHa', v)}
         />
       </div>
 

@@ -10,6 +10,7 @@ const DEFAULT_LIVESTOCK_SETTINGS = {
   sheepAU: 0.2,
   lambAU: 0.1,
   dailyDMPerAU: 12, // kg dry matter per AU per day
+  pastureYieldKgPerHa: 2500, // kg dry matter per hectare
 }
 
 /**

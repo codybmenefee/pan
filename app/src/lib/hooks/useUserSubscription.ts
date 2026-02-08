@@ -10,6 +10,7 @@ export interface UserSubscription {
   planId?: string
   subscriptionId?: string
   currentPeriodEnd?: string
+  agentDashboardEnabled?: boolean
 }
 
 export interface UseUserSubscriptionResult {

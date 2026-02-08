@@ -1,19 +1,11 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useMemo, useCallback, useEffect, type ReactNode } from 'react'
 import { ClerkProvider, SignIn, useAuth, useOrganization, useOrganizationList } from '@clerk/clerk-react'
 import { ErrorState } from '@/components/ui/error/ErrorState'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
 import { identifyUser, setFarmGroup, resetAnalytics } from '@/lib/analytics'
 import { clerkAppearance } from './clerkTheme'
-
-export const DEV_USER_EXTERNAL_ID = 'dev-user-1'
-
-// Mock organization data for local development
-// Uses 'farm-1' to match seeded data in Convex
-export const DEV_ORGS = [
-  { id: 'farm-1', name: 'Hillcrest Station' },
-] as const
-
-export const DEV_DEFAULT_ORG_ID = DEV_ORGS[0].id
+import { DEV_DEFAULT_ORG_ID, DEV_ORGS, DEV_USER_EXTERNAL_ID } from './constants'
 
 interface OrganizationInfo {
   id: string
@@ -37,6 +29,7 @@ interface AppAuthContextValue {
   needsOnboarding: boolean
   // Subscription/plan checking
   hasPlan: (plan: string) => boolean
+  hasFeature: (featureKey: string) => boolean
   isPlanLoaded: boolean
 }
 
@@ -55,6 +48,7 @@ function ClerkAuthBridge({ children }: { children: ReactNode }) {
   const { userMemberships, setActive } = useOrganizationList({
     userMemberships: { infinite: true },
   })
+  const memberships = userMemberships?.data
 
   // Debug logging
   console.log('[ClerkAuthBridge] Auth state from Clerk:', {
@@ -84,12 +78,12 @@ function ClerkAuthBridge({ children }: { children: ReactNode }) {
   }, [organization?.id, organization?.name])
 
   const organizationList = useMemo<OrganizationInfo[]>(() => {
-    if (!userMemberships?.data) return []
-    return userMemberships.data.map((membership) => ({
+    if (!memberships) return []
+    return memberships.map((membership) => ({
       id: membership.organization.id,
       name: membership.organization.name,
     }))
-  }, [userMemberships?.data])
+  }, [memberships])
 
   const setActiveOrganization = useCallback(async (orgId: string) => {
     if (setActive) {
@@ -116,6 +110,15 @@ function ClerkAuthBridge({ children }: { children: ReactNode }) {
     return has({ plan })
   }, [has])
 
+  const hasFeature = useCallback((featureKey: string) => {
+    if (!has) return false
+    try {
+      return has({ feature: featureKey })
+    } catch {
+      return false
+    }
+  }, [has])
+
   const value = useMemo<AppAuthContextValue>(() => {
     return {
       userId: userId ?? null,
@@ -130,9 +133,10 @@ function ClerkAuthBridge({ children }: { children: ReactNode }) {
       setActiveOrganization,
       needsOnboarding,
       hasPlan,
+      hasFeature,
       isPlanLoaded: isLoaded,
     }
-  }, [userId, isLoaded, isSignedIn, organization?.id, organizationList, isOrgLoaded, setActiveOrganization, needsOnboarding, hasPlan])
+  }, [userId, isLoaded, isSignedIn, organization?.id, organizationList, isOrgLoaded, setActiveOrganization, needsOnboarding, hasPlan, hasFeature])
 
   return <AppAuthContext.Provider value={value}>{children}</AppAuthContext.Provider>
 }
@@ -156,6 +160,7 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
           },
           needsOnboarding: false, // Dev mode always has an org
           hasPlan: () => true, // Dev mode bypasses subscription checks
+          hasFeature: () => true,
           isPlanLoaded: true,
         }}
       >
