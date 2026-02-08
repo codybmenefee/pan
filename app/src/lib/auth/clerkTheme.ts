@@ -1,96 +1,116 @@
 /**
  * OpenPasture branded Clerk appearance configuration
- * Colors match the app's CSS variables from globals.css
+ * Colors match the Olive Cobalt design system
  */
 export const clerkAppearance = {
   variables: {
-    colorBackground: '#233038',
-    colorPrimary: '#075056',
-    colorText: '#FDF6E3',
-    colorTextSecondary: '#c8c5b9',
-    colorInputBackground: '#1a2429',
-    colorInputText: '#FDF6E3',
-    borderRadius: '0.625rem',
+    colorBackground: '#f6f8f4',
+    colorPrimary: '#4a6a2e',
+    colorText: '#1a1e18',
+    colorTextSecondary: '#647060',
+    colorInputBackground: '#ffffff',
+    colorInputText: '#1a1e18',
+    borderRadius: '0px',
   },
   elements: {
     // Card styling
     card: {
-      backgroundColor: '#1a2429',
-      borderRadius: '0.625rem',
-      border: '1px solid rgba(255, 255, 255, 0.1)',
-      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+      backgroundColor: '#ffffff',
+      borderRadius: '0px',
+      border: '2px solid #1a1e18',
+      boxShadow: '4px 4px 0 #4a6a2e',
     },
     // Header
     headerTitle: {
-      color: '#FDF6E3',
+      color: '#1a1e18',
+      fontFamily: "'JetBrains Mono', monospace",
     },
     headerSubtitle: {
-      color: '#c8c5b9',
+      color: '#647060',
     },
     // Form fields
     formFieldLabel: {
-      color: '#c8c5b9',
+      color: '#647060',
+      fontFamily: "'JetBrains Mono', monospace",
+      textTransform: 'uppercase' as const,
+      fontSize: '0.7rem',
+      letterSpacing: '0.05em',
     },
     formFieldInput: {
-      backgroundColor: '#233038',
-      borderColor: 'rgba(255, 255, 255, 0.1)',
-      color: '#FDF6E3',
+      backgroundColor: '#f2f6ee',
+      borderColor: '#c4d0c0',
+      borderWidth: '2px',
+      borderRadius: '0px',
+      color: '#1a1e18',
+      fontFamily: "'JetBrains Mono', monospace",
       '&:focus': {
-        borderColor: '#075056',
-        boxShadow: '0 0 0 2px rgba(7, 80, 86, 0.3)',
+        borderColor: '#4a6a2e',
+        boxShadow: '0 0 0 2px rgba(74, 106, 46, 0.3)',
       },
     },
     // Primary button
     formButtonPrimary: {
-      backgroundColor: '#FF5B04',
-      color: '#FDF6E3',
+      backgroundColor: '#4a6a2e',
+      color: '#ffffff',
+      borderRadius: '0px',
+      fontFamily: "'JetBrains Mono', monospace",
+      fontWeight: '700',
+      textTransform: 'uppercase' as const,
+      letterSpacing: '0.05em',
+      boxShadow: '3px 3px 0 #1a1e18',
       '&:hover': {
-        backgroundColor: '#e55204',
+        backgroundColor: '#5a7a38',
+        transform: 'translate(-1px, -1px)',
+        boxShadow: '4px 4px 0 #1a1e18',
       },
     },
     // Social buttons
     socialButtonsBlockButton: {
-      backgroundColor: '#233038',
-      borderColor: 'rgba(255, 255, 255, 0.1)',
-      color: '#FDF6E3',
+      backgroundColor: '#ffffff',
+      borderColor: '#c4d0c0',
+      borderWidth: '2px',
+      borderRadius: '0px',
+      color: '#1a1e18',
       '&:hover': {
-        backgroundColor: '#2a3a44',
+        backgroundColor: '#f2f6ee',
+        borderColor: '#4a6a2e',
       },
     },
     socialButtonsBlockButtonText: {
-      color: '#FDF6E3',
+      color: '#1a1e18',
     },
     // Divider
     dividerLine: {
-      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+      backgroundColor: '#c4d0c0',
     },
     dividerText: {
-      color: '#c8c5b9',
+      color: '#647060',
     },
     // Footer
     footerActionLink: {
-      color: '#FF5B04',
+      color: '#a83a32',
       '&:hover': {
-        color: '#e55204',
+        color: '#c06a62',
       },
     },
     footerActionText: {
-      color: '#c8c5b9',
+      color: '#647060',
     },
     // Identity preview
     identityPreviewText: {
-      color: '#FDF6E3',
+      color: '#1a1e18',
     },
     identityPreviewEditButton: {
-      color: '#FF5B04',
+      color: '#a83a32',
     },
     // Alert
     alert: {
-      backgroundColor: 'rgba(255, 91, 4, 0.1)',
-      borderColor: 'rgba(255, 91, 4, 0.3)',
+      backgroundColor: 'rgba(168, 58, 50, 0.1)',
+      borderColor: 'rgba(168, 58, 50, 0.3)',
+      borderRadius: '0px',
     },
     alertText: {
-      color: '#FDF6E3',
+      color: '#1a1e18',
     },
   },
 }

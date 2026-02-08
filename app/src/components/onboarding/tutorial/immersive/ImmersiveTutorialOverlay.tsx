@@ -18,6 +18,20 @@ import { cn } from '@/lib/utils'
 
 const isDevMode = import.meta.env.VITE_DEV_AUTH === 'true'
 
+const stepMeta = [
+  { title: '-- intro', component: <HookStep key="hook" /> },
+  { title: '-- the-gap', component: <GapStep key="gap" /> },
+  { title: '-- evolution', component: <EvolutionStep key="evolution" /> },
+  { title: '-- bottleneck', component: <BottleneckStep key="bottleneck" /> },
+  { title: '-- unlock', component: <UnlockStep key="unlock" /> },
+  { title: '-- morning-brief', component: <MorningBriefStep key="morning-brief" /> },
+  { title: '-- pasture-health', component: <PastureHealthStep key="pasture-health" /> },
+  { title: '-- decision', component: <DecisionStep key="decision" /> },
+  { title: '-- tracking', component: <TrackingStep key="tracking" /> },
+  { title: '-- meet-farm', component: <MeetFarmStep key="meet-farm" /> },
+  { title: '-- your-turn', component: <YourTurnStep key="your-turn" /> },
+]
+
 export function ImmersiveTutorialOverlay() {
   const {
     isActive,
@@ -80,33 +94,19 @@ export function ImmersiveTutorialOverlay() {
 
   if (!isActive) return null
 
-  const steps = [
-    <HookStep key="hook" />,
-    <GapStep key="gap" />,
-    <EvolutionStep key="evolution" />,
-    <BottleneckStep key="bottleneck" />,
-    <UnlockStep key="unlock" />,
-    <MorningBriefStep key="morning-brief" />,
-    <PastureHealthStep key="pasture-health" />,
-    <DecisionStep key="decision" />,
-    <TrackingStep key="tracking" />,
-    <MeetFarmStep key="meet-farm" />,
-    <YourTurnStep key="your-turn" />,
-  ]
-
   return (
     <>
-      {/* Background overlay - fades based on phase */}
+      {/* Background overlay */}
       <div
         className="fixed inset-0 z-[60] transition-opacity duration-500 pointer-events-none"
-        style={{ backgroundColor: `rgba(0, 0, 0, ${overlayOpacity})` }}
+        style={{ backgroundColor: `rgba(26, 30, 24, ${overlayOpacity})` }}
       />
 
-      {/* Content container - pb-32 to avoid overlapping with navigation */}
-      <div className="fixed inset-0 z-[61] flex items-center justify-center px-8 pb-32 pt-16 overflow-y-auto">
+      {/* Content container */}
+      <div className="fixed inset-0 z-[61] flex items-center justify-center px-6 pb-32 pt-12 overflow-y-auto">
         {/* Step content with transition */}
-        <div className="relative w-full max-w-3xl my-auto">
-          {steps.map((step, index) => (
+        <div className="relative w-full max-w-4xl my-auto">
+          {stepMeta.map((step, index) => (
             <div
               key={index}
               className={cn(
@@ -117,7 +117,20 @@ export function ImmersiveTutorialOverlay() {
                 index < currentStep ? '-translate-y-8' : 'translate-y-8'
               )}
             >
-              {step}
+              {/* Browser-style card */}
+              <div className="border-3 border-dark shadow-[6px_6px_0_var(--olive)]" style={{ borderWidth: '3px' }}>
+                {/* Title bar */}
+                <div className="flex items-center gap-1.5 px-3.5 py-2 border-b-2 border-dark bg-dark">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#d45a5a' }} />
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#d4a84a' }} />
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#5aaa5a' }} />
+                  <span className="text-xs text-white/60 ml-2 font-mono">openpasture {step.title}</span>
+                </div>
+                {/* Content body */}
+                <div className="bg-cream p-6 md:p-8">
+                  {step.component}
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -136,7 +149,7 @@ export function ImmersiveTutorialOverlay() {
 
       {/* Dev mode shortcuts hint */}
       {isDevMode && (
-        <div className="fixed bottom-2 left-1/2 -translate-x-1/2 z-[63] text-center text-[10px] text-white/30">
+        <div className="fixed bottom-2 left-1/2 -translate-x-1/2 z-[63] text-center text-[10px] text-dark/30">
           Dev: arrow keys navigate | 0-9 jump | S skip | E end
         </div>
       )}

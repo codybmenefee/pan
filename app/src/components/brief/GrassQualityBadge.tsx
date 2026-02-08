@@ -30,7 +30,7 @@ export function GrassQualityBadge({ quality, className }: GrassQualityBadgeProps
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium',
+        'inline-flex items-center gap-1 px-2 py-0.5 border-2 text-[10px] font-bold uppercase tracking-wider',
         bgColor,
         borderColor,
         textColor,

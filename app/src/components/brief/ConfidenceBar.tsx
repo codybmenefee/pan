@@ -13,9 +13,9 @@ export function ConfidenceBar({ value, className }: ConfidenceBarProps) {
   }
 
   return (
-    <div className={cn('h-2 w-full rounded-full bg-muted', className)}>
+    <div className={cn('h-2 w-full bg-muted', className)}>
       <div
-        className={cn('h-full rounded-full transition-all', getColor())}
+        className={cn('h-full transition-all', getColor())}
         style={{ width: `${value}%` }}
       />
     </div>

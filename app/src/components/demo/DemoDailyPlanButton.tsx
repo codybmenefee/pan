@@ -32,10 +32,10 @@ export function DemoDailyPlanButton() {
         variant="default"
         size="sm"
         onClick={() => setBriefOpen(true)}
-        className="gap-1 h-6 text-xs bg-green-600 hover:bg-green-700"
+        className="gap-1 h-6 text-[10px] bg-olive hover:bg-olive-bright uppercase tracking-wider font-bold shadow-[2px_2px_0_var(--dark)]"
       >
-        <CheckCircle className="h-3.5 w-3.5" />
-        Approved
+        <CheckCircle className="h-3 w-3" />
+        [approved]
       </Button>
     )
   }
@@ -45,10 +45,10 @@ export function DemoDailyPlanButton() {
       variant="default"
       size="sm"
       onClick={() => setBriefOpen(true)}
-      className="gap-1 h-6 text-xs"
+      className="gap-1 h-6 text-[10px] uppercase tracking-wider font-bold shadow-[2px_2px_0_var(--dark)]"
     >
-      <Calendar className="h-3.5 w-3.5" />
-      Daily Plan
+      <Calendar className="h-3 w-3" />
+      daily-plan
     </Button>
   )
 }

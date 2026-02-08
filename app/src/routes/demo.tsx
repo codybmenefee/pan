@@ -47,7 +47,7 @@ function DemoLayoutContent() {
         <BriefPanelProvider>
           <SatelliteAnimationProvider>
             <TutorialProvider forceStart>
-              <div className="flex h-screen flex-col bg-background text-foreground">
+              <div className="flex h-screen flex-col bg-cream text-foreground">
                 <DemoHeader />
                 <div className="flex flex-1 overflow-hidden">
                   <Sidebar />

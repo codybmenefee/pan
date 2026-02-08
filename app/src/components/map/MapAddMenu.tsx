@@ -116,7 +116,7 @@ export function MapAddMenu({
       <Button
         size="icon"
         className={cn(
-          'h-8 w-8 rounded-full shadow-lg transition-transform',
+          'h-8 w-8 shadow-[2px_2px_0_var(--dark)] transition-transform border-2 border-dark',
           isOpen && 'rotate-45'
         )}
         onClick={() => {

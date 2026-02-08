@@ -1,6 +1,6 @@
 import * as React from "react"
 import { useState, useCallback, useEffect, useRef } from "react"
-import { XIcon, GripVerticalIcon } from "lucide-react"
+import { XIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface FloatingPanelProps {
@@ -184,8 +184,11 @@ export function FloatingPanel({
       ref={panelRef}
       className={cn(
         "fixed z-50 flex flex-col",
-        "bg-background border rounded-xl shadow-2xl",
+        "bg-olive-light border-3 border-dark",
         "overflow-hidden",
+        "shadow-[4px_4px_0_var(--olive)]",
+        "transition-shadow",
+        "hover:shadow-[6px_6px_0_var(--olive)]",
         isDragging && "select-none",
         isResizing && "select-none",
         className
@@ -195,22 +198,28 @@ export function FloatingPanel({
         top: position.y,
         width: size.width,
         height: size.height,
+        borderWidth: '3px',
       }}
     >
-      {/* Header - Draggable */}
+      {/* Window Chrome Header */}
       <div
         className={cn(
-          "flex items-center justify-between px-2.5 py-1.5 border-b",
-          "bg-muted/30",
+          "flex items-center justify-between px-3 py-1.5",
+          "bg-dark border-b-2 border-dark",
           isDragging ? "cursor-grabbing" : "cursor-grab"
         )}
         onMouseDown={handleDragStart}
       >
-        <div className="flex items-center gap-1.5">
-          <GripVerticalIcon className="h-3 w-3 text-muted-foreground" />
-          <div>
-            {title && <span className="font-semibold text-xs">{title}</span>}
-            {subtitle && <span className="text-[10px] text-muted-foreground ml-1">• {subtitle}</span>}
+        <div className="flex items-center gap-2">
+          {/* Traffic light dots */}
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full bg-[#d45a5a]" />
+            <div className="w-2 h-2 rounded-full bg-[#d4a84a]" />
+            <div className="w-2 h-2 rounded-full bg-[#5aaa5a]" />
+          </div>
+          <div className="flex items-center gap-1.5 ml-1">
+            {title && <span className="font-semibold text-[10px] text-white/80">{title}</span>}
+            {subtitle && <span className="text-[9px] text-white/40">-- {subtitle}</span>}
           </div>
         </div>
         <div className="flex items-center gap-1.5">
@@ -219,19 +228,19 @@ export function FloatingPanel({
             data-close-button
             onClick={() => onOpenChange(false)}
             className={cn(
-              "rounded-sm p-0.5 opacity-70 transition-opacity",
-              "hover:opacity-100 hover:bg-muted",
-              "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              "p-0.5 opacity-50 transition-opacity",
+              "hover:opacity-100",
+              "focus:outline-none focus:ring-1 focus:ring-olive"
             )}
           >
-            <XIcon className="h-3 w-3" />
+            <XIcon className="h-3 w-3 text-white" />
             <span className="sr-only">Close</span>
           </button>
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden bg-white">
         {children}
       </div>
 
@@ -239,7 +248,7 @@ export function FloatingPanel({
       <div
         className={cn(
           "absolute top-0 right-0 w-2 h-full cursor-ew-resize",
-          "hover:bg-primary/10 transition-colors"
+          "hover:bg-olive/10 transition-colors"
         )}
         onMouseDown={(e) => handleResizeStart(e, 'right')}
       />
@@ -248,7 +257,7 @@ export function FloatingPanel({
       <div
         className={cn(
           "absolute bottom-0 left-0 w-full h-2 cursor-ns-resize",
-          "hover:bg-primary/10 transition-colors"
+          "hover:bg-olive/10 transition-colors"
         )}
         onMouseDown={(e) => handleResizeStart(e, 'bottom')}
       />
@@ -257,11 +266,10 @@ export function FloatingPanel({
       <div
         className={cn(
           "absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize",
-          "hover:bg-primary/20 transition-colors"
+          "hover:bg-olive/20 transition-colors"
         )}
         onMouseDown={(e) => handleResizeStart(e, 'corner')}
       >
-        {/* Visual indicator for corner */}
         <svg
           className="absolute bottom-1 right-1 w-2 h-2 text-muted-foreground/50"
           viewBox="0 0 6 6"

@@ -114,7 +114,7 @@ export function SaveIndicator({ className }: SaveIndicatorProps) {
     <>
       <div
         className={cn(
-          'flex items-center gap-2 rounded-lg border border-border bg-background/95 backdrop-blur px-3 py-2 shadow-lg',
+          'flex items-center gap-2 border-2 border-dark bg-white px-3 py-2 shadow-[3px_3px_0_var(--olive)]',
           className
         )}
       >

@@ -2,27 +2,24 @@ import { MapPin, Fence, Leaf } from 'lucide-react'
 
 export function MeetFarmStep() {
   return (
-    <div className="max-w-3xl mx-auto text-center text-white">
-      {/* Header with backdrop */}
-      <div className="bg-black/70 backdrop-blur-sm rounded-xl p-4 mb-4">
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <MapPin className="h-5 w-5 text-green-400" />
-          <h2 className="text-sm font-medium text-green-400 uppercase tracking-wider">
-            Meet the Farm
-          </h2>
-        </div>
-
-        <h1 className="text-2xl md:text-3xl font-bold mb-2">
-          Welcome to "The Other Side" Farm
-        </h1>
-
-        <p className="text-base text-white/70">
-          8 pastures in various stages of recovery
-        </p>
+    <div className="max-w-3xl mx-auto text-center text-dark">
+      <div className="flex items-center justify-center gap-2 mb-2">
+        <MapPin className="h-5 w-5 text-olive" />
+        <h2 className="text-sm font-bold text-olive uppercase tracking-wider">
+          Meet the Farm
+        </h2>
       </div>
 
-      {/* Farm visualization with solid background */}
-      <div className="bg-zinc-900/95 backdrop-blur-sm rounded-xl p-4 border border-white/10 max-w-lg mx-auto mb-4">
+      <h1 className="font-serif text-2xl md:text-3xl font-bold mb-2">
+        Welcome to "The Other Side" Farm
+      </h1>
+
+      <p className="text-base text-muted-foreground mb-6">
+        8 pastures in various stages of recovery
+      </p>
+
+      {/* Farm visualization */}
+      <div className="max-w-lg mx-auto mb-6">
         <svg viewBox="0 0 340 130" className="w-full h-28">
           {[
             { x: 10, y: 10, w: 75, h: 35, status: 'ready', name: 'P1' },
@@ -35,45 +32,45 @@ export function MeetFarmStep() {
             { x: 255, y: 58, w: 70, h: 38, status: 'grazed', name: 'P8' },
           ].map((p, i) => {
             const colors = {
-              ready: { fill: '#166534', stroke: '#22c55e', text: '#4ade80' },
-              almost: { fill: '#854d0e', stroke: '#eab308', text: '#facc15' },
-              recovering: { fill: '#9a3412', stroke: '#f97316', text: '#fb923c' },
-              grazed: { fill: '#991b1b', stroke: '#ef4444', text: '#f87171' },
+              ready: { fill: '#4a6a2e', stroke: '#5a7a38', text: '#f2f6ee' },
+              almost: { fill: '#c0d0a8', stroke: '#4a6a2e', text: '#1a1e18' },
+              recovering: { fill: '#d4a574', stroke: '#a83a32', text: '#1a1e18' },
+              grazed: { fill: '#a83a32', stroke: '#8a2a22', text: '#f6f8f4' },
             }
             const c = colors[p.status as keyof typeof colors]
             return (
               <g key={i}>
-                <rect x={p.x} y={p.y} width={p.w} height={p.h} rx="3" fill={c.fill} stroke={c.stroke} strokeWidth="1.5" opacity="0.85" />
+                <rect x={p.x} y={p.y} width={p.w} height={p.h} rx="0" fill={c.fill} stroke={c.stroke} strokeWidth="2" />
                 <text x={p.x + p.w / 2} y={p.y + p.h / 2 + 3} textAnchor="middle" fill={c.text} fontSize="10" fontWeight="bold">{p.name}</text>
               </g>
             )
           })}
           {/* Legend */}
           <g transform="translate(20, 105)">
-            <circle cx="5" cy="5" r="4" fill="#22c55e" /><text x="14" y="8" fill="white" fontSize="8" opacity="0.7">Ready</text>
-            <circle cx="75" cy="5" r="4" fill="#eab308" /><text x="84" y="8" fill="white" fontSize="8" opacity="0.7">Almost</text>
-            <circle cx="155" cy="5" r="4" fill="#f97316" /><text x="164" y="8" fill="white" fontSize="8" opacity="0.7">Recovering</text>
-            <circle cx="255" cy="5" r="4" fill="#ef4444" /><text x="264" y="8" fill="white" fontSize="8" opacity="0.7">Grazed</text>
+            <rect x="0" y="0" width="10" height="10" fill="#4a6a2e" stroke="#5a7a38" strokeWidth="1" /><text x="14" y="8" fill="#647060" fontSize="8">Ready</text>
+            <rect x="70" y="0" width="10" height="10" fill="#c0d0a8" stroke="#4a6a2e" strokeWidth="1" /><text x="84" y="8" fill="#647060" fontSize="8">Almost</text>
+            <rect x="150" y="0" width="10" height="10" fill="#d4a574" stroke="#a83a32" strokeWidth="1" /><text x="164" y="8" fill="#647060" fontSize="8">Recovering</text>
+            <rect x="250" y="0" width="10" height="10" fill="#a83a32" stroke="#8a2a22" strokeWidth="1" /><text x="264" y="8" fill="#647060" fontSize="8">Grazed</text>
           </g>
         </svg>
       </div>
 
-      {/* Compact stats with solid background */}
-      <div className="grid grid-cols-3 gap-3 max-w-xs mx-auto">
-        <div className="bg-zinc-900/95 backdrop-blur-sm rounded-lg p-2 border border-white/10 text-center">
-          <Fence className="h-4 w-4 text-white/40 mx-auto mb-1" />
+      {/* Compact stats */}
+      <div className="grid grid-cols-3 gap-3 pt-5 border-t-2 border-border max-w-xs mx-auto">
+        <div className="text-center">
+          <Fence className="h-4 w-4 text-olive mx-auto mb-1" />
           <div className="text-lg font-bold">8</div>
-          <div className="text-[10px] text-white/50">Pastures</div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Pastures</div>
         </div>
-        <div className="bg-zinc-900/95 backdrop-blur-sm rounded-lg p-2 border border-white/10 text-center">
-          <Leaf className="h-4 w-4 text-white/40 mx-auto mb-1" />
+        <div className="text-center">
+          <Leaf className="h-4 w-4 text-olive mx-auto mb-1" />
           <div className="text-lg font-bold">142</div>
-          <div className="text-[10px] text-white/50">Hectares</div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Hectares</div>
         </div>
-        <div className="bg-zinc-900/95 backdrop-blur-sm rounded-lg p-2 border border-white/10 text-center">
-          <MapPin className="h-4 w-4 text-white/40 mx-auto mb-1" />
+        <div className="text-center">
+          <MapPin className="h-4 w-4 text-terracotta mx-auto mb-1" />
           <div className="text-lg font-bold">TN</div>
-          <div className="text-[10px] text-white/50">Columbia</div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Columbia</div>
         </div>
       </div>
     </div>
