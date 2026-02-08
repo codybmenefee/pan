@@ -11,14 +11,12 @@
  */
 
 import bbox from '@turf/bbox'
-import bboxPolygon from '@turf/bbox-polygon'
 import area from '@turf/area'
 import intersect from '@turf/intersect'
-import centroid from '@turf/centroid'
-import union from '@turf/union'
 import difference from '@turf/difference'
 import { featureCollection, polygon as turfPolygon } from '@turf/helpers'
 import type { Feature, Polygon, Position, MultiPolygon } from 'geojson'
+import { createBboxPolygon, getFeatureCentroid } from './geoCompat'
 
 const HECTARES_PER_SQUARE_METER = 0.0001
 
@@ -91,13 +89,9 @@ export function calculateSectionSize(params: SectionSizeParams): SectionSizeResu
   const isMinimumEnforced = rawTargetSectionHa < minHa
   const isCapped = rawTargetSectionPct > 100
 
-  const effectiveSectionHa = isCapped
-    ? paddockAreaHa
-    : Math.max(minHa, rawTargetSectionHa)
+  const effectiveSectionHa = isCapped ? paddockAreaHa : Math.max(minHa, rawTargetSectionHa)
 
-  const effectiveSectionPct = isCapped
-    ? 100
-    : Math.max(minSectionPct, rawTargetSectionPct)
+  const effectiveSectionPct = isCapped ? 100 : Math.max(minSectionPct, rawTargetSectionPct)
 
   // Build reasoning string
   let reasoning = `${totalAnimalUnits.toFixed(1)} AU x ${dailyDMPerAU} kg/day = ${dailyDemandKg.toFixed(0)} kg/day demand. `
@@ -266,7 +260,9 @@ export function validateAgentSection(
     // Section extends outside paddock - use clipped version
     if (clipped.geometry.type === 'Polygon') {
       finalGeometry = clipped.geometry as Polygon
-      warnings.push(`Section extended outside paddock (${Math.round((1 - withinRatio) * 100)}% clipped)`)
+      warnings.push(
+        `Section extended outside paddock (${Math.round((1 - withinRatio) * 100)}% clipped)`
+      )
     } else if (clipped.geometry.type === 'MultiPolygon') {
       // Pick largest polygon from MultiPolygon
       const multi = clipped.geometry as MultiPolygon
@@ -300,7 +296,11 @@ export function validateAgentSection(
 
   // Check 2: Overlap with grazed sections
   let totalOverlapSqM = 0
-  const finalFeature: Feature<Polygon> = { type: 'Feature', properties: {}, geometry: finalGeometry }
+  const finalFeature: Feature<Polygon> = {
+    type: 'Feature',
+    properties: {},
+    geometry: finalGeometry,
+  }
 
   for (const grazed of grazedSections) {
     const grazedFeature: Feature<Polygon> = { type: 'Feature', properties: {}, geometry: grazed }
@@ -358,7 +358,9 @@ export function validateAgentSection(
   // Soft warning: Size deviation
   const sizeDeviation = Math.abs(finalAreaHa - targetSectionHa) / targetSectionHa
   if (sizeDeviation > 0.5) {
-    warnings.push(`Section size (${finalAreaHa.toFixed(2)} ha) deviates ${Math.round(sizeDeviation * 100)}% from target (${targetSectionHa.toFixed(2)} ha)`)
+    warnings.push(
+      `Section size (${finalAreaHa.toFixed(2)} ha) deviates ${Math.round(sizeDeviation * 100)}% from target (${targetSectionHa.toFixed(2)} ha)`
+    )
   }
 
   // Soft warning: Complex geometry
@@ -372,9 +374,12 @@ export function validateAgentSection(
   const [sMinLng, sMinLat, sMaxLng, sMaxLat] = sectionBbox
   const sectionWidth = sMaxLng - sMinLng
   const sectionHeight = sMaxLat - sMinLat
-  const sectionAspect = Math.max(sectionWidth, sectionHeight) / Math.min(sectionWidth, sectionHeight)
+  const sectionAspect =
+    Math.max(sectionWidth, sectionHeight) / Math.min(sectionWidth, sectionHeight)
   if (sectionAspect > 4) {
-    warnings.push(`Section has unusual aspect ratio (${sectionAspect.toFixed(1)}:1) - may be hard to fence`)
+    warnings.push(
+      `Section has unusual aspect ratio (${sectionAspect.toFixed(1)}:1) - may be hard to fence`
+    )
   }
 
   return {
@@ -417,41 +422,45 @@ export function computeUngrazedRemaining(params: UngrazedAreaParams): UngrazedAr
 
   // If no grazed sections, return entire paddock
   if (grazedSections.length === 0) {
-    const paddockCentroid = centroid(paddockGeometry)
+    const paddockCentroid = getFeatureCentroid(paddockGeometry)
     return {
       geometry: paddockGeometry.geometry,
       areaHa: Math.round(paddockAreaHa * 100) / 100,
       percentOfPaddock: 100,
       shape: 'compact',
-      centroid: paddockCentroid.geometry.coordinates as [number, number],
+      centroid: paddockCentroid,
       approximateLocation: 'entire paddock',
     }
   }
 
-  // Union all grazed sections
-  let grazedUnion: Feature<Polygon | MultiPolygon> | null = {
+  // Sequentially subtract grazed sections from paddock geometry.
+  let remainingFeature: Feature<Polygon | MultiPolygon> | null = {
     type: 'Feature',
     properties: {},
-    geometry: grazedSections[0],
+    geometry: paddockGeometry.geometry,
   }
 
-  for (let i = 1; i < grazedSections.length; i++) {
+  for (const section of grazedSections) {
+    if (!remainingFeature) {
+      break
+    }
+
     const sectionFeature: Feature<Polygon> = {
       type: 'Feature',
       properties: {},
-      geometry: grazedSections[i],
+      geometry: section,
     }
 
-    const unionResult = union(featureCollection([grazedUnion, sectionFeature]))
-    if (unionResult) {
-      grazedUnion = unionResult as Feature<Polygon | MultiPolygon>
+    const diff = difference(featureCollection([remainingFeature, sectionFeature]))
+    if (diff && diff.geometry) {
+      remainingFeature = diff as Feature<Polygon | MultiPolygon>
+    } else {
+      remainingFeature = null
+      break
     }
   }
 
-  // Compute difference: paddock - grazed
-  const remaining = difference(featureCollection([paddockGeometry, grazedUnion]))
-
-  if (!remaining) {
+  if (!remainingFeature) {
     return {
       geometry: null,
       areaHa: 0,
@@ -466,13 +475,13 @@ export function computeUngrazedRemaining(params: UngrazedAreaParams): UngrazedAr
   let remainingGeometry: Polygon
   let shape: 'compact' | 'fragmented' | 'strip' = 'compact'
 
-  if (remaining.geometry.type === 'MultiPolygon') {
+  if (remainingFeature.geometry.type === 'MultiPolygon') {
     shape = 'fragmented'
     // Take largest polygon
     let largestArea = 0
-    let largestPoly: Position[][] = remaining.geometry.coordinates[0]
+    let largestPoly: Position[][] = remainingFeature.geometry.coordinates[0]
 
-    for (const poly of remaining.geometry.coordinates) {
+    for (const poly of remainingFeature.geometry.coordinates) {
       const polyFeature = turfPolygon(poly)
       const polyArea = area(polyFeature)
       if (polyArea > largestArea) {
@@ -483,7 +492,7 @@ export function computeUngrazedRemaining(params: UngrazedAreaParams): UngrazedAr
 
     remainingGeometry = { type: 'Polygon', coordinates: largestPoly }
   } else {
-    remainingGeometry = remaining.geometry as Polygon
+    remainingGeometry = remainingFeature.geometry as Polygon
   }
 
   const remainingAreaSqM = area({ type: 'Feature', properties: {}, geometry: remainingGeometry })
@@ -491,7 +500,11 @@ export function computeUngrazedRemaining(params: UngrazedAreaParams): UngrazedAr
   const percentOfPaddock = (remainingAreaHa / paddockAreaHa) * 100
 
   // Analyze shape using aspect ratio
-  const [minLng, minLat, maxLng, maxLat] = bbox({ type: 'Feature', properties: {}, geometry: remainingGeometry })
+  const [minLng, minLat, maxLng, maxLat] = bbox({
+    type: 'Feature',
+    properties: {},
+    geometry: remainingGeometry,
+  })
   const lngRange = maxLng - minLng
   const latRange = maxLat - minLat
   const aspectRatio = Math.max(lngRange, latRange) / Math.min(lngRange, latRange)
@@ -502,8 +515,11 @@ export function computeUngrazedRemaining(params: UngrazedAreaParams): UngrazedAr
     }
   }
 
-  const remainingCentroid = centroid({ type: 'Feature', properties: {}, geometry: remainingGeometry })
-  const centroidCoords = remainingCentroid.geometry.coordinates as [number, number]
+  const centroidCoords = getFeatureCentroid({
+    type: 'Feature',
+    properties: {},
+    geometry: remainingGeometry,
+  })
 
   // Determine approximate location
   const { bounds } = paddockContext
@@ -539,7 +555,7 @@ export function computeUngrazedRemaining(params: UngrazedAreaParams): UngrazedAr
 export interface RectangleSectionParams {
   paddockGeometry: Feature<Polygon>
   corner: StartingCorner
-  widthPct: number  // 0-100
+  widthPct: number // 0-100
   heightPct: number // 0-100
 }
 
@@ -566,41 +582,21 @@ export function createRectangleSection(params: RectangleSectionParams): {
 
   switch (corner) {
     case 'NW':
-      sectionBounds = [
-        minLng,
-        maxLat - latRange * hPct,
-        minLng + lngRange * wPct,
-        maxLat,
-      ]
+      sectionBounds = [minLng, maxLat - latRange * hPct, minLng + lngRange * wPct, maxLat]
       break
     case 'NE':
-      sectionBounds = [
-        maxLng - lngRange * wPct,
-        maxLat - latRange * hPct,
-        maxLng,
-        maxLat,
-      ]
+      sectionBounds = [maxLng - lngRange * wPct, maxLat - latRange * hPct, maxLng, maxLat]
       break
     case 'SW':
-      sectionBounds = [
-        minLng,
-        minLat,
-        minLng + lngRange * wPct,
-        minLat + latRange * hPct,
-      ]
+      sectionBounds = [minLng, minLat, minLng + lngRange * wPct, minLat + latRange * hPct]
       break
     case 'SE':
-      sectionBounds = [
-        maxLng - lngRange * wPct,
-        minLat,
-        maxLng,
-        minLat + latRange * hPct,
-      ]
+      sectionBounds = [maxLng - lngRange * wPct, minLat, maxLng, minLat + latRange * hPct]
       break
   }
 
   // Create rectangle and clip to paddock
-  const sectionRect = bboxPolygon(sectionBounds)
+  const sectionRect = createBboxPolygon(sectionBounds)
   const clipped = intersect(featureCollection([sectionRect, paddockGeometry]))
 
   let finalGeometry: Polygon
@@ -624,13 +620,17 @@ export function createRectangleSection(params: RectangleSectionParams): {
     finalGeometry = sectionRect.geometry as Polygon
   }
 
-  const sectionCentroid = centroid({ type: 'Feature', properties: {}, geometry: finalGeometry })
+  const sectionCentroid = getFeatureCentroid({
+    type: 'Feature',
+    properties: {},
+    geometry: finalGeometry,
+  })
   const sectionAreaSqM = area({ type: 'Feature', properties: {}, geometry: finalGeometry })
   const sectionAreaHa = sectionAreaSqM * HECTARES_PER_SQUARE_METER
 
   return {
     geometry: finalGeometry,
-    centroid: sectionCentroid.geometry.coordinates as [number, number],
+    centroid: sectionCentroid,
     areaHa: Math.round(sectionAreaHa * 100) / 100,
   }
 }

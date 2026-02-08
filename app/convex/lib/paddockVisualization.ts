@@ -8,15 +8,15 @@
  */
 
 import bbox from '@turf/bbox'
-import centroid from '@turf/centroid'
 import type { Feature, Polygon, Position } from 'geojson'
+import { getFeatureCentroid } from './geoCompat'
 import { createLogger } from './logger'
 
 const log = createLogger('paddockVisualization')
 
 // Dynamic require for sharp (native module)
 function dynamicRequire(moduleName: string): any {
-  return new Function("moduleName", "return require(moduleName)")(moduleName)
+  return new Function('moduleName', 'return require(moduleName)')(moduleName)
 }
 
 export interface VisualizationOptions {
@@ -74,12 +74,14 @@ export function generatePaddockSVG(
 
   // Convert polygon coordinates to SVG path
   const coordsToPath = (coords: Position[]): string => {
-    return coords
-      .map((coord, i) => {
-        const { x, y } = toSVG(coord[0], coord[1])
-        return `${i === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`
-      })
-      .join(' ') + ' Z'
+    return (
+      coords
+        .map((coord, i) => {
+          const { x, y } = toSVG(coord[0], coord[1])
+          return `${i === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`
+        })
+        .join(' ') + ' Z'
+    )
   }
 
   const elements: string[] = []
@@ -120,18 +122,16 @@ export function generatePaddockSVG(
 
         elements.push(
           `<rect x="${topLeft.x.toFixed(2)}" y="${topLeft.y.toFixed(2)}" ` +
-          `width="${(bottomRight.x - topLeft.x).toFixed(2)}" ` +
-          `height="${(bottomRight.y - topLeft.y).toFixed(2)}" ` +
-          `fill="${color}" opacity="0.6"/>`
+            `width="${(bottomRight.x - topLeft.x).toFixed(2)}" ` +
+            `height="${(bottomRight.y - topLeft.y).toFixed(2)}" ` +
+            `fill="${color}" opacity="0.6"/>`
         )
       }
     }
   } else {
     // Simple green fill for ungrazed paddock area
     const paddockCoords = paddockGeometry.geometry.coordinates[0]
-    elements.push(
-      `<path d="${coordsToPath(paddockCoords)}" fill="#90EE90" stroke="none"/>`
-    )
+    elements.push(`<path d="${coordsToPath(paddockCoords)}" fill="#90EE90" stroke="none"/>`)
   }
 
   // Paddock boundary outline
@@ -153,14 +153,14 @@ export function generatePaddockSVG(
         properties: {},
         geometry: section.geometry,
       }
-      const center = centroid(sectionFeature)
-      const { x, y } = toSVG(center.geometry.coordinates[0], center.geometry.coordinates[1])
+      const [centerLng, centerLat] = getFeatureCentroid(sectionFeature)
+      const { x, y } = toSVG(centerLng, centerLat)
 
       elements.push(
         `<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" ` +
-        `font-family="Arial, sans-serif" font-size="14" font-weight="bold" ` +
-        `text-anchor="middle" dominant-baseline="middle" fill="#333">` +
-        `Day ${section.dayNumber}</text>`
+          `font-family="Arial, sans-serif" font-size="14" font-weight="bold" ` +
+          `text-anchor="middle" dominant-baseline="middle" fill="#333">` +
+          `Day ${section.dayNumber}</text>`
       )
     }
   }
@@ -173,29 +173,29 @@ export function generatePaddockSVG(
     const nwPos = toSVG(minLng, maxLat)
     elements.push(
       `<text x="${nwPos.x.toFixed(2)}" y="${(nwPos.y - labelPadding).toFixed(2)}" ` +
-      `font-family="monospace" font-size="${labelFontSize}" fill="#333">` +
-      `NW: ${minLng.toFixed(4)}, ${maxLat.toFixed(4)}</text>`
+        `font-family="monospace" font-size="${labelFontSize}" fill="#333">` +
+        `NW: ${minLng.toFixed(4)}, ${maxLat.toFixed(4)}</text>`
     )
 
     const nePos = toSVG(maxLng, maxLat)
     elements.push(
       `<text x="${nePos.x.toFixed(2)}" y="${(nePos.y - labelPadding).toFixed(2)}" ` +
-      `font-family="monospace" font-size="${labelFontSize}" text-anchor="end" fill="#333">` +
-      `NE: ${maxLng.toFixed(4)}, ${maxLat.toFixed(4)}</text>`
+        `font-family="monospace" font-size="${labelFontSize}" text-anchor="end" fill="#333">` +
+        `NE: ${maxLng.toFixed(4)}, ${maxLat.toFixed(4)}</text>`
     )
 
     const swPos = toSVG(minLng, minLat)
     elements.push(
       `<text x="${swPos.x.toFixed(2)}" y="${(swPos.y + labelPadding + labelFontSize).toFixed(2)}" ` +
-      `font-family="monospace" font-size="${labelFontSize}" fill="#333">` +
-      `SW: ${minLng.toFixed(4)}, ${minLat.toFixed(4)}</text>`
+        `font-family="monospace" font-size="${labelFontSize}" fill="#333">` +
+        `SW: ${minLng.toFixed(4)}, ${minLat.toFixed(4)}</text>`
     )
 
     const sePos = toSVG(maxLng, minLat)
     elements.push(
       `<text x="${sePos.x.toFixed(2)}" y="${(sePos.y + labelPadding + labelFontSize).toFixed(2)}" ` +
-      `font-family="monospace" font-size="${labelFontSize}" text-anchor="end" fill="#333">` +
-      `SE: ${maxLng.toFixed(4)}, ${minLat.toFixed(4)}</text>`
+        `font-family="monospace" font-size="${labelFontSize}" text-anchor="end" fill="#333">` +
+        `SE: ${maxLng.toFixed(4)}, ${minLat.toFixed(4)}</text>`
     )
   }
 
@@ -218,8 +218,8 @@ export function generatePaddockSVG(
     elements.push(
       `<rect x="${scaleBarX}" y="${scaleBarY}" width="${scaleBarWidth.toFixed(2)}" height="4" fill="#333"/>`,
       `<text x="${scaleBarX + scaleBarWidth / 2}" y="${scaleBarY - 5}" ` +
-      `font-family="Arial, sans-serif" font-size="10" text-anchor="middle" fill="#333">` +
-      `${scaleMeters}m</text>`
+        `font-family="Arial, sans-serif" font-size="10" text-anchor="middle" fill="#333">` +
+        `${scaleMeters}m</text>`
     )
   }
 
@@ -269,7 +269,7 @@ function ndviToColor(ndvi: number): string {
   const value = Math.max(0, Math.min(1, ndvi))
 
   if (value >= 0.6) {
-    const intensity = Math.round(100 + (value - 0.6) * 155 / 0.4)
+    const intensity = Math.round(100 + ((value - 0.6) * 155) / 0.4)
     return `rgb(${Math.round(intensity * 0.3)}, ${intensity}, ${Math.round(intensity * 0.3)})`
   } else if (value >= 0.4) {
     const t = (value - 0.4) / 0.2
@@ -278,7 +278,7 @@ function ndviToColor(ndvi: number): string {
     const b = Math.round(50 * (1 - t))
     return `rgb(${r}, ${g}, ${b})`
   } else {
-    const intensity = Math.round(150 + value * 105 / 0.4)
+    const intensity = Math.round(150 + (value * 105) / 0.4)
     return `rgb(${intensity}, ${Math.round(intensity * 0.4)}, ${Math.round(intensity * 0.3)})`
   }
 }
@@ -290,9 +290,7 @@ export async function svgToPngBase64(svg: string): Promise<string> {
   try {
     const sharp = dynamicRequire('sharp')
 
-    const pngBuffer = await sharp(Buffer.from(svg))
-      .png()
-      .toBuffer()
+    const pngBuffer = await sharp(Buffer.from(svg)).png().toBuffer()
 
     return pngBuffer.toString('base64')
   } catch (error: any) {
