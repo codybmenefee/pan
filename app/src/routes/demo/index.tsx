@@ -33,6 +33,16 @@ import type { Pasture, Paddock } from '@/lib/types'
 
 type DrawEntityType = 'pasture' | 'paddock' | 'noGrazeZone' | 'waterPoint' | 'waterPolygon'
 
+function getDataAgeLabel(dateStr: string): string | null {
+  const date = new Date(dateStr + 'T00:00:00')
+  const now = new Date()
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+  if (diffDays <= 3) return null
+  if (diffDays < 7) return `${diffDays}d ago`
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`
+  return `${Math.floor(diffDays / 30)}mo ago`
+}
+
 interface EditDrawerState {
   open: boolean
   featureId: string | null
@@ -97,7 +107,7 @@ function DemoGISRoute() {
   } | null>(null)
 
   const [layers, setLayers] = useState({
-    ndviHeat: false,
+    ndviHeat: true,
     pastures: true,
     labels: true,
     paddocks: true,
@@ -467,7 +477,7 @@ function DemoGISRoute() {
       {/* RGB Imagery info badge */}
       {showRGBSatellite && rgbImageryInfo && (
         <div className="absolute top-10 left-1/2 -translate-x-1/2 z-10">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-full shadow-lg">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-cobalt text-white text-xs font-medium shadow-hard-sm">
             <Satellite className="h-3.5 w-3.5" />
             <span>
               {new Date(rgbImageryInfo.date + 'T00:00:00').toLocaleDateString('en-US', {
@@ -475,8 +485,14 @@ function DemoGISRoute() {
                 day: 'numeric',
               })}
             </span>
-            <span className="text-blue-200">•</span>
-            <span className="text-blue-100">{rgbImageryInfo.provider}</span>
+            <span className="text-white/50">&bull;</span>
+            <span className="text-white/80">{rgbImageryInfo.provider}</span>
+            {getDataAgeLabel(rgbImageryInfo.date) && (
+              <>
+                <span className="text-white/50">&bull;</span>
+                <span className="text-terracotta-muted">{getDataAgeLabel(rgbImageryInfo.date)}</span>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -487,13 +503,19 @@ function DemoGISRoute() {
           <div className="flex items-center gap-2 px-3 py-1.5 bg-olive text-white text-xs font-medium shadow-hard-sm">
             <Satellite className="h-3.5 w-3.5" />
             <span>NDVI</span>
-            <span className="text-white/50">•</span>
+            <span className="text-white/50">&bull;</span>
             <span>
               {new Date(ndviImageryInfo.date + 'T00:00:00').toLocaleDateString('en-US', {
                 month: 'short',
                 day: 'numeric',
               })}
             </span>
+            {getDataAgeLabel(ndviImageryInfo.date) && (
+              <>
+                <span className="text-white/50">&bull;</span>
+                <span className="text-terracotta-muted">{getDataAgeLabel(ndviImageryInfo.date)}</span>
+              </>
+            )}
           </div>
         </div>
       )}

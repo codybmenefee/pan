@@ -480,9 +480,8 @@ class ConvexClient:
         return self._query("farms:getByExternalId", {"externalId": external_id})
 
     def get_paddocks(self, farm_external_id: str) -> list[dict]:
-        """Get paddocks for a farm by external ID."""
-        # listPaddocksByFarm takes the farm's external ID
-        return self._query("paddocks:listPaddocksByFarm", {"farmId": farm_external_id}) or []
+        """Get paddocks (pastures) for a farm by external ID."""
+        return self._query("paddocks:listPasturesByFarm", {"farmId": farm_external_id}) or []
 
     def get_settings(self, farm_external_id: str) -> Optional[dict]:
         """Get settings for a farm."""

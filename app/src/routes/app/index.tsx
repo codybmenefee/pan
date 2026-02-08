@@ -48,6 +48,16 @@ const searchSchema = z.object({
 
 type DrawEntityType = 'pasture' | 'paddock' | 'noGrazeZone' | 'waterPoint' | 'waterPolygon'
 
+function getDataAgeLabel(dateStr: string): string | null {
+  const date = new Date(dateStr + 'T00:00:00')
+  const now = new Date()
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+  if (diffDays <= 3) return null
+  if (diffDays < 7) return `${diffDays}d ago`
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`
+  return `${Math.floor(diffDays / 30)}mo ago`
+}
+
 // Simplified edit drawer state using typed feature IDs
 interface EditDrawerState {
   open: boolean
@@ -813,15 +823,14 @@ function GISRoute() {
                 day: 'numeric',
               })}
             </span>
-            <span className="text-white/50">•</span>
+            <span className="text-white/50">&bull;</span>
             <span className="text-white/80">{rgbImageryInfo.provider}</span>
-            <span className="text-white/50">•</span>
-            <span className="text-white/80">
-              Next: ~{rgbImageryInfo.nextEstimate.toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-              })}
-            </span>
+            {getDataAgeLabel(rgbImageryInfo.date) && (
+              <>
+                <span className="text-white/50">&bull;</span>
+                <span className="text-terracotta-muted">{getDataAgeLabel(rgbImageryInfo.date)}</span>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -832,15 +841,21 @@ function GISRoute() {
           <div className="flex items-center gap-2 px-3 py-1.5 bg-olive text-white text-xs font-medium shadow-hard-sm">
             <Satellite className="h-3.5 w-3.5" />
             <span>NDVI</span>
-            <span className="text-white/50">•</span>
+            <span className="text-white/50">&bull;</span>
             <span>
               {new Date(ndviImageryInfo.date + 'T00:00:00').toLocaleDateString('en-US', {
                 month: 'short',
                 day: 'numeric',
               })}
             </span>
-            <span className="text-white/50">•</span>
+            <span className="text-white/50">&bull;</span>
             <span className="text-white/80">{ndviImageryInfo.provider}</span>
+            {getDataAgeLabel(ndviImageryInfo.date) && (
+              <>
+                <span className="text-white/50">&bull;</span>
+                <span className="text-terracotta-muted">{getDataAgeLabel(ndviImageryInfo.date)}</span>
+              </>
+            )}
           </div>
         </div>
       )}
