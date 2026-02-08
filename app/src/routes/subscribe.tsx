@@ -149,48 +149,46 @@ function SubscribePageContent() {
       </header>
 
       {/* Main content */}
-      <main className="relative z-10 flex-1 flex items-center justify-center p-6">
-        <div className="max-w-3xl w-full">
-          <div className="text-center mb-8">
-            <h1 className="font-serif text-3xl md:text-4xl font-bold mb-3 text-foreground">
-              {user ? 'Subscribe to Continue' : 'Get Early Access'}
-            </h1>
-            <p className="text-lg text-muted-foreground">
-              {user
-                ? 'Get early access to AI-powered grazing management'
-                : 'Join OpenPasture and get AI-powered grazing recommendations'}
-            </p>
-          </div>
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-6">
+        <div className="max-w-3xl w-full text-center mb-8">
+          <h1 className="font-serif text-3xl md:text-4xl font-bold mb-3 text-foreground">
+            {user ? 'Subscribe to Continue' : 'Get Early Access'}
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            {user
+              ? 'Get early access to AI-powered grazing management'
+              : 'Join OpenPasture and get AI-powered grazing recommendations'}
+          </p>
+        </div>
 
-          {/* Clerk's PricingTable component handles plan display and checkout */}
-          <div className="flex justify-center [&_.cl-pricingTable]:bg-transparent [&_.cl-pricingTableCard]:bg-white [&_.cl-pricingTableCard]:border-2 [&_.cl-pricingTableCard]:border-border [&_.cl-pricingTableCard]:text-foreground [&_.cl-pricingTableCard]:shadow-hard-sm [&_.cl-pricingTableCardTitle]:text-foreground [&_.cl-pricingTableCardPrice]:text-foreground [&_.cl-pricingTableCardDescription]:text-muted-foreground [&_.cl-pricingTableCardFeatureItem]:text-muted-foreground">
-            <PricingTable />
-          </div>
+        {/* Clerk's PricingTable component handles plan display and checkout */}
+        <div className="w-full max-w-5xl flex justify-center [&_.cl-pricingTable]:bg-transparent [&_.cl-pricingTableCard]:bg-white [&_.cl-pricingTableCard]:border-2 [&_.cl-pricingTableCard]:border-border [&_.cl-pricingTableCard]:text-foreground [&_.cl-pricingTableCard]:shadow-hard-sm [&_.cl-pricingTableCardTitle]:text-foreground [&_.cl-pricingTableCardPrice]:text-foreground [&_.cl-pricingTableCardDescription]:text-muted-foreground [&_.cl-pricingTableCardFeatureItem]:text-muted-foreground">
+          <PricingTable />
+        </div>
 
-          {/* Continue button for authenticated users */}
-          {user && (
-            <div className="mt-6 flex justify-center">
-              <Button
-                variant="brutalist"
-                size="lg"
-                onClick={() => navigate({ to: '/app' })}
-              >
-                Continue to App
-              </Button>
-            </div>
-          )}
-
-          <div className="mt-8 text-center text-sm text-muted-foreground">
-            <p>
-              Questions?{' '}
-              <a
-                href="mailto:support@openpasture.com"
-                className="text-terracotta hover:underline"
-              >
-                Contact us
-              </a>
-            </p>
+        {/* Continue button for authenticated users */}
+        {user && (
+          <div className="mt-6 flex justify-center">
+            <Button
+              variant="brutalist"
+              size="lg"
+              onClick={() => navigate({ to: '/app' })}
+            >
+              Continue to App
+            </Button>
           </div>
+        )}
+
+        <div className="mt-8 text-center text-sm text-muted-foreground">
+          <p>
+            Questions?{' '}
+            <a
+              href="mailto:support@openpasture.com"
+              className="text-terracotta hover:underline"
+            >
+              Contact us
+            </a>
+          </p>
         </div>
       </main>
     </div>
