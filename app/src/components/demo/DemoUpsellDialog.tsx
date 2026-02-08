@@ -46,7 +46,7 @@ export function DemoUpsellDialog({
           <ul className="space-y-2">
             {benefits.map((benefit) => (
               <li key={benefit} className="flex items-center gap-2 text-sm">
-                <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                <Check className="h-4 w-4 text-olive flex-shrink-0" />
                 <span>{benefit}</span>
               </li>
             ))}

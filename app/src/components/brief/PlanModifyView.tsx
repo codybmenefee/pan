@@ -3,7 +3,7 @@ import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface PlanModifyViewProps {
-  paddockName: string
+  pastureName: string
   onSave: (feedback: string) => void
   onCancel: () => void
 }
@@ -17,13 +17,13 @@ const quickReasons = [
   'Weather concern',
 ]
 
-export function PlanModifyView({ paddockName, onSave, onCancel }: PlanModifyViewProps) {
+export function PlanModifyView({ pastureName, onSave, onCancel }: PlanModifyViewProps) {
   const [selectedReason, setSelectedReason] = useState<string | null>(null)
   const [notes, setNotes] = useState('')
 
   const handleSave = () => {
     const feedback = [selectedReason, notes].filter(Boolean).join(': ')
-    onSave(feedback || 'Section adjusted')
+    onSave(feedback || 'Paddock adjusted')
   }
 
   return (
@@ -37,8 +37,8 @@ export function PlanModifyView({ paddockName, onSave, onCancel }: PlanModifyView
           <ArrowLeft className="h-4 w-4" />
         </button>
         <div>
-          <h2 className="text-sm font-semibold">Modify Section</h2>
-          <p className="text-xs text-muted-foreground">{paddockName}</p>
+          <h2 className="text-sm font-semibold">Modify Paddock</h2>
+          <p className="text-xs text-muted-foreground">{pastureName}</p>
         </div>
       </div>
 
@@ -47,7 +47,7 @@ export function PlanModifyView({ paddockName, onSave, onCancel }: PlanModifyView
         {/* Instructions */}
         <div className="rounded-md border border-border bg-muted/50 p-3">
           <p className="text-sm text-muted-foreground">
-            Drag section vertices on the map to adjust the grazing area.
+            Drag paddock vertices on the map to adjust the grazing area.
           </p>
         </div>
 

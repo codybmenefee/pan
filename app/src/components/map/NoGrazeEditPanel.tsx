@@ -30,11 +30,11 @@ const typeOptions: { value: NoGrazeZoneType; label: string; description: string;
 ]
 
 const typeInfoStyles: Record<string, { bg: string; border: string; text: string }> = {
-  environmental: { bg: 'bg-green-500/10', border: 'border-green-500/20', text: 'text-green-600 dark:text-green-400' },
-  hazard: { bg: 'bg-orange-500/10', border: 'border-orange-500/20', text: 'text-orange-600 dark:text-orange-400' },
-  infrastructure: { bg: 'bg-gray-500/10', border: 'border-gray-500/20', text: 'text-gray-600 dark:text-gray-400' },
-  protected: { bg: 'bg-purple-500/10', border: 'border-purple-500/20', text: 'text-purple-600 dark:text-purple-400' },
-  other: { bg: 'bg-red-500/10', border: 'border-red-500/20', text: 'text-red-600 dark:text-red-400' },
+  environmental: { bg: 'bg-olive/10', border: 'border-olive/20', text: 'text-olive' },
+  hazard: { bg: 'bg-terracotta/10', border: 'border-terracotta/20', text: 'text-terracotta' },
+  infrastructure: { bg: 'bg-gray-500/10', border: 'border-gray-500/20', text: 'text-gray-600' },
+  protected: { bg: 'bg-cobalt/10', border: 'border-cobalt/20', text: 'text-cobalt' },
+  other: { bg: 'bg-terracotta/10', border: 'border-terracotta/20', text: 'text-terracotta' },
 }
 
 export function NoGrazeEditPanel({ zone, open, onDelete, onClose }: NoGrazeEditPanelProps) {

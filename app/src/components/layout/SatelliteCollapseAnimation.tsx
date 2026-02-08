@@ -50,8 +50,8 @@ export function SatelliteCollapseAnimation() {
         transition: 'transform 400ms ease-out, opacity 400ms ease-out',
       }}
     >
-      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900 shadow-lg">
-        <Satellite className="h-5 w-5 text-green-600 dark:text-green-400" />
+      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-olive-light shadow-hard-sm">
+        <Satellite className="h-5 w-5 text-olive" />
       </div>
     </div>
   )

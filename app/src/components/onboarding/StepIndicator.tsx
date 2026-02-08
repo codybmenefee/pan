@@ -18,7 +18,7 @@ export function StepIndicator({ steps, currentStep, className }: StepIndicatorPr
           <div key={step} className="flex items-center">
             <div className={cn(
               'flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors',
-              isCompleted && 'bg-green-500 text-white',
+              isCompleted && 'bg-olive text-white',
               isCurrent && 'bg-primary text-primary-foreground',
               !isCompleted && !isCurrent && 'bg-muted text-muted-foreground'
             )}>
@@ -28,12 +28,12 @@ export function StepIndicator({ steps, currentStep, className }: StepIndicatorPr
                 index + 1
               )}
             </div>
-            
+
             {/* Connector line */}
             {index < steps.length - 1 && (
               <div className={cn(
                 'mx-2 h-0.5 w-8 sm:w-12',
-                index < currentStep ? 'bg-green-500' : 'bg-muted'
+                index < currentStep ? 'bg-olive' : 'bg-muted'
               )} />
             )}
           </div>

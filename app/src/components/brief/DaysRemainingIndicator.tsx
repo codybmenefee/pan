@@ -19,8 +19,8 @@ export function DaysRemainingIndicator({ daysRemaining, className }: DaysRemaini
     <span
       className={cn(
         'text-xs',
-        isLastDay && 'text-red-500 font-medium',
-        isUrgent && 'text-amber-500 font-medium',
+        isLastDay && 'text-terracotta font-medium',
+        isUrgent && 'text-terracotta font-medium',
         !isLastDay && !isUrgent && 'text-muted-foreground',
         className
       )}

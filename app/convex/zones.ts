@@ -15,7 +15,7 @@ const polygonFeature = v.object({
  */
 export const create = mutation({
   args: {
-    paddockId: v.id('paddocks'),
+    pastureId: v.id('paddocks'),
     name: v.string(),
     type: v.union(
       v.literal('water'),
@@ -29,7 +29,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const zoneId = await ctx.db.insert('zones', {
-      paddockId: args.paddockId,
+      paddockId: args.pastureId,
       name: args.name,
       type: args.type,
       geometry: args.geometry,
@@ -40,16 +40,16 @@ export const create = mutation({
 })
 
 /**
- * List all zones for a paddock.
+ * List all zones for a pasture.
  */
-export const listByPaddock = query({
+export const listByPasture = query({
   args: {
-    paddockId: v.id('paddocks'),
+    pastureId: v.id('paddocks'),
   },
   handler: async (ctx, args) => {
     const zones = await ctx.db
       .query('zones')
-      .withIndex('by_paddock', (q) => q.eq('paddockId', args.paddockId))
+      .withIndex('by_paddock', (q) => q.eq('paddockId', args.pastureId))
       .collect()
     return zones
   },

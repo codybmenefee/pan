@@ -3,7 +3,7 @@
  * Stores ephemeral edits that override Convex data for public demo users.
  */
 
-import type { FarmSettings, Paddock, NoGrazeZone, WaterSource, Section } from '@/lib/types'
+import type { FarmSettings, Pasture, NoGrazeZone, WaterSource, Paddock } from '@/lib/types'
 import type { GeometryChange } from '@/lib/geometry/types'
 import type { Feature, Polygon, Point } from 'geojson'
 
@@ -29,11 +29,11 @@ export interface DemoFarmerObservation {
  * Each field stores the full entity data, keyed by entity ID.
  */
 export interface DemoEdits {
-  // Geometry edits (paddocks, zones, water sources)
-  paddocks?: Record<string, Paddock | null> // null = deleted
+  // Geometry edits (pastures, zones, water sources)
+  pastures?: Record<string, Pasture | null> // null = deleted
   noGrazeZones?: Record<string, NoGrazeZone | null>
   waterSources?: Record<string, WaterSource | null>
-  sections?: Record<string, Section | null>
+  paddocks?: Record<string, Paddock | null>
 
   // Settings override
   settings?: FarmSettings | null
@@ -99,12 +99,12 @@ export function clearDemoEdits(sessionId: string): void {
 }
 
 /**
- * Update a specific paddock in demo edits.
+ * Update a specific pasture in demo edits.
  */
-export function setDemoPaddock(sessionId: string, paddockId: string, paddock: Paddock | null): void {
+export function setDemoPasture(sessionId: string, pastureId: string, pasture: Pasture | null): void {
   const edits = getDemoEdits(sessionId)
-  edits.paddocks = edits.paddocks ?? {}
-  edits.paddocks[paddockId] = paddock
+  edits.pastures = edits.pastures ?? {}
+  edits.pastures[pastureId] = pasture
   setDemoEdits(sessionId, edits)
 }
 
@@ -129,12 +129,12 @@ export function setDemoWaterSource(sessionId: string, sourceId: string, source: 
 }
 
 /**
- * Update a specific section in demo edits.
+ * Update a specific paddock in demo edits.
  */
-export function setDemoSection(sessionId: string, sectionId: string, section: Section | null): void {
+export function setDemoPaddock(sessionId: string, paddockId: string, paddock: Paddock | null): void {
   const edits = getDemoEdits(sessionId)
-  edits.sections = edits.sections ?? {}
-  edits.sections[sectionId] = section
+  edits.paddocks = edits.paddocks ?? {}
+  edits.paddocks[paddockId] = paddock
   setDemoEdits(sessionId, edits)
 }
 
@@ -181,7 +181,7 @@ export function addDemoFarmerObservation(sessionId: string, observation: DemoFar
 export function mergeDemoData<T extends { id: string }>(
   sessionId: string,
   baseData: T[],
-  editKey: keyof Pick<DemoEdits, 'paddocks' | 'noGrazeZones' | 'waterSources' | 'sections'>
+  editKey: keyof Pick<DemoEdits, 'pastures' | 'noGrazeZones' | 'waterSources' | 'paddocks'>
 ): T[] {
   const edits = getDemoEdits(sessionId)
   const overrides = edits[editKey] as Record<string, T | null> | undefined
@@ -222,16 +222,16 @@ export function mergeDemoData<T extends { id: string }>(
 }
 
 /**
- * Create a paddock entity from geometry change data.
+ * Create a pasture entity from geometry change data.
  */
-export function createPaddockFromChange(
+export function createPastureFromChange(
   change: GeometryChange,
   _farmId: string
-): Paddock {
-  const metadata = change.metadata as Partial<Omit<Paddock, 'id' | 'geometry'>> | undefined
+): Pasture {
+  const metadata = change.metadata as Partial<Omit<Pasture, 'id' | 'geometry'>> | undefined
   return {
     id: change.id,
-    name: metadata?.name ?? 'New Paddock',
+    name: metadata?.name ?? 'New Pasture',
     status: metadata?.status ?? 'ready',
     ndvi: metadata?.ndvi ?? 0,
     restDays: metadata?.restDays ?? 0,
@@ -290,15 +290,15 @@ export function createWaterSourceFromChange(
 }
 
 /**
- * Create a section entity from geometry change data.
+ * Create a paddock entity from geometry change data.
  */
-export function createSectionFromChange(
+export function createPaddockFromChange(
   change: GeometryChange
-): Section {
-  const metadata = change.metadata as Partial<Omit<Section, 'id' | 'paddockId' | 'geometry'>> | undefined
+): Paddock {
+  const metadata = change.metadata as Partial<Omit<Paddock, 'id' | 'pastureId' | 'geometry'>> | undefined
   return {
     id: change.id,
-    paddockId: change.parentId ?? '',
+    pastureId: change.parentId ?? '',
     date: metadata?.date ?? new Date().toISOString().split('T')[0],
     geometry: change.geometry as Feature<Polygon>,
     targetArea: metadata?.targetArea ?? 0,
@@ -312,10 +312,10 @@ export function createSectionFromChange(
 export function hasDemoEdits(sessionId: string): boolean {
   const edits = getDemoEdits(sessionId)
   return !!(
-    (edits.paddocks && Object.keys(edits.paddocks).length > 0) ||
+    (edits.pastures && Object.keys(edits.pastures).length > 0) ||
     (edits.noGrazeZones && Object.keys(edits.noGrazeZones).length > 0) ||
     (edits.waterSources && Object.keys(edits.waterSources).length > 0) ||
-    (edits.sections && Object.keys(edits.sections).length > 0) ||
+    (edits.paddocks && Object.keys(edits.paddocks).length > 0) ||
     edits.settings !== undefined
   )
 }

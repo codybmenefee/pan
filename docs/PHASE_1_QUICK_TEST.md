@@ -78,7 +78,7 @@ npm run dev
 ```
 
 1. Open http://localhost:5173
-2. Navigate to farm/paddock view
+2. Navigate to farm/pasture view
 3. Look for observation input component
 4. Create a test observation
 5. Verify it appears in the UI

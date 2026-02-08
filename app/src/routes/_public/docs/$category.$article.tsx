@@ -159,8 +159,8 @@ function DocsArticlePage() {
         <span
           className={`
             inline-block mb-6 rounded-full px-2 py-1 text-xs font-medium uppercase tracking-wide
-            ${item.badge === 'New' ? 'bg-emerald-500/10 text-emerald-500' : ''}
-            ${item.badge === 'Beta' ? 'bg-amber-500/10 text-amber-500' : ''}
+            ${item.badge === 'New' ? 'bg-olive/10 text-olive' : ''}
+            ${item.badge === 'Beta' ? 'bg-terracotta/10 text-terracotta' : ''}
             ${item.badge === 'Updated' ? 'bg-blue-500/10 text-blue-500' : ''}
           `}
         >

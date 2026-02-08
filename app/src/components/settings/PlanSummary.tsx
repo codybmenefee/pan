@@ -68,9 +68,9 @@ export function PlanSummary({ farmId, farmAcreage = 0 }: PlanSummaryProps) {
 
   const colorClasses: Record<SubscriptionTier, string> = {
     free: 'bg-muted text-muted-foreground',
-    homesteader: 'bg-blue-500/20 text-blue-400',
-    producer: 'bg-purple-500/20 text-purple-400',
-    commercial: 'bg-amber-500/20 text-amber-400',
+    homesteader: 'bg-cobalt/20 text-cobalt-muted',
+    producer: 'bg-cobalt/20 text-cobalt-muted',
+    commercial: 'bg-terracotta/20 text-terracotta',
   }
 
   return (
@@ -115,10 +115,10 @@ export function PlanSummary({ farmId, farmAcreage = 0 }: PlanSummaryProps) {
             className={cn(
               'h-2 rounded-full transition-all',
               acreageUsage > 90
-                ? 'bg-red-500'
+                ? 'bg-terracotta'
                 : acreageUsage > 70
-                  ? 'bg-yellow-500'
-                  : 'bg-green-500'
+                  ? 'bg-terracotta-muted'
+                  : 'bg-olive'
             )}
             style={{ width: `${Math.min(acreageUsage, 100)}%` }}
           />

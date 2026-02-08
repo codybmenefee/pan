@@ -14,7 +14,7 @@ export function useFarmerObservations(farmId: Id<'farms'>) {
 }
 
 /**
- * Query hook for farmer observations by target (paddock, zone, or farm).
+ * Query hook for farmer observations by target (pasture, zone, or farm).
  */
 export function useFarmerObservationsByTarget(
   level: 'farm' | 'paddock' | 'zone',

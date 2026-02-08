@@ -59,7 +59,7 @@ export type MorningBriefContext = {
     settings: any | null
     farm: any | null
     mostRecentGrazingEvent: any | null
-    paddocks: any[] | null
+    pastures: any[] | null
   }
   farmName: string
 }
@@ -169,7 +169,7 @@ export const agentGateway = action({
         source: hasProvidedContext ? 'provided context' : 'fetched',
         hasExistingPlan: !!planData.existingPlanId,
         existingPlanId: planData.existingPlanId?.toString(),
-        paddocksCount: planData.paddocks?.length || 0,
+        pasturesCount: planData.pastures?.length || 0,
         hasFarm: !!planData.farm,
         hasSettings: !!planData.settings,
         hasObservations: !!planData.observations,
@@ -188,18 +188,18 @@ export const agentGateway = action({
         }
       }
 
-      if (!planData.paddocks || planData.paddocks.length === 0) {
-        console.log('[agentGateway] No paddocks found, returning error')
+      if (!planData.pastures || planData.pastures.length === 0) {
+        console.log('[agentGateway] No pastures found, returning error')
         return {
           success: false,
           trigger: args.trigger,
-          error: 'No paddocks found for farm',
-          message: 'Cannot generate plan: farm has no paddocks',
+          error: 'No pastures found for farm',
+          message: 'Cannot generate plan: farm has no pastures',
         }
       }
 
-      const activePaddockId = planData.mostRecentGrazingEvent?.paddockExternalId || 
-        (planData.paddocks && planData.paddocks.length > 0 ? planData.paddocks[0].externalId : null)
+      const activePastureId = planData.mostRecentGrazingEvent?.paddockExternalId ||
+        (planData.pastures && planData.pastures.length > 0 ? planData.pastures[0].externalId : null)
 
       // Sanitize settings to remove Convex internal fields before passing to agent
       const rawSettings = planData.settings || {
@@ -219,8 +219,8 @@ export const agentGateway = action({
         farmExternalId: args.farmExternalId,
         farmName,
         farmNameSource: farmNameFromContext ? 'provided context' : (planData.farm?.name ? 'planData.farm' : 'fallback to externalId'),
-        activePaddockId,
-        activePaddockSource: planData.mostRecentGrazingEvent?.paddockExternalId ? 'mostRecentGrazingEvent' : 'first paddock',
+        activePastureId,
+        activePastureSource: planData.mostRecentGrazingEvent?.paddockExternalId ? 'mostRecentGrazingEvent' : 'first pasture',
         settings,
         today,
         usingProvidedContext: !!args.additionalContext?.planGenerationData,
@@ -246,7 +246,7 @@ export const agentGateway = action({
         ctx,
         args.farmExternalId,
         farmName,
-        activePaddockId,
+        activePastureId,
         settings,
         logger,
         null, // wrappedAnthropic not supported with @ai-sdk/anthropic

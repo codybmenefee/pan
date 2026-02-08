@@ -166,7 +166,7 @@ function FarmSelectorInner({ organization }: FarmSelectorInnerProps) {
           <DialogHeader>
             <DialogTitle>Delete Farm</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete <strong>{activeFarm?.name}</strong>? This will permanently delete all paddocks, observations, grazing history, and plans associated with this farm.
+              Are you sure you want to delete <strong>{activeFarm?.name}</strong>? This will permanently delete all pastures, observations, grazing history, and plans associated with this farm.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">

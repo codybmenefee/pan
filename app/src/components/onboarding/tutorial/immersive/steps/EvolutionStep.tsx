@@ -2,45 +2,42 @@ import { Check, RefreshCw } from 'lucide-react'
 
 export function EvolutionStep() {
   return (
-    <div className="max-w-3xl mx-auto text-center text-white">
-      <div className="bg-black/70 backdrop-blur-sm rounded-xl p-4 mb-4">
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <RefreshCw className="h-5 w-5 text-green-400" />
-          <h2 className="text-sm font-medium text-green-400 uppercase tracking-wider">
-            The Evolution
-          </h2>
-        </div>
-
-        <h1 className="text-2xl md:text-3xl font-bold mb-2">
-          Rotational grazing = better land efficiency
-        </h1>
+    <div className="max-w-3xl mx-auto text-center text-dark">
+      <div className="flex items-center justify-center gap-2 mb-2">
+        <RefreshCw className="h-5 w-5 text-olive" />
+        <h2 className="text-sm font-bold text-olive uppercase tracking-wider">
+          The Evolution
+        </h2>
       </div>
 
-      {/* Large paddock divided into sections */}
-      <div className="bg-zinc-900/95 backdrop-blur-sm rounded-xl p-5 border border-white/10 max-w-lg mx-auto mb-4">
-        {/* Single paddock with internal divisions */}
-        <div className="border-2 border-amber-700 rounded-lg overflow-hidden">
+      <h1 className="font-serif text-2xl md:text-3xl font-bold mb-6">
+        Rotational grazing = better land efficiency
+      </h1>
+
+      {/* Large pasture divided into paddocks */}
+      <div className="max-w-lg mx-auto mb-6">
+        <div className="border-2 border-olive overflow-hidden">
           <div className="grid grid-cols-4 grid-rows-2">
             {[
-              { id: '1', color: 'bg-red-900/80', label: 'Grazing' },
-              { id: '2', color: 'bg-amber-900/60', label: '' },
-              { id: '3', color: 'bg-amber-800/50', label: '' },
-              { id: '4', color: 'bg-yellow-900/40', label: '' },
-              { id: '5', color: 'bg-green-900/70', label: '' },
-              { id: '6', color: 'bg-green-800/80', label: '' },
-              { id: '7', color: 'bg-green-700/80', label: 'Ready' },
-              { id: '8', color: 'bg-green-600/80', label: '' },
-            ].map((section, i) => (
+              { id: '1', color: 'bg-terracotta/20', label: 'Grazing' },
+              { id: '2', color: 'bg-terracotta/10', label: '' },
+              { id: '3', color: 'bg-terracotta/5', label: '' },
+              { id: '4', color: 'bg-olive-light', label: '' },
+              { id: '5', color: 'bg-olive-muted/40', label: '' },
+              { id: '6', color: 'bg-olive-muted/60', label: '' },
+              { id: '7', color: 'bg-olive-muted/80', label: 'Ready' },
+              { id: '8', color: 'bg-olive-muted', label: '' },
+            ].map((paddock, i) => (
               <div
-                key={section.id}
-                className={`${section.color} h-14 flex items-center justify-center relative ${
-                  i % 4 !== 3 ? 'border-r border-dashed border-amber-700/50' : ''
-                } ${i < 4 ? 'border-b border-dashed border-amber-700/50' : ''}`}
+                key={paddock.id}
+                className={`${paddock.color} h-14 flex items-center justify-center relative ${
+                  i % 4 !== 3 ? 'border-r border-dashed border-olive/30' : ''
+                } ${i < 4 ? 'border-b border-dashed border-olive/30' : ''}`}
               >
-                <span className="text-[10px] text-white/60">{section.id}</span>
-                {section.label && (
-                  <span className="absolute bottom-1 text-[8px] text-white/80 font-medium">
-                    {section.label}
+                <span className="text-[10px] text-dark/60 font-bold">{paddock.id}</span>
+                {paddock.label && (
+                  <span className="absolute bottom-1 text-[8px] text-dark/80 font-bold uppercase tracking-wider">
+                    {paddock.label}
                   </span>
                 )}
               </div>
@@ -49,34 +46,34 @@ export function EvolutionStep() {
         </div>
 
         {/* Arrow showing rotation */}
-        <div className="flex items-center justify-center gap-2 mt-3 text-xs text-white/50">
-          <span>Rotate through sections</span>
-          <span className="text-green-400">1 → 2 → 3 → ... → 8 → 1</span>
+        <div className="flex items-center justify-center gap-2 mt-3 text-xs text-muted-foreground">
+          <span>Rotate through paddocks</span>
+          <span className="text-olive font-bold">1 &rarr; 2 &rarr; 3 &rarr; ... &rarr; 8 &rarr; 1</span>
         </div>
       </div>
 
       {/* Compact benefits */}
-      <div className="grid grid-cols-3 gap-2">
-        <div className="bg-zinc-900/95 backdrop-blur-sm rounded-lg p-3 border border-white/10">
-          <div className="flex items-center justify-center gap-1.5 text-green-400 mb-1">
+      <div className="grid grid-cols-3 gap-3 pt-5 border-t-2 border-border">
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-1.5 text-olive mb-1">
             <Check className="h-4 w-4" />
-            <span className="font-medium text-sm">Rest Period</span>
+            <span className="font-bold text-sm">Rest Period</span>
           </div>
-          <p className="text-xs text-white/60">Grass recovers between grazing</p>
+          <p className="text-xs text-muted-foreground">Grass recovers between grazing</p>
         </div>
-        <div className="bg-zinc-900/95 backdrop-blur-sm rounded-lg p-3 border border-white/10">
-          <div className="flex items-center justify-center gap-1.5 text-green-400 mb-1">
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-1.5 text-olive mb-1">
             <Check className="h-4 w-4" />
-            <span className="font-medium text-sm">Even Use</span>
+            <span className="font-bold text-sm">Even Use</span>
           </div>
-          <p className="text-xs text-white/60">All forage consumed efficiently</p>
+          <p className="text-xs text-muted-foreground">All forage consumed efficiently</p>
         </div>
-        <div className="bg-zinc-900/95 backdrop-blur-sm rounded-lg p-3 border border-white/10">
-          <div className="flex items-center justify-center gap-1.5 text-green-400 mb-1">
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-1.5 text-olive mb-1">
             <Check className="h-4 w-4" />
-            <span className="font-medium text-sm">Soil Health</span>
+            <span className="font-bold text-sm">Soil Health</span>
           </div>
-          <p className="text-xs text-white/60">Natural fertilization</p>
+          <p className="text-xs text-muted-foreground">Natural fertilization</p>
         </div>
       </div>
     </div>

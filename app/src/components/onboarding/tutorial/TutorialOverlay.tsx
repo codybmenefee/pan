@@ -9,7 +9,7 @@ import { PhilosophyStep } from './steps/PhilosophyStep'
 import { SatelliteStep } from './steps/SatelliteStep'
 import { StatusStep } from './steps/StatusStep'
 import { BriefStep } from './steps/BriefStep'
-import { SectionsStep } from './steps/SectionsStep'
+import { PaddocksStep } from './steps/PaddocksStep'
 import { cn } from '@/lib/utils'
 
 const isDevMode = import.meta.env.VITE_DEV_AUTH === 'true'
@@ -81,7 +81,7 @@ export function TutorialOverlay({ onComplete }: TutorialOverlayProps) {
     <SatelliteStep key="satellite" />,
     <StatusStep key="status" />,
     <BriefStep key="brief" />,
-    <SectionsStep key="sections" isActive={currentStep === 4} />,
+    <PaddocksStep key="paddocks" isActive={currentStep === 4} />,
   ]
 
   return (

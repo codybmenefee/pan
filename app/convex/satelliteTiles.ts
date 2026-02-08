@@ -1,5 +1,15 @@
 import { v } from 'convex/values'
-import { mutation, query } from './_generated/server'
+import { internalQuery, mutation, query } from './_generated/server'
+
+/**
+ * Get a tile by its document ID. Internal-only (used by HTTP tile server).
+ */
+export const getTileById = internalQuery({
+  args: { id: v.id('satelliteImageTiles') },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id)
+  },
+})
 
 /**
  * Get satellite tiles for a farm within an optional date range.
@@ -490,6 +500,115 @@ export const deleteExpiredTiles = mutation({
     }
 
     return { deletedCount }
+  },
+})
+
+/**
+ * Refresh the R2 URL for a specific tile.
+ * Used when presigned URLs expire and need regeneration.
+ * Called by the refresh_tile_urls.py script.
+ */
+export const refreshTileUrl = mutation({
+  args: {
+    farmExternalId: v.string(),
+    captureDate: v.string(),
+    tileType: v.union(
+      v.literal('rgb'),
+      v.literal('ndvi'),
+      v.literal('ndvi_heatmap'),
+      v.literal('evi'),
+      v.literal('ndwi')
+    ),
+    r2Url: v.string(),
+    expiresAt: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    let farm = await ctx.db
+      .query('farms')
+      .withIndex('by_externalId', (q) => q.eq('externalId', args.farmExternalId))
+      .first()
+
+    if (!farm) {
+      farm = await ctx.db
+        .query('farms')
+        .withIndex('by_legacyExternalId', (q) =>
+          q.eq('legacyExternalId', args.farmExternalId)
+        )
+        .first()
+    }
+
+    if (!farm) {
+      throw new Error(`Farm not found: ${args.farmExternalId}`)
+    }
+
+    const tiles = await ctx.db
+      .query('satelliteImageTiles')
+      .withIndex('by_farm_date', (q) =>
+        q.eq('farmId', farm._id).eq('captureDate', args.captureDate)
+      )
+      .filter((q) => q.eq(q.field('tileType'), args.tileType))
+      .collect()
+
+    const tile = tiles[0]
+    if (!tile) {
+      throw new Error(
+        `Tile not found: ${args.farmExternalId}/${args.captureDate}/${args.tileType}`
+      )
+    }
+
+    const patch: Record<string, string | undefined> = { r2Url: args.r2Url }
+    if (args.expiresAt !== undefined) {
+      patch.expiresAt = args.expiresAt
+    }
+
+    await ctx.db.patch(tile._id, patch)
+    return tile._id
+  },
+})
+
+/**
+ * Refresh all tile URLs for a farm using a public URL base.
+ * Constructs new URLs from the r2Key and the provided base URL.
+ */
+export const refreshAllTileUrls = mutation({
+  args: {
+    farmExternalId: v.string(),
+    publicUrlBase: v.string(),
+  },
+  handler: async (ctx, args) => {
+    let farm = await ctx.db
+      .query('farms')
+      .withIndex('by_externalId', (q) => q.eq('externalId', args.farmExternalId))
+      .first()
+
+    if (!farm) {
+      farm = await ctx.db
+        .query('farms')
+        .withIndex('by_legacyExternalId', (q) =>
+          q.eq('legacyExternalId', args.farmExternalId)
+        )
+        .first()
+    }
+
+    if (!farm) {
+      throw new Error(`Farm not found: ${args.farmExternalId}`)
+    }
+
+    const tiles = await ctx.db
+      .query('satelliteImageTiles')
+      .withIndex('by_farm_date', (q) => q.eq('farmId', farm._id))
+      .collect()
+
+    const base = args.publicUrlBase.replace(/\/+$/, '')
+    let updated = 0
+
+    for (const tile of tiles) {
+      const newUrl = `${base}/${tile.r2Key}`
+      await ctx.db.patch(tile._id, { r2Url: newUrl })
+      updated++
+    }
+
+    return { updated }
   },
 })
 

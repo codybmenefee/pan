@@ -8,19 +8,19 @@ interface GrassAnimationProps {
 export function GrassAnimation({ className }: GrassAnimationProps) {
   // Create blades of grass with staggered animations
   const blades = [
-    { delay: '0s', height: 'h-12', color: 'text-green-500' },
-    { delay: '0.2s', height: 'h-16', color: 'text-green-600' },
-    { delay: '0.4s', height: 'h-14', color: 'text-green-500' },
-    { delay: '0.1s', height: 'h-18', color: 'text-green-600' },
-    { delay: '0.3s', height: 'h-12', color: 'text-green-500' },
-    { delay: '0.5s', height: 'h-16', color: 'text-green-600' },
-    { delay: '0.15s', height: 'h-14', color: 'text-green-500' },
+    { delay: '0s', height: 'h-12', color: 'text-olive' },
+    { delay: '0.2s', height: 'h-16', color: 'text-olive' },
+    { delay: '0.4s', height: 'h-14', color: 'text-olive' },
+    { delay: '0.1s', height: 'h-18', color: 'text-olive' },
+    { delay: '0.3s', height: 'h-12', color: 'text-olive' },
+    { delay: '0.5s', height: 'h-16', color: 'text-olive' },
+    { delay: '0.15s', height: 'h-14', color: 'text-olive' },
   ]
 
   return (
     <div className={cn('relative flex items-end justify-center gap-1', className)}>
       {/* Ground */}
-      <div className="absolute bottom-0 left-1/2 h-2 w-40 -translate-x-1/2 rounded-full bg-gradient-to-r from-amber-700/20 via-amber-800/40 to-amber-700/20" />
+      <div className="absolute bottom-0 left-1/2 h-2 w-40 -translate-x-1/2 rounded-full bg-gradient-to-r from-terracotta/20 via-terracotta/40 to-terracotta/20" />
 
       {/* Grass blades */}
       {blades.map((blade, index) => (
@@ -61,7 +61,7 @@ export function GrassAnimation({ className }: GrassAnimationProps) {
       >
         <svg
           viewBox="0 0 24 24"
-          className="h-6 w-6 text-amber-800/60"
+          className="h-6 w-6 text-terracotta/60"
           fill="currentColor"
         >
           <path d="M5 4h2v2H5zm12 0h2v2h-2zM4 7h3v2H4zm13 0h3v2h-3zM3 10h18v4H3zm1 5h16v2H4zm2 3h4v2H6zm8 0h4v2h-4z" />

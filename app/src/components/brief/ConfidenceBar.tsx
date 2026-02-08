@@ -7,15 +7,15 @@ interface ConfidenceBarProps {
 
 export function ConfidenceBar({ value, className }: ConfidenceBarProps) {
   const getColor = () => {
-    if (value >= 75) return 'bg-green-500'
-    if (value >= 50) return 'bg-amber-500'
-    return 'bg-red-500'
+    if (value >= 75) return 'bg-olive'
+    if (value >= 50) return 'bg-terracotta'
+    return 'bg-terracotta'
   }
 
   return (
-    <div className={cn('h-2 w-full rounded-full bg-muted', className)}>
+    <div className={cn('h-2 w-full bg-muted', className)}>
       <div
-        className={cn('h-full rounded-full transition-all', getColor())}
+        className={cn('h-full transition-all', getColor())}
         style={{ width: `${value}%` }}
       />
     </div>

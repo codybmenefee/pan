@@ -17,7 +17,7 @@ export interface PlanData {
   reasoning: string[]
 }
 
-export interface SectionModification {
+export interface PaddockModification {
   _id: string
   planId: string
   rationale?: string
@@ -28,8 +28,8 @@ export interface SectionModification {
 
 interface HistoryEventCardProps {
   plan: PlanData
-  paddockName: string
-  modification?: SectionModification
+  pastureName: string
+  modification?: PaddockModification
   isLast?: boolean
   isExpanded?: boolean
   onToggleExpand?: () => void
@@ -38,39 +38,39 @@ interface HistoryEventCardProps {
 const statusConfig = {
   approved: {
     icon: Check,
-    color: 'bg-green-500',
-    badge: 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20',
+    color: 'bg-olive',
+    badge: 'bg-olive/10 text-olive border-olive/20',
     label: 'Approved',
   },
   modified: {
     icon: Edit,
-    color: 'bg-amber-500',
-    badge: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
+    color: 'bg-terracotta',
+    badge: 'bg-terracotta/10 text-terracotta border-terracotta/20',
     label: 'Modified',
   },
   pending: {
     icon: Clock,
-    color: 'bg-blue-500',
-    badge: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
+    color: 'bg-cobalt',
+    badge: 'bg-cobalt/10 text-cobalt border-cobalt/20',
     label: 'Pending',
   },
   rejected: {
     icon: Clock,
-    color: 'bg-red-500',
-    badge: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20',
+    color: 'bg-terracotta',
+    badge: 'bg-terracotta/10 text-terracotta border-terracotta/20',
     label: 'Rejected',
   },
   executed: {
     icon: Check,
-    color: 'bg-purple-500',
-    badge: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20',
+    color: 'bg-cobalt',
+    badge: 'bg-cobalt/10 text-cobalt border-cobalt/20',
     label: 'Executed',
   },
 }
 
 export function HistoryEventCard({
   plan,
-  paddockName,
+  pastureName,
   modification,
   isLast,
   isExpanded,
@@ -116,7 +116,7 @@ export function HistoryEventCard({
         <div className="flex items-start justify-between gap-2">
           <div>
             <p className="font-medium text-sm">{formatDate(plan.date)}</p>
-            <p className="text-base font-semibold mt-0.5">{paddockName}</p>
+            <p className="text-base font-semibold mt-0.5">{pastureName}</p>
           </div>
           <Badge variant="outline" className={cn('flex-shrink-0', config.badge)}>
             {config.label}
@@ -126,12 +126,12 @@ export function HistoryEventCard({
         {/* Details row */}
         <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
           {plan.sectionAreaHectares !== undefined && plan.sectionAreaHectares > 0 && (
-            <span>{format(plan.sectionAreaHectares)} section</span>
+            <span>{format(plan.sectionAreaHectares)} paddock</span>
           )}
           <span>{Math.round(plan.confidenceScore)}% confidence</span>
         </div>
 
-        {/* Structured feedback for modified plans with section modification data */}
+        {/* Structured feedback for modified plans with paddock modification data */}
         {plan.status === 'modified' && modification && (
           <div className="mt-3 rounded-md border border-border bg-muted/30 p-3">
             <div className="flex items-start justify-between gap-2">

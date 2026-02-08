@@ -48,9 +48,9 @@ export function DocsNavItem({ item }: DocsNavItemProps) {
           <span
             className={`
               ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide
-              ${item.badge === 'New' ? 'bg-emerald-500/10 text-emerald-500' : ''}
-              ${item.badge === 'Beta' ? 'bg-amber-500/10 text-amber-500' : ''}
-              ${item.badge === 'Updated' ? 'bg-blue-500/10 text-blue-500' : ''}
+              ${item.badge === 'New' ? 'bg-olive/10 text-olive' : ''}
+              ${item.badge === 'Beta' ? 'bg-terracotta/10 text-terracotta' : ''}
+              ${item.badge === 'Updated' ? 'bg-cobalt/10 text-cobalt' : ''}
             `}
           >
             {item.badge}

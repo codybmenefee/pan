@@ -82,8 +82,8 @@ export function SettingsForm({ settings, onChange }: SettingsFormProps) {
           {hasBoundary ? (
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900">
-                  <MapPin className="h-5 w-5 text-green-600 dark:text-green-400" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-olive/10">
+                  <MapPin className="h-5 w-5 text-olive" />
                 </div>
                 <div>
                   <p className="text-sm font-medium">Boundary defined</p>

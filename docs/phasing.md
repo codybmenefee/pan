@@ -29,7 +29,7 @@ This document outlines a methodical approach to building the Grazing Intelligenc
 
 ## Current State Snapshot (Jan 20, 2026)
 
-Phases 0-3 are complete. The system can fetch satellite imagery, compute vegetation indices, and store per-paddock observations in Convex.
+Phases 0-3 are complete. The system can fetch satellite imagery, compute vegetation indices, and store per-pasture observations in Convex.
 
 ### What Works
 
@@ -37,10 +37,10 @@ Phases 0-3 are complete. The system can fetch satellite imagery, compute vegetat
 - Wireframes and UI components for Morning Brief, Map view, Plan approval
 
 **Phase 1 (Farm Geometry) - Complete**
-- Convex backend: farms, paddocks, users, farmSettings tables
+- Convex backend: farms, pastures, users, farmSettings tables
 - GeoJSON geometry storage and retrieval
 - Dev-mode auth bypass via `VITE_DEV_AUTH=true`
-- Frontend hooks: `useFarms`, `usePaddocks`, `useFarmSettings`
+- Frontend hooks: `useFarms`, `usePastures`, `useFarmSettings`
 
 **Phase 2 (Satellite PoC) - Complete**
 - Python scripts query Planetary Computer STAC API
@@ -53,7 +53,7 @@ Phases 0-3 are complete. The system can fetch satellite imagery, compute vegetat
 - `PlanetScopeProvider`: 3m resolution, premium tier ready
 - Cloud masking using scene classification
 - 21-day rolling median composite
-- Zonal statistics per paddock (NDVI/EVI/NDWI mean/min/max/std)
+- Zonal statistics per pasture (NDVI/EVI/NDWI mean/min/max/std)
 - CRS transformation (EPSG:4326 ↔ EPSG:32616)
 - Convex storage: `observations` table with frontend hooks
 - Pipeline: `python src/ingestion/pipeline.py --dev --write-convex`
@@ -64,14 +64,14 @@ Phases 0-3 are complete. The system can fetch satellite imagery, compute vegetat
 source src/ingestion/venv/bin/activate
 python src/ingestion/pipeline.py --dev --write-convex --output /tmp/pan_output
 
-# Result: 8/8 paddocks with valid observations
+# Result: 8/8 pastures with valid observations
 # NDVI range: 0.21-0.28 (typical pasture)
 # Cloud-free: ~98%
 ```
 
 ### What Remains
 
-- Phase 4: Intelligence layer (paddock scoring, plan generation)
+- Phase 4: Intelligence layer (pasture scoring, plan generation)
 - Phase 5: Morning Brief narrative connected to observation data
 - Phase 6: Export functionality and demo polish
 
@@ -81,7 +81,7 @@ python src/ingestion/pipeline.py --dev --write-convex --output /tmp/pan_output
 
 ### Scope
 
-- Convex backend foundation with `Farm`, `Paddock`, `Observation`, `Plan`, and `Feedback` data
+- Convex backend foundation with `Farm`, `Pasture`, `Observation`, `Plan`, and `Feedback` data
 - Clerk auth wired to a small set of users (single farm per user for now)
 - Satellite PoC to minimal pipeline (latest cloud-safe NDVI, optional 21-day window + cloud mask + zonal stats)
 - Rules-based planner to generate a daily recommendation with alternatives
@@ -113,7 +113,7 @@ python src/ingestion/pipeline.py --dev --write-convex --output /tmp/pan_output
 ### Key UX Questions to Answer
 
 - How does the farmer arrive at the brief? (opens app directly to it? navigates from map?)
-- What is the visual hierarchy of the recommendation? (paddock name, confidence, reasoning)
+- What is the visual hierarchy of the recommendation? (pasture name, confidence, reasoning)
 - How is feedback captured? (buttons, text input, both?)
 - What does "approve" actually mean in the UI? (what happens next?)
 
@@ -127,15 +127,15 @@ The product IS the Morning Farm Brief. If this experience isn't crisp, nothing e
 
 **Duration:** 1 week
 
-**Goal:** Build the digital twin skeleton - farm and paddock polygons on a map.
+**Goal:** Build the digital twin skeleton - farm and pasture polygons on a map.
 
 ### Deliverables
 
 - Sample farm GeoJSON (realistic New Zealand/Australian pastoral layout)
-- Sample paddock polygons (5-8 paddocks, varying sizes)
-- Frontend: Interactive map component with paddock visualization
-- Backend: Convex functions to serve farm/paddock geometry
-- Data model: `Farm`, `Paddock` collections in Convex (GeoJSON stored)
+- Sample pasture polygons (5-8 pastures, varying sizes)
+- Frontend: Interactive map component with pasture visualization
+- Backend: Convex functions to serve farm/pasture geometry
+- Data model: `Farm`, `Pasture` collections in Convex (GeoJSON stored)
 
 ### Technical Stack (current)
 
@@ -146,8 +146,8 @@ The product IS the Morning Farm Brief. If this experience isn't crisp, nothing e
 
 ### What Gets Tested
 
-- Can we render paddocks on a map?
-- Can we click a paddock and see its metadata?
+- Can we render pastures on a map?
+- Can we click a pasture and see its metadata?
 - Is the GeoJSON format working correctly end-to-end?
 
 ### Architecture
@@ -214,7 +214,7 @@ This is intentionally narrow. The goal is confidence in the data path before bui
   - `PlanetScopeProvider`: Premium PlanetScope data (3m resolution) - auto-enabled for premium tier
 - Cloud masking using item metadata
 - Time-series fetch (21-day rolling window) with median compositing
-- Zonal statistics computation per paddock (NDVI/EVI/NDWI mean/min/max/std)
+- Zonal statistics computation per pasture (NDVI/EVI/NDWI mean/min/max/std)
 - `Observation` model and Convex storage
 - Frontend hooks for observation data access
 - Scheduled job / manual trigger to refresh data
@@ -244,7 +244,7 @@ Provider Abstraction (Factory Pattern)
                     CRS Transform (EPSG:4326 → EPSG:32616)
                               │
                               ▼
-                    Zonal Statistics per Paddock
+                    Zonal Statistics per Pasture
                               │
                               ▼
                     Observations Table (Convex)
@@ -273,14 +273,14 @@ Free farms automatically get all Sentinel-2 functionality. Premium farms (config
 
 **Duration:** 1-2 weeks
 
-**Goal:** Implement the rules-based planner that ranks paddocks and generates recommendations.
+**Goal:** Implement the rules-based planner that ranks pastures and generates recommendations.
 
 ### Deliverables
 
-- Paddock scorer (graze-readiness ranking)
+- Pasture scorer (graze-readiness ranking)
 - Recovery modeler (days since last graze, trajectory)
 - Plan generator (single recommendation with confidence)
-- `GrazingEvent` model (tracks when paddock was grazed)
+- `GrazingEvent` model (tracks when pasture was grazed)
 - `Plan` model and storage
 - API: `GET /farms/{id}/plan` returns today's recommendation
 
@@ -289,18 +289,18 @@ Free farms automatically get all Sentinel-2 functionality. Premium farms (config
 From [domain.md](domain.md):
 
 ```python
-def is_graze_ready(paddock):
+def is_graze_ready(pasture):
     return (
-        paddock.ndvi_mean >= 0.40
-        and paddock.ndvi_slope >= -0.01
-        and paddock.days_since_graze >= 21
-        and paddock.cloud_free_pct >= 0.50
+        pasture.ndvi_mean >= 0.40
+        and pasture.ndvi_slope >= -0.01
+        and pasture.days_since_graze >= 21
+        and pasture.cloud_free_pct >= 0.50
     )
 ```
 
 ### What Gets Tested
 
-- Given known observation data, does the planner pick the expected paddock?
+- Given known observation data, does the planner pick the expected pasture?
 - Is confidence scoring behaving correctly with degraded data?
 - Are alternatives ranked sensibly?
 
@@ -332,7 +332,7 @@ Initially: template-based text generation with variable substitution
 ```
 "Good morning. Your pastures are [overall_status]. 
 [key_change_sentence] 
-We recommend moving to [paddock_name] today ([confidence]% confidence)."
+We recommend moving to [pasture_name] today ([confidence]% confidence)."
 ```
 
 Future enhancement: LLM-powered narrative generation (out of MVP scope).
@@ -360,13 +360,13 @@ This is where the product "becomes real" - everything prior was infrastructure.
 - Error states: satellite data unavailable, low confidence warnings
 - Loading states and skeleton screens
 - Demo script with specific scenarios to walk through
-- Sample data that tells a compelling story (paddock A recovering, B ready, C overgrazed)
+- Sample data that tells a compelling story (pasture A recovering, B ready, C overgrazed)
 
 ### Demo Scenarios to Support
 
 1. **Normal day:** Clear recommendation, high confidence
 2. **Uncertain day:** Multiple viable options, user picks
-3. **Recovery tracking:** Show a paddock improving over time
+3. **Recovery tracking:** Show a pasture improving over time
 4. **Feedback loop:** User rejects recommendation, provides reason
 
 ### Final Checklist
@@ -386,9 +386,9 @@ After this plan is approved:
 1. Create Phase 0 UX artifacts (wireframes, design system choices)
 2. Set up Convex project and Clerk auth integration (define user-to-farm mapping)
 3. Create sample farm GeoJSON data file and seed it into Convex
-4. Wire the frontend to Convex queries/mutations for paddocks and plans
+4. Wire the frontend to Convex queries/mutations for pastures and plans
 
-The first code should be a map that renders paddocks. Everything else builds from there.
+The first code should be a map that renders pastures. Everything else builds from there.
 
 ---
 

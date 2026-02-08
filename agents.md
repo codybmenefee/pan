@@ -43,10 +43,10 @@ STAC API Query (farm AOI + time window)
 Cloud Masking + Index Computation (NDVI, EVI, NDWI)
         |
         v
-Zonal Statistics (per paddock polygon)
+Zonal Statistics (per pasture polygon)
         |
         v
-Rules-Based Planner (paddock scoring)
+Rules-Based Planner (pasture scoring)
         |
         v
 Morning Farm Brief + Recommendation
@@ -62,10 +62,10 @@ Exportable Plan Artifacts
 
 | Entity | Description |
 |--------|-------------|
-| Farm | Boundary polygon, contains paddocks |
-| Paddock | Grazing zone within farm, user-defined or auto-segmented |
+| Farm | Boundary polygon, contains pastures |
+| Pasture | Grazing zone within farm, user-defined or auto-segmented |
 | Herd | Metadata only (species, count) - no tracking |
-| Observation | Satellite-derived metrics for a paddock at a point in time |
+| Observation | Satellite-derived metrics for a pasture at a point in time |
 | Plan | Daily grazing recommendation with confidence score |
 | Brief | Natural language summary of farm status |
 
@@ -91,9 +91,9 @@ NDVI = (NIR - Red) / (NIR + Red)
 - Detects plant water stress and surface moisture
 - Early drought detection
 
-## Paddock Readiness Rules (Initial Heuristics)
+## Pasture Readiness Rules (Initial Heuristics)
 
-A paddock is graze-ready when ALL conditions are met:
+A pasture is graze-ready when ALL conditions are met:
 1. NDVI exceeds configurable threshold (default: 0.4)
 2. NDVI slope is positive or stable (not declining)
 3. Rest period exceeds minimum recovery window
@@ -139,7 +139,7 @@ These rules are intentionally simple and explainable for farmer trust.
 ├── src/
 │   ├── ingestion/         # Satellite data fetching
 │   ├── processing/        # Index computation, cloud masking
-│   ├── intelligence/      # Paddock scoring, plan generation
+│   ├── intelligence/      # Pasture scoring, plan generation
 │   └── app/               # Web application
 └── ...
 ```

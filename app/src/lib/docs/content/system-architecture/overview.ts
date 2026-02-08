@@ -72,16 +72,16 @@ The AI doesn't just output decisions—it outputs reasoning. This makes the syst
                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      GRAZING AGENT                               │
-│  - Analyzes paddock conditions                                  │
+│  - Analyzes pasture conditions                                  │
 │  - Applies decision logic                                       │
-│  - Generates section geometry                                   │
+│  - Generates paddock geometry                                   │
 │  - Produces reasoning text                                      │
 └──────────────────────────┬──────────────────────────────────────┘
                            │
                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                         PLAN                                     │
-│  - Target paddock                                               │
+│  - Target pasture                                               │
 │  - Section geometry                                             │
 │  - Confidence score                                             │
 │  - Reasoning array                                              │

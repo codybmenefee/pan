@@ -16,7 +16,7 @@ interface DrawingToolbarProps {
   onSetMode: (mode: DrawMode) => void
   onDeleteSelected: () => void
   onCancelDrawing: () => void
-  entityType?: 'paddock' | 'section'
+  entityType?: 'pasture' | 'paddock'
   className?: string
   compact?: boolean
 }
@@ -129,12 +129,12 @@ export function DrawingToolbar({
   onSetMode,
   onDeleteSelected,
   onCancelDrawing,
-  entityType = 'paddock',
+  entityType = 'pasture',
   className,
   compact = false,
 }: DrawingToolbarProps) {
   const hasSelection = selectedFeatureIds.length > 0
-  const entityLabel = entityType === 'paddock' ? 'Paddock' : 'Section'
+  const entityLabel = entityType === 'pasture' ? 'Pasture' : 'Paddock'
 
   if (compact) {
     return (

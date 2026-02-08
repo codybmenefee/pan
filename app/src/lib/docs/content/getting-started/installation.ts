@@ -88,7 +88,7 @@ The Convex dashboard provides access to:
 3. Run the function
 
 This creates a demonstration farm with:
-- Multiple paddocks with geometry
+- Multiple pastures with geometry
 - Historical observations
 - Sample grazing events
 

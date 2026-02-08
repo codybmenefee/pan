@@ -25,18 +25,18 @@ This is decision support - you stay in control.
 ## Features
 
 ### Digital Twin of Your Farm
-- Define farm boundaries and paddock zones
+- Define farm boundaries and pasture zones
 - Track herd metadata (species, count)
 - Visualize all zones on an interactive map
 
 ### Satellite-Derived Land Intelligence
 - Vegetation health metrics (NDVI, EVI)
-- Relative forage availability by paddock
+- Relative forage availability by pasture
 - Regrowth trends over time
 - Over/under-utilization indicators
 
 ### Daily Recommendations
-- Which paddock to graze today
+- Which pasture to graze today
 - Suggested area and duration
 - Confidence score and assumptions
 - Plain-language explanations
@@ -73,8 +73,8 @@ Satellite cadence aligns with biological reality - grazing decisions are daily o
 2. Apply cloud masking to remove unusable pixels
 3. Compute vegetation indices
 4. Aggregate time-series data (rolling means/medians)
-5. Calculate zonal statistics per paddock
-6. Score paddock readiness using transparent rules
+5. Calculate zonal statistics per pasture
+6. Score pasture readiness using transparent rules
 7. Generate recommendation with confidence level
 
 ## What This Is Not

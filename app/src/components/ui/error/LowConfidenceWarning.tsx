@@ -23,27 +23,27 @@ export function LowConfidenceWarning({
   className,
 }: LowConfidenceWarningProps) {
   return (
-    <Card className={cn('border-[#F4D47C]/50 bg-[#F4D47C]/10', className)}>
+    <Card className={cn('border-terracotta-muted/50 bg-terracotta/10', className)}>
       <CardContent className="pt-6">
         <div className="flex gap-4">
-          <AlertTriangle className="h-6 w-6 text-[#F4D47C] flex-shrink-0 mt-0.5" />
+          <AlertTriangle className="h-6 w-6 text-terracotta flex-shrink-0 mt-0.5" />
 
           <div className="flex-1">
-            <h3 className="font-semibold text-[#F4D47C] mb-2">
+            <h3 className="font-semibold text-terracotta mb-2">
               Limited Data Available
             </h3>
 
-            <p className="text-sm text-[#F4D47C]/90 mb-3">
+            <p className="text-sm text-terracotta/90 mb-3">
               Today's recommendation is based on partial data:
             </p>
 
-            <ul className="text-sm text-[#F4D47C]/80 space-y-1 mb-4">
+            <ul className="text-sm text-terracotta/80 space-y-1 mb-4">
               <li>Cloud cover: {cloudCover}% (threshold: {cloudCoverThreshold}%)</li>
               <li>Last clear image: {lastClearImage}</li>
               <li>Confidence: {confidence}%</li>
             </ul>
 
-            <p className="text-sm text-[#F4D47C]/90 mb-4">
+            <p className="text-sm text-terracotta/90 mb-4">
               Recommendation may be less reliable than usual. Consider local conditions before approving.
             </p>
 
@@ -52,7 +52,7 @@ export function LowConfidenceWarning({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-[#F4D47C] text-[#F4D47C] hover:bg-[#F4D47C]/20"
+                  className="border-terracotta text-terracotta hover:bg-terracotta/20"
                   onClick={onProceed}
                 >
                   Proceed Anyway
@@ -62,7 +62,7 @@ export function LowConfidenceWarning({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-[#F4D47C] hover:bg-[#F4D47C]/20"
+                  className="text-terracotta hover:bg-terracotta/20"
                   onClick={onWait}
                 >
                   Wait for Better Data

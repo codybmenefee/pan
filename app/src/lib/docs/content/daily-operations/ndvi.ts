@@ -46,7 +46,7 @@ The platform default threshold of 0.40 targets "graze-ready" status.`,
       content: `NDVI works best when:
 
 **Consistent pasture types:**
-Similar grass species across paddocks make relative comparisons meaningful.
+Similar grass species across pastures make relative comparisons meaningful.
 
 **Moderate vegetation density:**
 Neither too sparse (soil background dominates) nor too dense (saturation occurs).
@@ -58,22 +58,22 @@ Cloud-free, minimal atmospheric interference.
 Active growth creates clear NDVI differentiation.
 
 **Relative comparisons:**
-Comparing paddocks to each other rather than to absolute standards.
+Comparing pastures to each other rather than to absolute standards.
 
-Under these conditions, NDVI reliably indicates which paddocks have more forage than others.`,
+Under these conditions, NDVI reliably indicates which pastures have more forage than others.`,
     },
     {
       heading: 'NDVI Limitations',
       content: `Known issues with NDVI:
 
 **Saturation in dense vegetation:**
-Above ~0.65, NDVI stops differentiating. All lush paddocks look similar. EVI (Enhanced Vegetation Index) can help here.
+Above ~0.65, NDVI stops differentiating. All lush pastures look similar. EVI (Enhanced Vegetation Index) can help here.
 
 **Soil background effects:**
 Sparse vegetation shows soil characteristics, not just vegetation. Dry, bare soil reads differently than moist soil.
 
 **Species composition blindness:**
-NDVI can't distinguish desirable grasses from weeds. A paddock overrun with thistles might show good NDVI.
+NDVI can't distinguish desirable grasses from weeds. A pasture overrun with thistles might show good NDVI.
 
 **Residue confusion:**
 Dead plant material (standing or fallen) affects readings. Post-grazing residue may mask early regrowth.
@@ -89,16 +89,16 @@ Satellite passes don't align with your decision schedule. Yesterday's image migh
       content: `The platform doesn't rely on NDVI alone:
 
 **Rest days:**
-Recovery time is independent of satellite data. A paddock with good NDVI but only 5 days rest shouldn't be grazed again.
+Recovery time is independent of satellite data. A pasture with good NDVI but only 5 days rest shouldn't be grazed again.
 
 **Trend direction:**
 Is NDVI increasing, stable, or declining? Trend matters as much as absolute value.
 
 **Cloud-free percentage:**
-How much of the paddock was actually observed? Low coverage means lower confidence.
+How much of the pasture was actually observed? Low coverage means lower confidence.
 
 **Historical patterns:**
-How does current NDVI compare to this paddock's typical range?
+How does current NDVI compare to this pasture's typical range?
 
 **Farmer observations:**
 Local knowledge that satellites can't capture.
@@ -115,7 +115,7 @@ This multi-signal approach reduces dependence on any single measurement's accura
   farmExternalId: v.string(),
   paddockExternalId: v.string(),
   date: v.string(),
-  ndviMean: v.number(),   // Average across paddock
+  ndviMean: v.number(),   // Average across pasture
   ndviMin: v.number(),    // Lowest pixel value
   ndviMax: v.number(),    // Highest pixel value
   ndviStd: v.number(),    // Standard deviation (uniformity)
@@ -144,8 +144,8 @@ This multi-signal approach reduces dependence on any single measurement's accura
 - *Lower (0.30-0.35)*: Arid regions, native pastures, drought conditions
 - *Higher (0.45-0.50)*: Irrigated land, improved pastures, high productivity expectations
 
-**Per-paddock overrides:**
-Different paddocks may need different thresholds. Use overrides for known variations.
+**Per-pasture overrides:**
+Different pastures may need different thresholds. Use overrides for known variations.
 
 The default is a starting point. Calibrate to your conditions over time.`,
     },

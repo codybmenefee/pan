@@ -19,9 +19,9 @@ export function getGrassQualityLabel(quality: GrassQuality): string {
 
 export function getGrassQualityColor(quality: GrassQuality): string {
   const colors: Record<GrassQuality, string> = {
-    prime: 'text-green-600',
-    ready: 'text-green-500',
-    recovering: 'text-amber-500',
+    prime: 'text-olive',
+    ready: 'text-olive',
+    recovering: 'text-terracotta',
     resting: 'text-gray-400',
   }
   return colors[quality]
@@ -29,19 +29,19 @@ export function getGrassQualityColor(quality: GrassQuality): string {
 
 export function getGrassQualityBgColor(quality: GrassQuality): string {
   const colors: Record<GrassQuality, string> = {
-    prime: 'bg-green-100 dark:bg-green-900/30',
-    ready: 'bg-green-50 dark:bg-green-900/20',
-    recovering: 'bg-amber-50 dark:bg-amber-900/20',
-    resting: 'bg-gray-100 dark:bg-gray-800/30',
+    prime: 'bg-olive/10',
+    ready: 'bg-olive/5',
+    recovering: 'bg-terracotta/5',
+    resting: 'bg-gray-100',
   }
   return colors[quality]
 }
 
 export function getGrassQualityBorderColor(quality: GrassQuality): string {
   const colors: Record<GrassQuality, string> = {
-    prime: 'border-green-500',
-    ready: 'border-green-400',
-    recovering: 'border-amber-400',
+    prime: 'border-olive',
+    ready: 'border-olive/70',
+    recovering: 'border-terracotta/70',
     resting: 'border-gray-300',
   }
   return colors[quality]

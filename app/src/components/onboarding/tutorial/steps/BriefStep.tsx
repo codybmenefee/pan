@@ -13,7 +13,7 @@ export function BriefStep() {
 
       {/* Content */}
       <div className="text-center">
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-amber-50 dark:bg-amber-900/20 px-3 py-1 text-sm text-amber-700 dark:text-amber-300">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-terracotta/10 px-3 py-1 text-sm text-terracotta">
           <Sun className="h-4 w-4" />
           Your morning ritual
         </div>
@@ -40,7 +40,7 @@ export function BriefStep() {
         </div>
         <div className="h-4 w-px bg-border" />
         <div className="flex items-center gap-1.5">
-          <Check className="h-5 w-5 text-green-500" />
+          <Check className="h-5 w-5 text-olive" />
           <span className="text-muted-foreground">Approve</span>
         </div>
       </div>

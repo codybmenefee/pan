@@ -50,7 +50,7 @@ export function ThresholdSettings({ settings, onChange }: ThresholdSettingsProps
       <div className="space-y-1">
         <CompactSlider
           label="Min NDVI"
-          description="Paddocks below this vegetation index won't be recommended for grazing"
+          description="Pastures below this vegetation index won't be recommended for grazing"
           value={settings.minNDVIThreshold}
           min={0.2}
           max={0.6}
@@ -62,7 +62,7 @@ export function ThresholdSettings({ settings, onChange }: ThresholdSettingsProps
 
         <CompactSlider
           label="Rest Period"
-          description="Minimum days since last grazing before recommending a paddock"
+          description="Minimum days since last grazing before recommending a pasture"
           value={settings.minRestPeriod}
           min={7}
           max={42}
@@ -84,7 +84,7 @@ export function ThresholdSettings({ settings, onChange }: ThresholdSettingsProps
 
         <CompactSlider
           label="Rotation Frequency"
-          description="Days to graze each paddock before moving"
+          description="Days to graze each pasture before moving"
           value={settings.rotationFrequency}
           min={1}
           max={10}
@@ -93,9 +93,9 @@ export function ThresholdSettings({ settings, onChange }: ThresholdSettingsProps
           onChange={(v) => updateSetting('rotationFrequency', v)}
         />
         {settings.rotationFrequency > 5 && (
-          <div className="flex items-start gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-md">
-            <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-            <p className="text-xs text-amber-600 dark:text-amber-400">
+          <div className="flex items-start gap-2 px-3 py-2 bg-terracotta/10 border border-terracotta/20 rounded-md">
+            <AlertTriangle className="h-4 w-4 text-terracotta mt-0.5 shrink-0" />
+            <p className="text-xs text-terracotta">
               Rotations longer than 5 days may increase parasite load. Consider shorter rotations for better parasite control.
             </p>
           </div>

@@ -27,7 +27,7 @@ export function FarmInfoStrip() {
         {farm.totalArea && (
           <span className="text-muted-foreground">{format(farm.totalArea)}</span>
         )}
-        <span className={`flex items-center gap-1 ${hasBoundary ? 'text-green-400' : 'text-amber-400'}`}>
+        <span className={`flex items-center gap-1 ${hasBoundary ? 'text-olive' : 'text-terracotta'}`}>
           <MapPin className="h-3 w-3" />
           {hasBoundary ? (
             <span>Boundary set{boundaryArea ? ` (${format(boundaryArea)})` : ''}</span>

@@ -52,15 +52,15 @@ export function MetricCard({
         {(trend !== undefined || trendDirection) && (
           <div className={cn(
             'flex items-center gap-1 mt-1 text-xs',
-            trendDirection === 'up' && 'text-green-600',
-            trendDirection === 'down' && 'text-red-600',
+            trendDirection === 'up' && 'text-olive',
+            trendDirection === 'down' && 'text-terracotta',
             trendDirection === 'stable' && 'text-muted-foreground',
           )}>
             <TrendIcon className="h-3 w-3" />
             {trend !== undefined && (
               <span>
-                {typeof trend === 'number' 
-                  ? `${trend >= 0 ? '+' : ''}${trend}%` 
+                {typeof trend === 'number'
+                  ? `${trend >= 0 ? '+' : ''}${trend}%`
                   : trend}
               </span>
             )}

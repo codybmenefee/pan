@@ -180,7 +180,7 @@ export function SubscriptionCard({
           <div className="w-full bg-muted rounded-full h-2">
             <div
               className={`h-2 rounded-full ${
-                acreageUsage > 90 ? 'bg-red-500' : acreageUsage > 70 ? 'bg-yellow-500' : 'bg-green-500'
+                acreageUsage > 90 ? 'bg-terracotta' : acreageUsage > 70 ? 'bg-terracotta-muted' : 'bg-olive'
               }`}
               style={{ width: `${Math.min(acreageUsage, 100)}%` }}
             />
@@ -220,7 +220,7 @@ export function SubscriptionCard({
         <ul className="space-y-2">
           {displayFeatures.map((feature, idx) => (
             <li key={idx} className="flex items-start gap-2 text-sm">
-              <Check className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+              <Check className="h-4 w-4 text-olive flex-shrink-0 mt-0.5" />
               <span className="text-muted-foreground">{feature}</span>
             </li>
           ))}
@@ -261,9 +261,9 @@ export function SubscriptionBadge({ farmId }: { farmId: string }) {
 
   const colorClasses: Record<SubscriptionTier, string> = {
     free: 'bg-muted text-muted-foreground',
-    homesteader: 'bg-blue-500/20 text-blue-400',
-    producer: 'bg-purple-500/20 text-purple-400',
-    commercial: 'bg-amber-500/20 text-amber-400',
+    homesteader: 'bg-cobalt/20 text-cobalt-muted',
+    producer: 'bg-cobalt/20 text-cobalt-muted',
+    commercial: 'bg-terracotta/20 text-terracotta',
   }
 
   return (
@@ -309,7 +309,7 @@ export function PlanComparisonGrid({ currentTier }: { currentTier: SubscriptionT
             <ul className="space-y-2 mb-4">
               {details.features.slice(0, 4).map((feature, idx) => (
                 <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
-                  <Check className="h-4 w-4 text-green-500 mt-0.5" />
+                  <Check className="h-4 w-4 text-olive mt-0.5" />
                   {feature}
                 </li>
               ))}

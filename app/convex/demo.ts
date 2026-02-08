@@ -5,7 +5,7 @@ import bbox from '@turf/bbox'
 import area from '@turf/area'
 import intersect from '@turf/intersect'
 import { featureCollection, polygon } from '@turf/helpers'
-import { paddockGeometries, ROTATION_CONFIG, samplePaddocks } from './seedData'
+import { pastureGeometries, ROTATION_CONFIG, samplePastures } from './seedData'
 import { HECTARES_PER_SQUARE_METER } from './lib/areaConstants'
 
 // Source farm to copy data from (dev user's farm)
@@ -15,7 +15,7 @@ const SOURCE_FARM_EXTERNAL_ID = 'farm-1'
 // Types
 // ============================================================================
 
-interface PaddockData {
+interface PastureData {
   externalId: string
   name: string
   geometry: Feature<Polygon>
@@ -24,13 +24,13 @@ interface PaddockData {
 
 interface RotationDay {
   date: string
-  paddockId: string
+  pastureId: string
   stripIndex: number
-  isNewPaddock: boolean
-  totalStripsInPaddock: number
+  isNewPasture: boolean
+  totalStripsInPasture: number
 }
 
-interface PaddockStateUpdate {
+interface PastureStateUpdate {
   externalId: string
   ndvi: number
   restDays: number
@@ -64,22 +64,22 @@ function calculateAreaHectares(geometry: Feature<Polygon>): number {
 }
 
 /**
- * Generate N equal strips within a paddock geometry.
- * Strips are oriented along the longer axis of the paddock's bounding box.
+ * Generate N equal strips (paddocks) within a pasture geometry.
+ * Strips are oriented along the longer axis of the pasture's bounding box.
  */
-function generatePaddockStrips(
-  paddockGeometry: Feature<Polygon>,
-  numStrips: number = ROTATION_CONFIG.DEFAULT_STRIPS_PER_PADDOCK
+function generatePastureStrips(
+  pastureGeometry: Feature<Polygon>,
+  numStrips: number = ROTATION_CONFIG.DEFAULT_STRIPS_PER_PASTURE
 ): Polygon[] {
   // Get bounding box [minLng, minLat, maxLng, maxLat]
-  const [minLng, minLat, maxLng, maxLat] = bbox(paddockGeometry)
+  const [minLng, minLat, maxLng, maxLat] = bbox(pastureGeometry)
 
   const width = maxLng - minLng   // longitude span
   const height = maxLat - minLat  // latitude span
 
   // Determine orientation: strips run perpendicular to the shorter axis
-  // For typical paddocks that are wider than tall, we create horizontal strips (north to south)
-  // For paddocks taller than wide, we create vertical strips (west to east)
+  // For typical pastures that are wider than tall, we create horizontal strips (north to south)
+  // For pastures taller than wide, we create vertical strips (west to east)
   const isHorizontalStrips = height >= width
 
   const strips: Polygon[] = []
@@ -121,14 +121,14 @@ function generatePaddockStrips(
       }
     }
 
-    // Clip strip to paddock boundary
+    // Clip strip to pasture boundary
     const stripFeature: Feature<Polygon> = {
       type: 'Feature',
       properties: {},
       geometry: stripPolygon,
     }
 
-    const clipped = intersect(featureCollection([stripFeature, paddockGeometry]))
+    const clipped = intersect(featureCollection([stripFeature, pastureGeometry]))
 
     if (clipped && clipped.geometry.type === 'Polygon') {
       strips.push(clipped.geometry as Polygon)
@@ -156,65 +156,65 @@ function generatePaddockStrips(
 }
 
 /**
- * Get number of strips for a paddock based on its area.
- * Larger paddocks get more strips.
+ * Get number of strips for a pasture based on its area.
+ * Larger pastures get more strips.
  */
-function getStripsForPaddock(paddockArea: number): number {
-  if (paddockArea >= 5) return 4
-  if (paddockArea >= 3) return 3
+function getStripsForPasture(pastureArea: number): number {
+  if (pastureArea >= 5) return 4
+  if (pastureArea >= 3) return 3
   return 3
 }
 
 /**
  * Generate a realistic rotation sequence over a given number of days.
- * Rotates through paddocks, spending 3-4 days in each (one strip per day).
+ * Rotates through pastures, spending 3-4 days in each (one strip per day).
  */
 function generateRotationSequence(
-  paddocks: PaddockData[],
+  pastures: PastureData[],
   demoDate: Date,
   historyDays: number
 ): RotationDay[] {
   const sequence: RotationDay[] = []
 
-  // Track when each paddock was last grazed (for rest period)
+  // Track when each pasture was last grazed (for rest period)
   const lastGrazedDay: Record<string, number> = {}
 
   // Start historyDays ago
   let currentDayOffset = -historyDays
 
-  // Pre-seed some paddocks as having been grazed long ago (before our window)
+  // Pre-seed some pastures as having been grazed long ago (before our window)
   // This creates variety in rest periods
-  const paddockIds = paddocks.map(p => p.externalId)
-  paddockIds.forEach((id, index) => {
+  const pastureIds = pastures.map(p => p.externalId)
+  pastureIds.forEach((id, index) => {
     // Stagger initial grazing dates: some 30+ days ago, some 20+ days ago
     lastGrazedDay[id] = -historyDays - 20 - (index * 5)
   })
 
-  // Current paddock index and strip within that paddock
-  let currentPaddockIndex = 0
+  // Current pasture index and strip within that pasture
+  let currentPastureIndex = 0
   let currentStripIndex = 0
-  let daysInCurrentPaddock = 0
+  let daysInCurrentPasture = 0
 
-  // Find a good starting paddock (one that's been rested long enough)
-  const findNextPaddock = (fromIndex: number): number => {
-    // Try to find a paddock that has rested at least MIN_REST_PERIOD
-    for (let offset = 1; offset <= paddocks.length; offset++) {
-      const candidateIndex = (fromIndex + offset) % paddocks.length
-      const paddockId = paddocks[candidateIndex].externalId
-      const daysSinceGrazed = currentDayOffset - (lastGrazedDay[paddockId] ?? -100)
+  // Find a good starting pasture (one that's been rested long enough)
+  const findNextPasture = (fromIndex: number): number => {
+    // Try to find a pasture that has rested at least MIN_REST_PERIOD
+    for (let offset = 1; offset <= pastures.length; offset++) {
+      const candidateIndex = (fromIndex + offset) % pastures.length
+      const pastureId = pastures[candidateIndex].externalId
+      const daysSinceGrazed = currentDayOffset - (lastGrazedDay[pastureId] ?? -100)
 
       if (daysSinceGrazed >= ROTATION_CONFIG.MIN_REST_PERIOD) {
         return candidateIndex
       }
     }
 
-    // If no paddock has rested enough, pick the one with longest rest
-    let bestIndex = (fromIndex + 1) % paddocks.length
+    // If no pasture has rested enough, pick the one with longest rest
+    let bestIndex = (fromIndex + 1) % pastures.length
     let longestRest = 0
 
-    for (let i = 0; i < paddocks.length; i++) {
+    for (let i = 0; i < pastures.length; i++) {
       if (i === fromIndex) continue
-      const daysSinceGrazed = currentDayOffset - (lastGrazedDay[paddocks[i].externalId] ?? -100)
+      const daysSinceGrazed = currentDayOffset - (lastGrazedDay[pastures[i].externalId] ?? -100)
       if (daysSinceGrazed > longestRest) {
         longestRest = daysSinceGrazed
         bestIndex = i
@@ -224,44 +224,44 @@ function generateRotationSequence(
     return bestIndex
   }
 
-  // Start with a paddock that has good rest
-  currentPaddockIndex = findNextPaddock(-1)
-  let currentPaddock = paddocks[currentPaddockIndex]
-  let currentStripsTotal = getStripsForPaddock(currentPaddock.area)
+  // Start with a pasture that has good rest
+  currentPastureIndex = findNextPasture(-1)
+  let currentPasture = pastures[currentPastureIndex]
+  let currentStripsTotal = getStripsForPasture(currentPasture.area)
 
   while (currentDayOffset <= 0) {
     const dateStr = getDateString(demoDate, currentDayOffset)
-    const isNewPaddock = daysInCurrentPaddock === 0
+    const isNewPasture = daysInCurrentPasture === 0
 
     sequence.push({
       date: dateStr,
-      paddockId: currentPaddock.externalId,
+      pastureId: currentPasture.externalId,
       stripIndex: currentStripIndex,
-      isNewPaddock,
-      totalStripsInPaddock: currentStripsTotal,
+      isNewPasture,
+      totalStripsInPasture: currentStripsTotal,
     })
 
     // Update state
     currentStripIndex++
-    daysInCurrentPaddock++
+    daysInCurrentPasture++
     currentDayOffset++
 
-    // Check if we should move to next paddock
-    // Move when: we've done all strips OR we've hit MAX_DAYS_IN_PADDOCK
-    const shouldMovePaddock =
+    // Check if we should move to next pasture
+    // Move when: we've done all strips OR we've hit MAX_DAYS_IN_PASTURE
+    const shouldMovePasture =
       currentStripIndex >= currentStripsTotal ||
-      daysInCurrentPaddock >= ROTATION_CONFIG.MAX_DAYS_IN_PADDOCK
+      daysInCurrentPasture >= ROTATION_CONFIG.MAX_DAYS_IN_PASTURE
 
-    if (shouldMovePaddock && currentDayOffset <= 0) {
-      // Record when this paddock was last grazed
-      lastGrazedDay[currentPaddock.externalId] = currentDayOffset - 1
+    if (shouldMovePasture && currentDayOffset <= 0) {
+      // Record when this pasture was last grazed
+      lastGrazedDay[currentPasture.externalId] = currentDayOffset - 1
 
-      // Find next paddock
-      currentPaddockIndex = findNextPaddock(currentPaddockIndex)
-      currentPaddock = paddocks[currentPaddockIndex]
-      currentStripsTotal = getStripsForPaddock(currentPaddock.area)
+      // Find next pasture
+      currentPastureIndex = findNextPasture(currentPastureIndex)
+      currentPasture = pastures[currentPastureIndex]
+      currentStripsTotal = getStripsForPasture(currentPasture.area)
       currentStripIndex = 0
-      daysInCurrentPaddock = 0
+      daysInCurrentPasture = 0
     }
   }
 
@@ -269,29 +269,29 @@ function generateRotationSequence(
 }
 
 /**
- * Calculate paddock states based on generated grazing history.
+ * Calculate pasture states based on generated grazing history.
  */
-function simulatePaddockStates(
+function simulatePastureStates(
   rotationSequence: RotationDay[],
   demoDate: Date,
-  paddocks: PaddockData[]
-): PaddockStateUpdate[] {
+  pastures: PastureData[]
+): PastureStateUpdate[] {
   const demoDateStr = getDateString(demoDate, 0)
 
-  // Find last grazing date for each paddock
+  // Find last grazing date for each pasture
   const lastGrazedMap: Record<string, string> = {}
 
   for (const day of rotationSequence) {
     // Only count executed days (not today's pending plan)
     if (day.date < demoDateStr) {
-      lastGrazedMap[day.paddockId] = day.date
+      lastGrazedMap[day.pastureId] = day.date
     }
   }
 
-  const updates: PaddockStateUpdate[] = []
+  const updates: PastureStateUpdate[] = []
 
-  for (const paddock of paddocks) {
-    const lastGrazed = lastGrazedMap[paddock.externalId] ?? null
+  for (const pasture of pastures) {
+    const lastGrazed = lastGrazedMap[pasture.externalId] ?? null
 
     let restDays = 30  // Default if never grazed in our window
     if (lastGrazed) {
@@ -307,7 +307,7 @@ function simulatePaddockStates(
     ndvi = Math.round(ndvi * 100) / 100  // Round to 2 decimals
 
     // Determine status based on NDVI and rest days
-    let status: PaddockStateUpdate['status']
+    let status: PastureStateUpdate['status']
     if (restDays < 7) {
       status = 'grazed'
     } else if (ndvi >= 0.45 && restDays >= 21) {
@@ -319,7 +319,7 @@ function simulatePaddockStates(
     }
 
     updates.push({
-      externalId: paddock.externalId,
+      externalId: pasture.externalId,
       ndvi,
       restDays,
       status,
@@ -332,42 +332,42 @@ function simulatePaddockStates(
 
 /**
  * Generate historical demo data for a demo farm.
- * Creates ~14 days of realistic rotation history across all paddocks.
+ * Creates ~14 days of realistic rotation history across all pastures.
  */
 async function generateHistoricalDemoData(
   ctx: any,
   demoFarmId: string,
   demoDate: string,
   historyDays: number = 14
-): Promise<{ plansCreated: number; paddockStates: PaddockStateUpdate[] }> {
+): Promise<{ plansCreated: number; pastureStates: PastureStateUpdate[] }> {
   const demoDt = new Date(demoDate + 'T12:00:00Z')
   const now = new Date().toISOString()
 
   console.log('[generateHistoricalDemoData] Starting', { demoFarmId, demoDate, historyDays })
 
-  // Get paddock data from our geometries
-  const paddocks: PaddockData[] = Object.entries(paddockGeometries).map(([externalId, geometry]) => {
-    const paddockInfo = samplePaddocks.find(p => p.externalId === externalId)
+  // Get pasture data from our geometries
+  const pastures: PastureData[] = Object.entries(pastureGeometries).map(([externalId, geometry]) => {
+    const pastureInfo = samplePastures.find(p => p.externalId === externalId)
     return {
       externalId,
-      name: paddockInfo?.name ?? externalId,
+      name: pastureInfo?.name ?? externalId,
       geometry,
       area: calculateAreaHectares(geometry),
     }
   })
 
-  console.log('[generateHistoricalDemoData] Paddocks available:', paddocks.map(p => ({ id: p.externalId, name: p.name, area: p.area })))
+  console.log('[generateHistoricalDemoData] Pastures available:', pastures.map(p => ({ id: p.externalId, name: p.name, area: p.area })))
 
   // Generate rotation sequence
-  const rotationSequence = generateRotationSequence(paddocks, demoDt, historyDays)
+  const rotationSequence = generateRotationSequence(pastures, demoDt, historyDays)
 
-  console.log('[generateHistoricalDemoData] Rotation sequence:', rotationSequence.map(r => ({ date: r.date, paddock: r.paddockId, strip: r.stripIndex })))
+  console.log('[generateHistoricalDemoData] Rotation sequence:', rotationSequence.map(r => ({ date: r.date, pasture: r.pastureId, strip: r.stripIndex })))
 
-  // Pre-generate all strips for each paddock
-  const paddockStrips: Record<string, Polygon[]> = {}
-  for (const paddock of paddocks) {
-    const numStrips = getStripsForPaddock(paddock.area)
-    paddockStrips[paddock.externalId] = generatePaddockStrips(paddock.geometry, numStrips)
+  // Pre-generate all strips for each pasture
+  const pastureStrips: Record<string, Polygon[]> = {}
+  for (const pasture of pastures) {
+    const numStrips = getStripsForPasture(pasture.area)
+    pastureStrips[pasture.externalId] = generatePastureStrips(pasture.geometry, numStrips)
   }
 
   // Create plans for each day in the rotation
@@ -378,12 +378,12 @@ async function generateHistoricalDemoData(
     const isToday = day.date === todayStr
     const status = isToday ? 'pending' : 'executed'
 
-    const paddock = paddocks.find(p => p.externalId === day.paddockId)
-    const strips = paddockStrips[day.paddockId]
+    const pasture = pastures.find(p => p.externalId === day.pastureId)
+    const strips = pastureStrips[day.pastureId]
     const stripGeometry = strips?.[day.stripIndex] ?? strips?.[0]
 
     if (!stripGeometry) {
-      console.warn(`No strip geometry for paddock ${day.paddockId}, strip ${day.stripIndex}`)
+      console.warn(`No strip geometry for pasture ${day.pastureId}, strip ${day.stripIndex}`)
       continue
     }
 
@@ -394,39 +394,39 @@ async function generateHistoricalDemoData(
     }
     const stripArea = calculateAreaHectares(stripFeature)
 
-    // Calculate cumulative grazed percentage for this paddock rotation
-    const paddockGrazedPercentage = Math.round(
-      ((day.stripIndex + 1) / day.totalStripsInPaddock) * 100
+    // Calculate cumulative grazed percentage for this pasture rotation
+    const pastureGrazedPercentage = Math.round(
+      ((day.stripIndex + 1) / day.totalStripsInPasture) * 100
     )
 
     // Generate contextual reasoning
-    const dayInPaddock = day.stripIndex + 1
-    const reasoning = day.isNewPaddock
+    const dayInPasture = day.stripIndex + 1
+    const reasoning = day.isNewPasture
       ? [
-          `Starting rotation in ${paddock?.name ?? day.paddockId}`,
+          `Starting rotation in ${pasture?.name ?? day.pastureId}`,
           'Good NDVI values after adequate rest period',
-          `Day 1 of ${day.totalStripsInPaddock}-day rotation`,
+          `Day 1 of ${day.totalStripsInPasture}-day rotation`,
         ]
       : [
-          `Day ${dayInPaddock} of ${paddock?.name ?? day.paddockId} rotation`,
+          `Day ${dayInPasture} of ${pasture?.name ?? day.pastureId} rotation`,
           'Continuing progressive strip grazing pattern',
-          'Adjacent to previous section for efficient livestock movement',
+          'Adjacent to previous paddock for efficient livestock movement',
         ]
 
     await ctx.db.insert('plans', {
       farmExternalId: demoFarmId,
       date: day.date,
-      primaryPaddockExternalId: day.paddockId,
+      primaryPaddockExternalId: day.pastureId,
       alternativePaddockExternalIds: [],
       confidenceScore: 80 + Math.floor(Math.random() * 10), // 80-89
       reasoning,
       status,
       sectionGeometry: stripGeometry,
       sectionAreaHectares: stripArea,
-      sectionJustification: day.isNewPaddock
-        ? `Starting ${day.totalStripsInPaddock}-strip rotation in ${paddock?.name ?? day.paddockId}`
-        : `Strip ${dayInPaddock}/${day.totalStripsInPaddock} - progressive grazing pattern`,
-      paddockGrazedPercentage,
+      sectionJustification: day.isNewPasture
+        ? `Starting ${day.totalStripsInPasture}-strip rotation in ${pasture?.name ?? day.pastureId}`
+        : `Strip ${dayInPasture}/${day.totalStripsInPasture} - progressive grazing pattern`,
+      paddockGrazedPercentage: pastureGrazedPercentage,
       createdAt: now,
       updatedAt: now,
     })
@@ -435,12 +435,12 @@ async function generateHistoricalDemoData(
     if (!isToday) {
       await ctx.db.insert('grazingEvents', {
         farmExternalId: demoFarmId,
-        paddockExternalId: day.paddockId,
+        paddockExternalId: day.pastureId,
         date: day.date,
         durationDays: 1,
-        notes: day.isNewPaddock
-          ? `Started rotation in ${paddock?.name ?? day.paddockId}`
-          : `Day ${dayInPaddock} in ${paddock?.name ?? day.paddockId}`,
+        notes: day.isNewPasture
+          ? `Started rotation in ${pasture?.name ?? day.pastureId}`
+          : `Day ${dayInPasture} in ${pasture?.name ?? day.pastureId}`,
         createdAt: now,
       })
     }
@@ -448,10 +448,10 @@ async function generateHistoricalDemoData(
     plansCreated++
   }
 
-  // Calculate final paddock states
-  const paddockStates = simulatePaddockStates(rotationSequence, demoDt, paddocks)
+  // Calculate final pasture states
+  const pastureStates = simulatePastureStates(rotationSequence, demoDt, pastures)
 
-  return { plansCreated, paddockStates }
+  return { plansCreated, pastureStates }
 }
 
 // ============================================================================
@@ -503,31 +503,31 @@ async function copyFarmBaseData(
     updatedAt: now,
   })
 
-  // Copy paddocks
-  const sourcePaddocks = await ctx.db
+  // Copy pastures
+  const sourcePastures = await ctx.db
     .query('paddocks')
     .withIndex('by_farm', (q: any) => q.eq('farmId', sourceFarm._id))
     .collect()
 
-  const paddockIdMap = new Map<string, string>() // old _id -> new _id
-  for (const paddock of sourcePaddocks) {
-    const newPaddockId = await ctx.db.insert('paddocks', {
+  const pastureIdMap = new Map<string, string>() // old _id -> new _id
+  for (const pasture of sourcePastures) {
+    const newPastureId = await ctx.db.insert('paddocks', {
       farmId,
-      externalId: paddock.externalId,
-      name: paddock.name,
-      status: paddock.status,
-      ndvi: paddock.ndvi,
-      restDays: paddock.restDays,
-      area: paddock.area,
-      waterAccess: paddock.waterAccess,
-      lastGrazed: paddock.lastGrazed,
-      geometry: paddock.geometry,
-      overrideMinNDVIThreshold: paddock.overrideMinNDVIThreshold,
-      overrideMinRestPeriodDays: paddock.overrideMinRestPeriodDays,
+      externalId: pasture.externalId,
+      name: pasture.name,
+      status: pasture.status,
+      ndvi: pasture.ndvi,
+      restDays: pasture.restDays,
+      area: pasture.area,
+      waterAccess: pasture.waterAccess,
+      lastGrazed: pasture.lastGrazed,
+      geometry: pasture.geometry,
+      overrideMinNDVIThreshold: pasture.overrideMinNDVIThreshold,
+      overrideMinRestPeriodDays: pasture.overrideMinRestPeriodDays,
       createdAt: now,
       updatedAt: now,
     })
-    paddockIdMap.set(paddock._id, newPaddockId)
+    pastureIdMap.set(pasture._id, newPastureId)
   }
 
   // Copy observations (use demo farm external ID)
@@ -676,31 +676,31 @@ async function copyFarmBaseData(
 
   return {
     farmId,
-    paddockCount: sourcePaddocks.length,
+    pastureCount: sourcePastures.length,
     observationCount: sourceObservations.length,
     tileCount: sourceTiles.length,
   }
 }
 
 /**
- * Update paddock states in the database based on simulation results.
+ * Update pasture states in the database based on simulation results.
  */
-async function updatePaddockStates(
+async function updatePastureStates(
   ctx: any,
   farmId: any,
-  paddockStates: PaddockStateUpdate[]
+  pastureStates: PastureStateUpdate[]
 ) {
   const now = new Date().toISOString()
 
-  for (const state of paddockStates) {
-    const paddock = await ctx.db
+  for (const state of pastureStates) {
+    const pasture = await ctx.db
       .query('paddocks')
       .withIndex('by_farm_externalId', (q: any) =>
         q.eq('farmId', farmId).eq('externalId', state.externalId)
       )
       .first()
 
-    if (paddock) {
+    if (pasture) {
       // Build patch object - only include lastGrazed if it has a value
       // (schema requires string, not nullable)
       const patchData: Record<string, unknown> = {
@@ -719,7 +719,7 @@ async function updatePaddockStates(
         })
       }
 
-      await ctx.db.patch(paddock._id, patchData)
+      await ctx.db.patch(pasture._id, patchData)
     }
   }
 }
@@ -759,20 +759,20 @@ export const seedDemoFarm = mutation({
 
     // Generate historical demo data
     const today = new Date().toISOString().split('T')[0]
-    const { plansCreated, paddockStates } = await generateHistoricalDemoData(
+    const { plansCreated, pastureStates } = await generateHistoricalDemoData(
       ctx,
       demoFarmId,
       today,
       14 // 14 days of history
     )
 
-    // Update paddock states based on generated history
-    await updatePaddockStates(ctx, result.farmId, paddockStates)
+    // Update pasture states based on generated history
+    await updatePastureStates(ctx, result.farmId, pastureStates)
 
     return {
       farmId: result.farmId,
       farmExternalId: demoFarmId,
-      paddockCount: result.paddockCount,
+      pastureCount: result.pastureCount,
       plansCreated,
       alreadySeeded: false,
     }
@@ -830,22 +830,22 @@ export const regenerateDemoHistory = mutation({
     }
 
     // Generate fresh historical data
-    const { plansCreated, paddockStates } = await generateHistoricalDemoData(
+    const { plansCreated, pastureStates } = await generateHistoricalDemoData(
       ctx,
       args.farmExternalId,
       demoDate,
       historyDays
     )
 
-    // Update paddock states
-    await updatePaddockStates(ctx, farm._id, paddockStates)
+    // Update pasture states
+    await updatePastureStates(ctx, farm._id, pastureStates)
 
-    console.log('[regenerateDemoHistory] Complete:', { plansCreated, paddockStatesUpdated: paddockStates.length })
+    console.log('[regenerateDemoHistory] Complete:', { plansCreated, pastureStatesUpdated: pastureStates.length })
 
     return {
       plansCreated,
       eventsCreated: plansCreated - 1, // All except today's pending plan
-      paddockStatesUpdated: paddockStates.length,
+      pastureStatesUpdated: pastureStates.length,
       demoDate,
       historyDays,
     }
@@ -863,12 +863,12 @@ async function deleteDemoFarmData(ctx: any, demoFarmId: string, demoUserId: stri
     .first()
 
   if (farm) {
-    // Delete paddocks
-    const paddocks = await ctx.db
+    // Delete pastures
+    const pastures = await ctx.db
       .query('paddocks')
       .withIndex('by_farm', (q: any) => q.eq('farmId', farm._id))
       .collect()
-    for (const p of paddocks) {
+    for (const p of pastures) {
       await ctx.db.delete(p._id)
     }
 
@@ -977,20 +977,20 @@ export const resetDemoFarm = mutation({
 
     // Generate fresh historical data
     const today = new Date().toISOString().split('T')[0]
-    const { plansCreated, paddockStates } = await generateHistoricalDemoData(
+    const { plansCreated, pastureStates } = await generateHistoricalDemoData(
       ctx,
       demoFarmId,
       today,
       14
     )
 
-    // Update paddock states
-    await updatePaddockStates(ctx, result.farmId, paddockStates)
+    // Update pasture states
+    await updatePastureStates(ctx, result.farmId, pastureStates)
 
     return {
       farmId: result.farmId,
       farmExternalId: demoFarmId,
-      paddockCount: result.paddockCount,
+      pastureCount: result.pastureCount,
       plansCreated,
       reset: true,
     }
@@ -1083,9 +1083,9 @@ export const debugListHistoricalPlans = query({
       .sort((a, b) => a.date.localeCompare(b.date))
       .map((p: any) => ({
         date: p.date,
-        paddock: p.primaryPaddockExternalId,
+        pasture: p.primaryPaddockExternalId,
         status: p.status,
-        hasSection: !!p.sectionGeometry,
+        hasPaddock: !!p.sectionGeometry,
         areaHa: p.sectionAreaHectares,
         grazedPct: p.paddockGrazedPercentage,
       }))

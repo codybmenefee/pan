@@ -1,13 +1,13 @@
 import { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react'
 import type { Feature, Point, Polygon } from 'geojson'
-import type { Paddock, Section, NoGrazeZone, WaterSource, WaterSourceType } from '@/lib/types'
+import type { Pasture, Paddock, NoGrazeZone, WaterSource, WaterSourceType } from '@/lib/types'
 import type {
   GeometryContextValue,
   GeometryProviderProps,
   GeometryChange,
   PendingChange,
 } from './types'
-import { paddocks as mockPaddocks } from '@/data/mock/paddocks'
+import { pastures as mockPastures } from '@/data/mock/pastures'
 import { calculateAreaHectares } from './geometryUtils'
 
 const GeometryContext = createContext<GeometryContextValue | null>(null)
@@ -16,9 +16,9 @@ function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 }
 
-function createDefaultPaddockMetadata(): Omit<Paddock, 'id' | 'geometry'> {
+function createDefaultPastureMetadata(): Omit<Pasture, 'id' | 'geometry'> {
   return {
-    name: 'New Paddock',
+    name: 'New Pasture',
     status: 'recovering',
     ndvi: 0.35,
     restDays: 0,
@@ -28,11 +28,11 @@ function createDefaultPaddockMetadata(): Omit<Paddock, 'id' | 'geometry'> {
   }
 }
 
-function createDefaultSectionMetadata(): Omit<Section, 'id' | 'paddockId' | 'geometry'> {
+function createDefaultPaddockMetadata(): Omit<Paddock, 'id' | 'pastureId' | 'geometry'> {
   return {
     date: new Date().toISOString().split('T')[0],
     targetArea: 0,
-    reasoning: ['User-defined section'],
+    reasoning: ['User-defined paddock'],
   }
 }
 
@@ -50,17 +50,17 @@ function createDefaultWaterSourceMetadata(): Pick<WaterSource, 'name' | 'type'> 
   }
 }
 
-function normalizePaddocks(list: Paddock[]): Paddock[] {
-  return list.map((paddock) => ({
-    ...paddock,
-    area: calculateAreaHectares(paddock.geometry),
+function normalizePastures(list: Pasture[]): Pasture[] {
+  return list.map((pasture) => ({
+    ...pasture,
+    area: calculateAreaHectares(pasture.geometry),
   }))
 }
 
-function normalizeSections(list: Section[]): Section[] {
-  return list.map((section) => ({
-    ...section,
-    targetArea: calculateAreaHectares(section.geometry),
+function normalizePaddocks(list: Paddock[]): Paddock[] {
+  return list.map((paddock) => ({
+    ...paddock,
+    targetArea: calculateAreaHectares(paddock.geometry),
   }))
 }
 
@@ -78,21 +78,21 @@ function stripAnyFeatureId<T extends Feature<Point | Polygon>>(feature: T): T {
 
 export function GeometryProvider({
   children,
+  initialPastures,
   initialPaddocks,
-  initialSections,
   initialNoGrazeZones,
   initialWaterSources,
   onGeometryChange,
+  onPastureMetadataChange,
   onPaddockMetadataChange,
-  onSectionMetadataChange,
 }: GeometryProviderProps) {
-  const [paddocks, setPaddocks] = useState<Paddock[]>(() => {
-    const source = initialPaddocks ?? mockPaddocks
-    return normalizePaddocks(source)
+  const [pastures, setPastures] = useState<Pasture[]>(() => {
+    const source = initialPastures ?? mockPastures
+    return normalizePastures(source)
   })
-  const [sections, setSections] = useState<Section[]>(() => {
-    const source = initialSections ?? []
-    return normalizeSections(source)
+  const [paddocks, setPaddocks] = useState<Paddock[]>(() => {
+    const source = initialPaddocks ?? []
+    return normalizePaddocks(source)
   })
   const [noGrazeZones, setNoGrazeZones] = useState<NoGrazeZone[]>(() => initialNoGrazeZones ?? [])
   const [waterSources, setWaterSources] = useState<WaterSource[]>(() => initialWaterSources ?? [])
@@ -100,20 +100,94 @@ export function GeometryProvider({
   const [isSaving, setIsSaving] = useState(false)
   const [resetCounter, setResetCounter] = useState(0)
 
-  // Sync paddocks state with initialPaddocks prop changes
+  // Sync pastures state with initialPastures prop changes
   // IMPORTANT: Preserve local geometry changes that haven't been saved to Convex yet
-  // IMPORTANT: Respect pending delete changes (don't restore deleted paddocks)
+  // IMPORTANT: Respect pending delete changes (don't restore deleted pastures)
   useEffect(() => {
-    console.log('[GeometryContext] Sync effect triggered, initialPaddocks:', initialPaddocks?.length ?? 'undefined', 'pendingChanges:', pendingChanges.length)
-    if (initialPaddocks && initialPaddocks.length > 0) {
-      setPaddocks((currentPaddocks) => {
-        console.log('[GeometryContext] Sync effect currentPaddocks:', currentPaddocks.map(p => ({
+    console.log('[GeometryContext] Sync effect triggered, initialPastures:', initialPastures?.length ?? 'undefined', 'pendingChanges:', pendingChanges.length)
+    if (initialPastures && initialPastures.length > 0) {
+      setPastures((currentPastures) => {
+        console.log('[GeometryContext] Sync effect currentPastures:', currentPastures.map(p => ({
           id: p.id,
           name: p.name,
           firstCoord: p.geometry.geometry.coordinates[0]?.[0],
         })))
-        // Check if there are pending geometry changes for any paddock
+        // Check if there are pending geometry changes for any pasture
         const pendingGeometryIds = new Set(
+          pendingChanges
+            .filter((c) => !c.synced && c.entityType === 'pasture' && c.geometry)
+            .map((c) => c.id)
+        )
+
+        // Check for pending delete changes - these pastures should NOT be restored
+        const pendingDeleteIds = new Set(
+          pendingChanges
+            .filter((c) => !c.synced && c.entityType === 'pasture' && c.changeType === 'delete')
+            .map((c) => c.id)
+        )
+
+        if (pendingDeleteIds.size > 0) {
+          console.log('[GeometryContext] Excluding pastures with pending deletes:', Array.from(pendingDeleteIds))
+        }
+
+        // Check for pending add changes - these are new pastures not yet in Convex
+        const pendingAddIds = new Set(
+          pendingChanges
+            .filter((c) => !c.synced && c.entityType === 'pasture' && c.changeType === 'add')
+            .map((c) => c.id)
+        )
+
+        if (pendingGeometryIds.size > 0 || pendingAddIds.size > 0) {
+          console.log('[GeometryContext] Preserving local geometry for pastures with pending changes:',
+            Array.from(pendingGeometryIds))
+          console.log('[GeometryContext] Preserving newly added pastures:', Array.from(pendingAddIds))
+
+          // Create a map of current pasture geometries for those with pending changes
+          const localGeometries = new Map<string, typeof currentPastures[0]['geometry']>()
+          currentPastures.forEach((p) => {
+            if (pendingGeometryIds.has(p.id)) {
+              localGeometries.set(p.id, p.geometry)
+            }
+          })
+
+          // Get newly added pastures that aren't in Convex yet
+          const newPastures = currentPastures.filter((p) => pendingAddIds.has(p.id))
+
+          // Merge: use Convex metadata but preserve local geometry for changed pastures
+          // Also filter out any pastures with pending deletes
+          const merged = normalizePastures(initialPastures)
+            .filter((p) => !pendingDeleteIds.has(p.id))
+            .map((p) => {
+              if (localGeometries.has(p.id)) {
+                const localGeo = localGeometries.get(p.id)!
+                return { ...p, geometry: localGeo, area: calculateAreaHectares(localGeo) }
+              }
+              return p
+            })
+
+          // Add newly created pastures that aren't in Convex yet
+          const result = [...merged, ...newPastures]
+
+          console.log('[GeometryContext] Merged pastures, preserving', localGeometries.size, 'local geometries and', newPastures.length, 'new pastures')
+          return result
+        }
+
+        // Filter out pastures with pending deletes
+        const filteredPastures = normalizePastures(initialPastures).filter((p) => !pendingDeleteIds.has(p.id))
+        console.log('[GeometryContext] Updating pastures state with', filteredPastures.length, 'pastures (no pending geometry changes)')
+        return filteredPastures
+      })
+    }
+  }, [initialPastures, pendingChanges])
+
+  // Sync paddocks state with initialPaddocks prop changes
+  // IMPORTANT: Preserve local geometry changes that haven't been saved to Convex yet
+  // IMPORTANT: Respect pending delete changes (don't restore deleted paddocks)
+  useEffect(() => {
+    if (initialPaddocks) {
+      setPaddocks((currentPaddocks) => {
+        // Check if there are pending geometry changes for any paddock
+        const pendingPaddockIds = new Set(
           pendingChanges
             .filter((c) => !c.synced && c.entityType === 'paddock' && c.geometry)
             .map((c) => c.id)
@@ -127,98 +201,24 @@ export function GeometryProvider({
         )
 
         if (pendingDeleteIds.size > 0) {
-          console.log('[GeometryContext] Excluding paddocks with pending deletes:', Array.from(pendingDeleteIds))
+          console.log('[GeometryContext] Paddocks sync: excluding pending deletes:', Array.from(pendingDeleteIds))
         }
 
-        // Check for pending add changes - these are new paddocks not yet in Convex
-        const pendingAddIds = new Set(
-          pendingChanges
-            .filter((c) => !c.synced && c.entityType === 'paddock' && c.changeType === 'add')
-            .map((c) => c.id)
-        )
-
-        if (pendingGeometryIds.size > 0 || pendingAddIds.size > 0) {
+        if (pendingPaddockIds.size > 0) {
           console.log('[GeometryContext] Preserving local geometry for paddocks with pending changes:',
-            Array.from(pendingGeometryIds))
-          console.log('[GeometryContext] Preserving newly added paddocks:', Array.from(pendingAddIds))
+            Array.from(pendingPaddockIds))
 
           // Create a map of current paddock geometries for those with pending changes
           const localGeometries = new Map<string, typeof currentPaddocks[0]['geometry']>()
-          currentPaddocks.forEach((p) => {
-            if (pendingGeometryIds.has(p.id)) {
-              localGeometries.set(p.id, p.geometry)
-            }
-          })
-
-          // Get newly added paddocks that aren't in Convex yet
-          const newPaddocks = currentPaddocks.filter((p) => pendingAddIds.has(p.id))
-
-          // Merge: use Convex metadata but preserve local geometry for changed paddocks
-          // Also filter out any paddocks with pending deletes
-          const merged = normalizePaddocks(initialPaddocks)
-            .filter((p) => !pendingDeleteIds.has(p.id))
-            .map((p) => {
-              if (localGeometries.has(p.id)) {
-                const localGeo = localGeometries.get(p.id)!
-                return { ...p, geometry: localGeo, area: calculateAreaHectares(localGeo) }
-              }
-              return p
-            })
-
-          // Add newly created paddocks that aren't in Convex yet
-          const result = [...merged, ...newPaddocks]
-
-          console.log('[GeometryContext] Merged paddocks, preserving', localGeometries.size, 'local geometries and', newPaddocks.length, 'new paddocks')
-          return result
-        }
-
-        // Filter out paddocks with pending deletes
-        const filteredPaddocks = normalizePaddocks(initialPaddocks).filter((p) => !pendingDeleteIds.has(p.id))
-        console.log('[GeometryContext] Updating paddocks state with', filteredPaddocks.length, 'paddocks (no pending geometry changes)')
-        return filteredPaddocks
-      })
-    }
-  }, [initialPaddocks, pendingChanges])
-
-  // Sync sections state with initialSections prop changes
-  // IMPORTANT: Preserve local geometry changes that haven't been saved to Convex yet
-  // IMPORTANT: Respect pending delete changes (don't restore deleted sections)
-  useEffect(() => {
-    if (initialSections) {
-      setSections((currentSections) => {
-        // Check if there are pending geometry changes for any section
-        const pendingSectionIds = new Set(
-          pendingChanges
-            .filter((c) => !c.synced && c.entityType === 'section' && c.geometry)
-            .map((c) => c.id)
-        )
-
-        // Check for pending delete changes - these sections should NOT be restored
-        const pendingDeleteIds = new Set(
-          pendingChanges
-            .filter((c) => !c.synced && c.entityType === 'section' && c.changeType === 'delete')
-            .map((c) => c.id)
-        )
-
-        if (pendingDeleteIds.size > 0) {
-          console.log('[GeometryContext] Sections sync: excluding pending deletes:', Array.from(pendingDeleteIds))
-        }
-
-        if (pendingSectionIds.size > 0) {
-          console.log('[GeometryContext] Preserving local geometry for sections with pending changes:',
-            Array.from(pendingSectionIds))
-
-          // Create a map of current section geometries for those with pending changes
-          const localGeometries = new Map<string, typeof currentSections[0]['geometry']>()
-          currentSections.forEach((s) => {
-            if (pendingSectionIds.has(s.id)) {
+          currentPaddocks.forEach((s) => {
+            if (pendingPaddockIds.has(s.id)) {
               localGeometries.set(s.id, s.geometry)
             }
           })
 
-          // Merge: use Convex data but preserve local geometry for changed sections
-          // Also filter out any sections with pending deletes
-          const merged = normalizeSections(initialSections)
+          // Merge: use Convex data but preserve local geometry for changed paddocks
+          // Also filter out any paddocks with pending deletes
+          const merged = normalizePaddocks(initialPaddocks)
             .filter((s) => !pendingDeleteIds.has(s.id))
             .map((s) => {
               if (localGeometries.has(s.id)) {
@@ -231,11 +231,11 @@ export function GeometryProvider({
           return merged
         }
 
-        // Filter out sections with pending deletes
-        return normalizeSections(initialSections).filter((s) => !pendingDeleteIds.has(s.id))
+        // Filter out paddocks with pending deletes
+        return normalizePaddocks(initialPaddocks).filter((s) => !pendingDeleteIds.has(s.id))
       })
     }
-  }, [initialSections, pendingChanges])
+  }, [initialPaddocks, pendingChanges])
 
   const hasUnsavedChanges = useMemo(
     () => pendingChanges.some((c) => !c.synced),
@@ -278,32 +278,32 @@ export function GeometryProvider({
     }
   }, [pendingChanges, onGeometryChange])
 
-  // Paddock operations
-  const addPaddock = useCallback(
-    (geometry: Feature<Polygon>, metadata?: Partial<Omit<Paddock, 'id' | 'geometry'>>): string => {
+  // Pasture operations
+  const addPasture = useCallback(
+    (geometry: Feature<Polygon>, metadata?: Partial<Omit<Pasture, 'id' | 'geometry'>>): string => {
       const id = `p-${generateId()}`
       const area = calculateAreaHectares(geometry)
-      const newPaddock: Paddock = {
-        ...createDefaultPaddockMetadata(),
+      const newPasture: Pasture = {
+        ...createDefaultPastureMetadata(),
         ...metadata,
         id,
         geometry,
         area: metadata?.area ?? area,
       }
 
-      setPaddocks((prev) => [...prev, newPaddock])
+      setPastures((prev) => [...prev, newPasture])
       const changeMetadata = {
-        name: newPaddock.name,
-        status: newPaddock.status,
-        ndvi: newPaddock.ndvi,
-        restDays: newPaddock.restDays,
-        area: newPaddock.area,
-        waterAccess: newPaddock.waterAccess,
-        lastGrazed: newPaddock.lastGrazed,
+        name: newPasture.name,
+        status: newPasture.status,
+        ndvi: newPasture.ndvi,
+        restDays: newPasture.restDays,
+        area: newPasture.area,
+        waterAccess: newPasture.waterAccess,
+        lastGrazed: newPasture.lastGrazed,
       }
       recordChange({
         id,
-        entityType: 'paddock',
+        entityType: 'pasture',
         changeType: 'add',
         geometry,
         metadata: changeMetadata,
@@ -315,15 +315,15 @@ export function GeometryProvider({
     [recordChange]
   )
 
-  const updatePaddock = useCallback(
+  const updatePasture = useCallback(
     (id: string, geometry: Feature<Polygon>) => {
       const area = calculateAreaHectares(geometry)
-      setPaddocks((prev) =>
+      setPastures((prev) =>
         prev.map((p) => (p.id === id ? { ...p, geometry, area } : p))
       )
       recordChange({
         id,
-        entityType: 'paddock',
+        entityType: 'pasture',
         changeType: 'update',
         geometry,
         timestamp: new Date().toISOString(),
@@ -332,26 +332,26 @@ export function GeometryProvider({
     [recordChange]
   )
 
-  const updatePaddockMetadata = useCallback(
-    (id: string, metadata: Partial<Omit<Paddock, 'id' | 'geometry'>>) => {
-      setPaddocks((prev) =>
+  const updatePastureMetadata = useCallback(
+    (id: string, metadata: Partial<Omit<Pasture, 'id' | 'geometry'>>) => {
+      setPastures((prev) =>
         prev.map((p) => (p.id === id ? { ...p, ...metadata } : p))
       )
-      if (onPaddockMetadataChange) {
-        void onPaddockMetadataChange(id, metadata)
+      if (onPastureMetadataChange) {
+        void onPastureMetadataChange(id, metadata)
       }
     },
-    [onPaddockMetadataChange]
+    [onPastureMetadataChange]
   )
 
-  const deletePaddock = useCallback(
+  const deletePasture = useCallback(
     (id: string) => {
-      setPaddocks((prev) => prev.filter((p) => p.id !== id))
-      // Also delete all sections in this paddock
-      setSections((prev) => prev.filter((s) => s.paddockId !== id))
+      setPastures((prev) => prev.filter((p) => p.id !== id))
+      // Also delete all paddocks in this pasture
+      setPaddocks((prev) => prev.filter((s) => s.pastureId !== id))
       recordChange({
         id,
-        entityType: 'paddock',
+        entityType: 'pasture',
         changeType: 'delete',
         timestamp: new Date().toISOString(),
       })
@@ -359,31 +359,31 @@ export function GeometryProvider({
     [recordChange]
   )
 
-  // Section operations
-  const addSection = useCallback(
+  // Paddock operations
+  const addPaddock = useCallback(
     (
-      paddockId: string,
+      pastureId: string,
       geometry: Feature<Polygon>,
-      metadata?: Partial<Omit<Section, 'id' | 'paddockId' | 'geometry'>>
+      metadata?: Partial<Omit<Paddock, 'id' | 'pastureId' | 'geometry'>>
     ): string => {
       const id = `s-${generateId()}`
       const targetArea = calculateAreaHectares(geometry)
-      const newSection: Section = {
-        ...createDefaultSectionMetadata(),
+      const newPaddock: Paddock = {
+        ...createDefaultPaddockMetadata(),
         ...metadata,
         id,
-        paddockId,
+        pastureId,
         geometry,
         targetArea: metadata?.targetArea ?? targetArea,
       }
 
-      setSections((prev) => [...prev, newSection])
+      setPaddocks((prev) => [...prev, newPaddock])
       recordChange({
         id,
-        entityType: 'section',
+        entityType: 'paddock',
         changeType: 'add',
         geometry,
-        parentId: paddockId,
+        parentId: pastureId,
         timestamp: new Date().toISOString(),
       })
 
@@ -392,53 +392,53 @@ export function GeometryProvider({
     [recordChange]
   )
 
-  const updateSection = useCallback(
+  const updatePaddock = useCallback(
     (id: string, geometry: Feature<Polygon>) => {
       const targetArea = calculateAreaHectares(geometry)
       // Capture original geometry before updating state
-      const section = sections.find((s) => s.id === id)
-      const originalGeometry = section?.geometry
+      const paddock = paddocks.find((s) => s.id === id)
+      const originalGeometry = paddock?.geometry
 
-      setSections((prev) =>
+      setPaddocks((prev) =>
         prev.map((s) => (s.id === id ? { ...s, geometry, targetArea } : s))
       )
 
       recordChange({
         id,
-        entityType: 'section',
+        entityType: 'paddock',
         changeType: 'update',
         geometry,
         originalGeometry, // Store original for rationale dialog
-        parentId: section?.paddockId,
+        parentId: paddock?.pastureId,
         timestamp: new Date().toISOString(),
       })
     },
-    [recordChange, sections]
+    [recordChange, paddocks]
   )
 
-  const deleteSection = useCallback(
+  const deletePaddock = useCallback(
     (id: string) => {
-      const section = sections.find((s) => s.id === id)
-      setSections((prev) => prev.filter((s) => s.id !== id))
+      const paddock = paddocks.find((s) => s.id === id)
+      setPaddocks((prev) => prev.filter((s) => s.id !== id))
       recordChange({
         id,
-        entityType: 'section',
+        entityType: 'paddock',
         changeType: 'delete',
-        parentId: section?.paddockId,
+        parentId: paddock?.pastureId,
         timestamp: new Date().toISOString(),
       })
     },
-    [recordChange, sections]
+    [recordChange, paddocks]
   )
 
-  const updateSectionMetadata = useCallback(
-    (id: string, metadata: Partial<Omit<Section, 'id' | 'paddockId' | 'geometry'>>) => {
-      setSections((prev) => prev.map((s) => (s.id === id ? { ...s, ...metadata } : s)))
-      if (onSectionMetadataChange) {
-        void onSectionMetadataChange(id, metadata)
+  const updatePaddockMetadata = useCallback(
+    (id: string, metadata: Partial<Omit<Paddock, 'id' | 'pastureId' | 'geometry'>>) => {
+      setPaddocks((prev) => prev.map((s) => (s.id === id ? { ...s, ...metadata } : s)))
+      if (onPaddockMetadataChange) {
+        void onPaddockMetadataChange(id, metadata)
       }
     },
-    [onSectionMetadataChange]
+    [onPaddockMetadataChange]
   )
 
   // No-graze zone operations
@@ -633,60 +633,60 @@ export function GeometryProvider({
   )
 
   // Utility functions
+  const getPastureById = useCallback(
+    (id: string): Pasture | undefined => {
+      return pastures.find((p) => p.id === id)
+    },
+    [pastures]
+  )
+
   const getPaddockById = useCallback(
     (id: string): Paddock | undefined => {
-      return paddocks.find((p) => p.id === id)
+      return paddocks.find((s) => s.id === id)
     },
     [paddocks]
   )
 
-  const getSectionById = useCallback(
-    (id: string): Section | undefined => {
-      return sections.find((s) => s.id === id)
+  const getPaddocksByPastureId = useCallback(
+    (pastureId: string): Paddock[] => {
+      return paddocks.filter((s) => s.pastureId === pastureId)
     },
-    [sections]
-  )
-
-  const getSectionsByPaddockId = useCallback(
-    (paddockId: string): Section[] => {
-      return sections.filter((s) => s.paddockId === paddockId)
-    },
-    [sections]
+    [paddocks]
   )
 
   const resetToInitial = useCallback(() => {
-    const resetPaddocks = normalizePaddocks(initialPaddocks ?? mockPaddocks)
-    console.log('[GeometryContext] resetToInitial called, resetting to:', resetPaddocks.map(p => ({
+    const resetPastures = normalizePastures(initialPastures ?? mockPastures)
+    console.log('[GeometryContext] resetToInitial called, resetting to:', resetPastures.map(p => ({
       id: p.id,
       name: p.name,
       firstCoord: p.geometry.geometry.coordinates[0]?.[0],
     })))
-    setPaddocks(resetPaddocks)
-    setSections(normalizeSections(initialSections ?? []))
+    setPastures(resetPastures)
+    setPaddocks(normalizePaddocks(initialPaddocks ?? []))
     setNoGrazeZones(initialNoGrazeZones ?? [])
     setWaterSources(initialWaterSources ?? [])
     setPendingChanges([])
     setResetCounter((c) => c + 1)
-  }, [initialPaddocks, initialSections, initialNoGrazeZones, initialWaterSources])
+  }, [initialPastures, initialPaddocks, initialNoGrazeZones, initialWaterSources])
 
   const value = useMemo<GeometryContextValue>(
     () => ({
+      pastures,
       paddocks,
-      sections,
       noGrazeZones,
       waterSources,
       pendingChanges,
       hasUnsavedChanges,
       isSaving,
       resetCounter,
+      addPasture,
+      updatePasture,
+      updatePastureMetadata,
+      deletePasture,
       addPaddock,
       updatePaddock,
       updatePaddockMetadata,
       deletePaddock,
-      addSection,
-      updateSection,
-      updateSectionMetadata,
-      deleteSection,
       addNoGrazeZone,
       updateNoGrazeZone,
       updateNoGrazeZoneMetadata,
@@ -697,31 +697,31 @@ export function GeometryProvider({
       updateWaterSourceMetadata,
       deleteWaterSource,
       getWaterSourceById,
+      getPastureById,
       getPaddockById,
-      getSectionById,
-      getSectionsByPaddockId,
+      getPaddocksByPastureId,
       saveChanges,
       onGeometryChange,
-      onPaddockMetadataChange,
+      onPastureMetadataChange,
       resetToInitial,
     }),
     [
+      pastures,
       paddocks,
-      sections,
       noGrazeZones,
       waterSources,
       pendingChanges,
       hasUnsavedChanges,
       isSaving,
       resetCounter,
+      addPasture,
+      updatePasture,
+      updatePastureMetadata,
+      deletePasture,
       addPaddock,
       updatePaddock,
       updatePaddockMetadata,
       deletePaddock,
-      addSection,
-      updateSection,
-      updateSectionMetadata,
-      deleteSection,
       addNoGrazeZone,
       updateNoGrazeZone,
       updateNoGrazeZoneMetadata,
@@ -732,12 +732,12 @@ export function GeometryProvider({
       updateWaterSourceMetadata,
       deleteWaterSource,
       getWaterSourceById,
+      getPastureById,
       getPaddockById,
-      getSectionById,
-      getSectionsByPaddockId,
+      getPaddocksByPastureId,
       saveChanges,
       onGeometryChange,
-      onPaddockMetadataChange,
+      onPastureMetadataChange,
       resetToInitial,
     ]
   )

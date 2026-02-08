@@ -154,7 +154,7 @@ export function NDVIHeatmapLayer({
 export function NDVIColorLegend({ className = '' }: { className?: string }) {
   return (
     <div className={`bg-white rounded-lg shadow-sm p-3 ${className}`}>
-      <h4 className="text-xs font-medium text-gray-700 mb-2">NDVI (Vegetation Health)</h4>
+      <h4 className="text-xs font-medium text-muted mb-2">NDVI (Vegetation Health)</h4>
       <div className="flex items-center gap-1">
         {NDVI_COLOR_RAMP.map((item, idx) => (
           <div key={idx} className="flex flex-col items-center">
@@ -236,7 +236,7 @@ export function NDVIHeatmapControls({
         <button
           onClick={() => onVisibilityChange(!visible)}
           className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-            visible ? 'bg-green-600' : 'bg-gray-200'
+            visible ? 'bg-olive' : 'bg-muted'
           }`}
         >
           <span

@@ -1,14 +1,14 @@
 import { mutation } from '../_generated/server'
 
 /**
- * One-time migration to update farm-1 paddock geometries with real field shapes.
+ * One-time migration to update farm-1 pasture geometries with real field shapes.
  * Run with: npx convex run migrations/updateDemoGeometries:updateGeometries --prod
  */
 
 const FARM_EXTERNAL_ID = 'farm-1'
 
-// Real paddock geometries oriented over actual fields
-const paddockGeometries: Record<string, { coordinates: number[][][] }> = {
+// Real pasture geometries oriented over actual fields
+const pastureGeometries: Record<string, { coordinates: number[][][] }> = {
   p1: {
     coordinates: [[
       [-87.0397151751705, 35.64517947639289],
@@ -98,7 +98,7 @@ const paddockGeometries: Record<string, { coordinates: number[][][] }> = {
   },
 }
 
-// Farm boundary that encompasses all paddocks
+// Farm boundary that encompasses all pastures
 const farmGeometry = {
   type: 'Feature' as const,
   properties: {},
@@ -143,20 +143,20 @@ export const updateGeometries = mutation({
       updatedAt: new Date().toISOString(),
     })
 
-    // Get all paddocks for this farm
-    const paddocks = await ctx.db
+    // Get all pastures for this farm
+    const pastures = await ctx.db
       .query('paddocks')
       .withIndex('by_farm', (q) => q.eq('farmId', farm._id))
       .collect()
 
     let updatedCount = 0
-    for (const paddock of paddocks) {
-      const geometry = paddockGeometries[paddock.externalId]
+    for (const pasture of pastures) {
+      const geometry = pastureGeometries[pasture.externalId]
       if (geometry) {
-        await ctx.db.patch(paddock._id, {
+        await ctx.db.patch(pasture._id, {
           geometry: {
             type: 'Feature',
-            properties: { entityId: paddock.externalId, entityType: 'paddock' },
+            properties: { entityId: pasture.externalId, entityType: 'paddock' },
             geometry: {
               type: 'Polygon',
               coordinates: geometry.coordinates,
@@ -171,8 +171,8 @@ export const updateGeometries = mutation({
     return {
       success: true,
       farmId: farm._id,
-      updatedPaddocks: updatedCount,
-      totalPaddocks: paddocks.length,
+      updatedPastures: updatedCount,
+      totalPastures: pastures.length,
     }
   },
 })

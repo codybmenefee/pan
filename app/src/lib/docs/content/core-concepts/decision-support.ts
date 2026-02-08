@@ -38,20 +38,20 @@ Combining satellite imagery, weather data, historical events, and configuration 
 Applying the same logic every day without fatigue, distraction, or bias. The 500th recommendation follows the same rules as the first.
 
 **Pattern Recognition**
-Identifying trends in NDVI, recovery patterns, and utilization across many paddocks simultaneously.
+Identifying trends in NDVI, recovery patterns, and utilization across many pastures simultaneously.
 
 **Documentation**
 Generating reasoning text that explains decisions. This creates an audit trail and enables learning.
 
 **Spatial Computation**
-Calculating section geometries, avoiding overlaps, clipping to boundaries. Geometric operations that would take humans considerable effort.`,
+Calculating paddock geometries, avoiding overlaps, clipping to boundaries. Geometric operations that would take humans considerable effort.`,
     },
     {
       heading: 'What AI Does Poorly',
       content: `The platform explicitly avoids tasks where human judgment is superior:
 
 **Local Knowledge**
-That paddock floods when the creek rises. The AI doesn't know this unless told. Farmer observations capture what satellites miss.
+That pasture floods when the creek rises. The AI doesn't know this unless told. Farmer observations capture what satellites miss.
 
 **Novel Situations**
 Drought, disease outbreak, equipment failure. These require creative problem-solving that AI handles poorly.
@@ -119,7 +119,7 @@ The platform's goal is to **extend the reach of skilled farmers**:
 
 This is why decision support (human + machine) outperforms both pure automation (machine alone) and traditional management (human alone). Each component does what it does best.
 
-The farmer who can confidently manage 100 paddocks instead of 20—without working 3x the hours—achieves leverage that transforms agricultural economics.`,
+The farmer who can confidently manage 100 pastures instead of 20—without working 3x the hours—achieves leverage that transforms agricultural economics.`,
     },
   ],
   relatedArticles: [

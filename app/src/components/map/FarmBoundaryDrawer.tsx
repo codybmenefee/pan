@@ -507,7 +507,7 @@ export function FarmBoundaryDrawer({
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-sm">
               <div className="flex items-center gap-1.5">
-                <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                <div className="h-2 w-2 rounded-full bg-olive animate-pulse" />
                 <span>
                   {startPoint
                     ? 'Click the opposite corner to complete the square'

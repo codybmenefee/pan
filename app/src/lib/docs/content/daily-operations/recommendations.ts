@@ -10,8 +10,8 @@ export const recommendations: ArticleContent = {
       content: `The recommendation engine answers: **"Given current conditions and constraints, what is the best grazing decision for today?"**
 
 The answer is always actionable:
-- A specific paddock
-- A specific section within that paddock
+- A specific pasture
+- A specific paddock within that pasture
 - Reasoning for the choice
 
 The answer is never "don't graze" or "let them rest everywhere." Animals eat daily. The system respects this biological reality.`,
@@ -21,19 +21,19 @@ The answer is never "don't graze" or "let them rest everywhere." Animals eat dai
       content: `The decision engine evaluates multiple constraints:
 
 **NDVI Threshold**
-Paddocks below the minimum NDVI (default: 0.40) are deprioritized. They may still be selected if no better options exist.
+Pastures below the minimum NDVI (default: 0.40) are deprioritized. They may still be selected if no better options exist.
 
 **Rest Days**
-Paddocks that haven't met minimum rest period (default: 21 days) are deprioritized. Recent grazing (< 7 days) strongly discourages selection.
+Pastures that haven't met minimum rest period (default: 21 days) are deprioritized. Recent grazing (< 7 days) strongly discourages selection.
 
 **Water Access**
-If water zones are defined, proximity influences section placement.
+If water zones are defined, proximity influences paddock placement.
 
 **Historical Utilization**
-Paddocks already heavily utilized (high grazed percentage) may be deprioritized to balance usage.
+Pastures already heavily utilized (high grazed percentage) may be deprioritized to balance usage.
 
-**Previous Sections**
-Within a paddock, sections must not overlap with recent previous sections.
+**Previous Paddocks**
+Within a pasture, paddocks must not overlap with recent previous paddocks.
 
 No single constraint is absolute except: **animals must graze somewhere**.`,
     },
@@ -86,7 +86,7 @@ if (currentNdvi < threshold) {
 - Even suboptimal grazing is better than starving
 
 **Implementation:**
-The agent always selects a paddock and creates a section, even when all options are below threshold.
+The agent always selects a pasture and creates a paddock, even when all options are below threshold.
 
 **When conditions are poor:**
 - The recommendation acknowledges suboptimal conditions
@@ -97,8 +97,8 @@ The agent always selects a paddock and creates a section, even when all options 
 This design respects the biological reality of livestock operations.`,
     },
     {
-      heading: 'Paddock Selection Priority',
-      content: `When choosing between paddocks, the system prioritizes:
+      heading: 'Pasture Selection Priority',
+      content: `When choosing between pastures, the system prioritizes:
 
 **1. NDVI above threshold + adequate rest**
 Ideal conditions. High confidence recommendation.
@@ -107,33 +107,33 @@ Ideal conditions. High confidence recommendation.
 Good forage, approaching ideal rest. Moderate confidence.
 
 **3. Highest available NDVI regardless of threshold**
-When no paddock meets threshold, choose the best available.
+When no pasture meets threshold, choose the best available.
 
 **4. Balance NDVI and rest days**
-When tie-breaking, prefer paddocks with longer rest periods.
+When tie-breaking, prefer pastures with longer rest periods.
 
 The system avoids:
-- Paddocks recently grazed (< 7 days)
-- Heavily utilized paddocks when others available
-- Paddocks without water access (if water zones defined)`,
+- Pastures recently grazed (< 7 days)
+- Heavily utilized pastures when others available
+- Pastures without water access (if water zones defined)`,
     },
     {
-      heading: 'Section Selection Within Paddock',
-      content: `Once a paddock is selected, the AI generates a section:
+      heading: 'Paddock Selection Within Pasture',
+      content: `Once a pasture is selected, the AI generates a paddock:
 
-**Size target:** ~20% of paddock area (configurable)
+**Size target:** ~20% of pasture area (configurable)
 
 **Placement criteria:**
-- Avoid overlap with previous sections
-- Stay within paddock boundaries
+- Avoid overlap with previous paddocks
+- Stay within pasture boundaries
 - Consider water access proximity
 - Maintain reasonable aspect ratio
 
 **Geometry generation:**
-The AI produces GeoJSON polygon coordinates that define the section boundary. This is validated and auto-clipped if needed.
+The AI produces GeoJSON polygon coordinates that define the paddock boundary. This is validated and auto-clipped if needed.
 
 **Justification:**
-Text explaining why this specific area within the paddock was chosen.`,
+Text explaining why this specific area within the pasture was chosen.`,
     },
     {
       heading: 'What the Farmer Does With Output',

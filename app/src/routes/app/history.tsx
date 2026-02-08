@@ -33,17 +33,17 @@ function HistoryPage() {
     activeFarmId ? { farmExternalId: activeFarmId, days } : 'skip'
   )
 
-  // Fetch paddocks for name lookup
-  const paddocks = useQuery(
-    api.intelligence.getPaddocksForFarm,
+  // Fetch pastures for name lookup
+  const pastures = useQuery(
+    api.intelligence.getPasturesForFarm,
     activeFarmId ? { farmExternalId: activeFarmId } : 'skip'
   )
 
-  // Build paddock name lookup map
-  const paddockNameMap = useMemo(() => {
-    if (!paddocks) return new Map<string, string>()
-    return new Map(paddocks.map(p => [p.externalId, p.name]))
-  }, [paddocks])
+  // Build pasture name lookup map
+  const pastureNameMap = useMemo(() => {
+    if (!pastures) return new Map<string, string>()
+    return new Map(pastures.map(p => [p.externalId, p.name]))
+  }, [pastures])
 
   // Get plan IDs for fetching modifications
   const planIds = useMemo(() => {
@@ -51,9 +51,9 @@ function HistoryPage() {
     return plans.map(p => p._id as Id<'plans'>)
   }, [plans])
 
-  // Fetch section modifications for all plans
+  // Fetch paddock modifications for all plans
   const modifications = useQuery(
-    api.intelligence.getSectionModificationsByPlanIds,
+    api.intelligence.getPaddockModificationsByPlanIds,
     planIds.length > 0 ? { planIds } : 'skip'
   )
 
@@ -74,7 +74,7 @@ function HistoryPage() {
     }
   }, [plans])
 
-  if (farmLoading || plans === undefined || paddocks === undefined) {
+  if (farmLoading || plans === undefined || pastures === undefined) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-200px)]">
         <LoadingSpinner message="Loading history..." />
@@ -117,19 +117,19 @@ function HistoryPage() {
           <Card>
             <CardContent className="pt-4">
               <p className="text-sm text-muted-foreground">Approved</p>
-              <p className="text-2xl font-semibold text-green-600">{stats.approved}</p>
+              <p className="text-2xl font-semibold text-olive">{stats.approved}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4">
               <p className="text-sm text-muted-foreground">Modified</p>
-              <p className="text-2xl font-semibold text-amber-600">{stats.modified}</p>
+              <p className="text-2xl font-semibold text-terracotta">{stats.modified}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4">
               <p className="text-sm text-muted-foreground">Pending</p>
-              <p className="text-2xl font-semibold text-blue-600">{stats.pending}</p>
+              <p className="text-2xl font-semibold text-cobalt">{stats.pending}</p>
             </CardContent>
           </Card>
         </div>
@@ -138,7 +138,7 @@ function HistoryPage() {
       {/* Timeline - full width now */}
       <HistoryTimeline
         plans={plans}
-        paddockNameMap={paddockNameMap}
+        pastureNameMap={pastureNameMap}
         modificationsMap={modificationsMap}
       />
     </div>

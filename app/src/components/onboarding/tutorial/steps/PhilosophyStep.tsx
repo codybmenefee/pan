@@ -4,7 +4,7 @@ export function PhilosophyStep() {
   return (
     <div className="flex flex-col items-center gap-6">
       {/* Visual */}
-      <div className="flex h-48 w-full items-center justify-center rounded-xl bg-gradient-to-b from-sky-100 to-green-50 dark:from-sky-900/20 dark:to-green-900/20">
+      <div className="flex h-48 w-full items-center justify-center rounded-xl bg-gradient-to-b from-olive-light to-olive-light">
         <GrassAnimation className="h-32" />
       </div>
 
@@ -21,8 +21,8 @@ export function PhilosophyStep() {
       </div>
 
       {/* Key insight callout */}
-      <div className="flex items-center gap-2 rounded-full bg-green-50 dark:bg-green-900/20 px-4 py-2 text-sm text-green-700 dark:text-green-300">
-        <span className="h-2 w-2 rounded-full bg-green-500" />
+      <div className="flex items-center gap-2 rounded-full bg-olive-light px-4 py-2 text-sm text-olive">
+        <span className="h-2 w-2 rounded-full bg-olive" />
         Move livestock to allow recovery
       </div>
     </div>

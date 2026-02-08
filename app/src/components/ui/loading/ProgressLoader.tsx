@@ -41,7 +41,7 @@ export function ProgressLoader({
             )}
           >
             {step.status === 'complete' ? (
-              <Check className="h-4 w-4 text-green-500" />
+              <Check className="h-4 w-4 text-olive" />
             ) : step.status === 'loading' ? (
               <span className="h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
             ) : (

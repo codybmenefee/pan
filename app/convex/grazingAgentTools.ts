@@ -13,7 +13,7 @@ import { createLogger } from './lib/logger'
 
 const log = createLogger('grazingAgentTools')
 
-interface PaddockData {
+interface PastureData {
   externalId: string
   name: string
   area: number
@@ -32,7 +32,7 @@ interface PaddockData {
   } | null
 }
 
-interface SectionWithJustification {
+interface PaddockWithJustification {
   id: string
   date: string
   geometry: any
@@ -40,7 +40,7 @@ interface SectionWithJustification {
   justification: string
 }
 
-interface PaddockSummary {
+interface PastureSummary {
   externalId: string
   name: string
   area: number
@@ -52,9 +52,9 @@ interface PaddockSummary {
   dataQualityWarning: string | null
 }
 
-export const getAllPaddocksWithObservations = query({
+export const getAllPasturesWithObservations = query({
   args: { farmExternalId: v.optional(v.string()) },
-  handler: async (ctx, args): Promise<PaddockSummary[]> => {
+  handler: async (ctx, args): Promise<PastureSummary[]> => {
     const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
 
     const farm = await ctx.db
@@ -66,12 +66,12 @@ export const getAllPaddocksWithObservations = query({
       return []
     }
 
-    const paddocks = await ctx.db
+    const pastures = await ctx.db
       .query('paddocks')
       .withIndex('by_farm', (q: any) => q.eq('farmId', farm._id))
       .collect()
 
-    if (paddocks.length === 0) {
+    if (pastures.length === 0) {
       return []
     }
 
@@ -103,20 +103,20 @@ export const getAllPaddocksWithObservations = query({
       }
     }
 
-    return paddocks.map((paddock: any) => {
-      const paddockObservations = observations.filter(
-        (o: any) => o.paddockExternalId === paddock.externalId
+    return pastures.map((pasture: any) => {
+      const pastureObservations = observations.filter(
+        (o: any) => o.paddockExternalId === pasture.externalId
       )
 
       // Sort observations by date descending
-      paddockObservations.sort((a: any, b: any) =>
+      pastureObservations.sort((a: any, b: any) =>
         new Date(b.date).getTime() - new Date(a.date).getTime()
       )
 
-      const latestObservation = paddockObservations[0] ?? null
+      const latestObservation = pastureObservations[0] ?? null
 
       // Find latest reliable observation (meeting quality threshold)
-      const reliableObservation = paddockObservations.find(
+      const reliableObservation = pastureObservations.find(
         (o: any) => o.isValid && o.cloudFreePct >= minCloudFreePct
       ) ?? null
 
@@ -142,12 +142,12 @@ export const getAllPaddocksWithObservations = query({
         dataQualityWarning = `Latest observation has ${cloudPct}% cloud cover - no reliable historical data`
       }
 
-      const paddockGrazingEvents = grazingEvents.filter(
-        (e: any) => e.paddockExternalId === paddock.externalId
+      const pastureGrazingEvents = grazingEvents.filter(
+        (e: any) => e.paddockExternalId === pasture.externalId
       )
 
-      const mostRecentEvent = paddockGrazingEvents.length > 0
-        ? paddockGrazingEvents.reduce((latest: any, event: any) => {
+      const mostRecentEvent = pastureGrazingEvents.length > 0
+        ? pastureGrazingEvents.reduce((latest: any, event: any) => {
             if (!latest || new Date(event.date) > new Date(latest.date)) {
               return event
             }
@@ -166,7 +166,7 @@ export const getAllPaddocksWithObservations = query({
         }
       }
 
-      const ndviMean = observationToUse?.ndviMean ?? paddock.ndvi ?? 0
+      const ndviMean = observationToUse?.ndviMean ?? pasture.ndvi ?? 0
 
       let status = 'recovering'
       if (ndviMean >= 0.4 && restDays >= 21) {
@@ -178,25 +178,25 @@ export const getAllPaddocksWithObservations = query({
       }
 
       return {
-        externalId: paddock.externalId,
-        name: paddock.name,
-        area: paddock.area || calculateAreaHectares(paddock.geometry),
+        externalId: pasture.externalId,
+        name: pasture.name,
+        area: pasture.area || calculateAreaHectares(pasture.geometry),
         ndviMean,
         restDays,
         lastGrazed: mostRecentEvent?.date || null,
         status,
-        geometry: paddock.geometry,
+        geometry: pasture.geometry,
         dataQualityWarning,
       }
     }).sort((a: any, b: any) => b.ndviMean - a.ndviMean)
   },
 })
 
-export const getPaddockData = query({
+export const getPastureData = query({
   args: { farmExternalId: v.optional(v.string()) },
-  handler: async (ctx, args): Promise<PaddockData | null> => {
+  handler: async (ctx, args): Promise<PastureData | null> => {
     const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
-    
+
     const farm = await ctx.db
       .query('farms')
       .withIndex('by_externalId', (q: any) => q.eq('externalId', farmExternalId))
@@ -206,12 +206,12 @@ export const getPaddockData = query({
       return null
     }
 
-    const paddocks = await ctx.db
+    const pastures = await ctx.db
       .query('paddocks')
       .withIndex('by_farm', (q: any) => q.eq('farmId', farm._id))
       .collect()
 
-    if (paddocks.length === 0) {
+    if (pastures.length === 0) {
       return null
     }
 
@@ -234,20 +234,20 @@ export const getPaddockData = query({
         }, null)
       : null
 
-    const activePaddockId = mostRecentGrazingEvent?.paddockExternalId || paddocks[0]?.externalId
+    const activePastureId = mostRecentGrazingEvent?.paddockExternalId || pastures[0]?.externalId
 
-    const activePaddock = paddocks.find((p: any) => p.externalId === activePaddockId)
+    const activePasture = pastures.find((p: any) => p.externalId === activePastureId)
 
-    if (!activePaddock) {
+    if (!activePasture) {
       return null
     }
 
-    const paddockObservations = observations.filter(
-      (o: any) => o.paddockExternalId === activePaddockId
+    const pastureObservations = observations.filter(
+      (o: any) => o.paddockExternalId === activePastureId
     )
-    
-    const latestObservation = paddockObservations.length > 0
-      ? paddockObservations.reduce((latest: any, obs: any) => {
+
+    const latestObservation = pastureObservations.length > 0
+      ? pastureObservations.reduce((latest: any, obs: any) => {
           if (!latest || new Date(obs.date) > new Date(latest.date)) {
             return obs
           }
@@ -255,11 +255,11 @@ export const getPaddockData = query({
         }, null)
       : null
 
-    const paddockGrazingEvents = grazingEvents.filter(
-      (e: any) => e.paddockExternalId === activePaddockId
+    const pastureGrazingEvents = grazingEvents.filter(
+      (e: any) => e.paddockExternalId === activePastureId
     )
 
-    const daysGrazed = paddockGrazingEvents.length
+    const daysGrazed = pastureGrazingEvents.length
 
     const calculateAreaHectares = (geometry: any): number => {
       try {
@@ -271,8 +271,8 @@ export const getPaddockData = query({
     }
 
     let ndviTrend = 'stable'
-    if (paddockObservations.length >= 2) {
-      const sorted = [...paddockObservations].sort(
+    if (pastureObservations.length >= 2) {
+      const sorted = [...pastureObservations].sort(
         (a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()
       )
       const prev = sorted[sorted.length - 2]?.ndviMean || 0
@@ -282,9 +282,9 @@ export const getPaddockData = query({
       else if (diff < -0.02) ndviTrend = 'decreasing'
     }
 
-    // Get the most recent grazing event for THIS specific paddock
-    const mostRecentPaddockEvent = paddockGrazingEvents.length > 0
-      ? paddockGrazingEvents.reduce((latest: any, event: any) => {
+    // Get the most recent grazing event for THIS specific pasture
+    const mostRecentPastureEvent = pastureGrazingEvents.length > 0
+      ? pastureGrazingEvents.reduce((latest: any, event: any) => {
           if (!latest || new Date(event.date) > new Date(latest.date)) {
             return event
           }
@@ -292,7 +292,7 @@ export const getPaddockData = query({
         }, null)
       : null
 
-    const lastGrazed = mostRecentPaddockEvent?.date
+    const lastGrazed = mostRecentPastureEvent?.date
     let restDays = 0
     if (lastGrazed && latestObservation) {
       try {
@@ -305,16 +305,16 @@ export const getPaddockData = query({
     }
 
     return {
-      externalId: activePaddock.externalId,
-      name: activePaddock.name,
-      area: activePaddock.area || calculateAreaHectares(activePaddock.geometry),
-      ndviMean: activePaddock.ndvi || (latestObservation?.ndviMean ?? 0.45),
+      externalId: activePasture.externalId,
+      name: activePasture.name,
+      area: activePasture.area || calculateAreaHectares(activePasture.geometry),
+      ndviMean: activePasture.ndvi || (latestObservation?.ndviMean ?? 0.45),
       ndviStd: latestObservation?.ndviStd ?? 0.08,
       ndviTrend,
       restDays,
       daysGrazed,
       totalPlanned: 4,
-      geometry: activePaddock.geometry,
+      geometry: activePasture.geometry,
       latestObservation: latestObservation ? {
         date: latestObservation.date,
         ndviMean: latestObservation.ndviMean,
@@ -325,31 +325,31 @@ export const getPaddockData = query({
   },
 })
 
-export const getPreviousSections = query({
+export const getPreviousPaddocks = query({
   args: { farmExternalId: v.optional(v.string()), paddockId: v.optional(v.string()) },
-  handler: async (ctx, args): Promise<SectionWithJustification[]> => {
+  handler: async (ctx, args): Promise<PaddockWithJustification[]> => {
     const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
     const today = new Date().toISOString().split('T')[0]
-    
+
     const plans = await ctx.db
       .query('plans')
       .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
       .collect()
 
-    const targetPaddockId = args.paddockId
+    const targetPastureId = args.paddockId
 
-    const sectionsWithJustification: SectionWithJustification[] = []
+    const paddocksWithJustification: PaddockWithJustification[] = []
 
     for (const plan of plans) {
-      // Only include sections from previous days (exclude today to avoid overlap with current plan being generated)
+      // Only include paddocks from previous days (exclude today to avoid overlap with current plan being generated)
       // Also exclude rejected plans as they weren't executed
       if (
-        plan.sectionGeometry && 
-        plan.primaryPaddockExternalId === targetPaddockId &&
+        plan.sectionGeometry &&
+        plan.primaryPaddockExternalId === targetPastureId &&
         plan.date !== today &&
         plan.status !== 'rejected'
       ) {
-        sectionsWithJustification.push({
+        paddocksWithJustification.push({
           id: plan._id.toString(),
           date: plan.date,
           geometry: plan.sectionGeometry,
@@ -359,7 +359,7 @@ export const getPreviousSections = query({
       }
     }
 
-    return sectionsWithJustification.sort(
+    return paddocksWithJustification.sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     )
   },
@@ -369,7 +369,7 @@ export const getFarmSettings = query({
   args: { farmExternalId: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
-    
+
     const settings = await ctx.db
       .query('farmSettings')
       .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
@@ -379,19 +379,19 @@ export const getFarmSettings = query({
       return {
         minNDVIThreshold: 0.40,
         minRestPeriod: 21,
-        defaultSectionPct: 0.20,
+        defaultPaddockPct: 0.20,
       }
     }
 
     return {
       minNDVIThreshold: settings.minNDVIThreshold,
       minRestPeriod: settings.minRestPeriod,
-      defaultSectionPct: 0.20,
+      defaultPaddockPct: 0.20,
     }
   },
 })
 
-export const createPlanWithSection = mutation({
+export const createPlanWithPaddock = mutation({
   args: {
     farmExternalId: v.string(),
     targetPaddockId: v.string(),
@@ -409,22 +409,22 @@ export const createPlanWithSection = mutation({
   handler: async (ctx, args) => {
     const today = new Date().toISOString().split('T')[0]
     const now = new Date().toISOString()
-    
+
     // NOTE: Braintrust logging is done at the action level (grazingAgentDirect.ts)
     // This mutation is called from actions, so tool execution is logged there
-    
-    log.debug('createPlanWithSection START', {
+
+    log.debug('createPlanWithPaddock START', {
         farmExternalId: args.farmExternalId,
         targetPaddockId: args.targetPaddockId,
-        hasSectionGeometry: !!args.sectionGeometry,
+        hasPaddockGeometry: !!args.sectionGeometry,
         sectionAreaHectares: args.sectionAreaHectares,
         confidence: args.confidence,
         today,
       })
-      
-    // CRITICAL: Animals must eat somewhere - sectionGeometry is required
+
+    // CRITICAL: Animals must eat somewhere - paddock geometry (daily strip) is required
     if (!args.sectionGeometry) {
-      throw new Error('sectionGeometry is REQUIRED. Animals must graze somewhere every day. The agent must always create a section, even if conditions are not ideal. Please ensure the agent creates a section geometry in the target paddock.')
+      throw new Error('sectionGeometry is REQUIRED. Animals must graze somewhere every day. The agent must always create a paddock, even if conditions are not ideal. Please ensure the agent creates a paddock geometry in the target pasture.')
     }
 
     const extractConfidenceFromJustification = (
@@ -459,12 +459,12 @@ export const createPlanWithSection = mutation({
 
     const extracted = extractConfidenceFromJustification(args.sectionJustification)
     const confidenceScore = normalizeConfidenceScore(args.confidence ?? extracted.confidence)
-    const sectionJustification = extracted.justification
+    const paddockJustification = extracted.justification
 
-    // Validate and clip section geometry if provided
-    let finalSectionGeometry = args.sectionGeometry
+    // Validate and clip paddock geometry if provided
+    let finalPaddockGeometry = args.sectionGeometry
     if (args.sectionGeometry) {
-      // Get paddock to validate section is within bounds
+      // Get pasture to validate paddock is within bounds
       const farm = await ctx.db
         .query('farms')
         .withIndex('by_externalId', (q: any) => q.eq('externalId', args.farmExternalId))
@@ -474,70 +474,70 @@ export const createPlanWithSection = mutation({
         throw new Error(`Farm not found: ${args.farmExternalId}`)
       }
 
-      const paddock = await ctx.db
+      const pasture = await ctx.db
         .query('paddocks')
-        .withIndex('by_farm_externalId', (q: any) => 
+        .withIndex('by_farm_externalId', (q: any) =>
           q.eq('farmId', farm._id).eq('externalId', args.targetPaddockId)
         )
         .first()
 
-      if (!paddock) {
-        throw new Error(`Paddock not found: ${args.targetPaddockId}`)
+      if (!pasture) {
+        throw new Error(`Pasture not found: ${args.targetPaddockId}`)
       }
 
-      // Convert section geometry to Feature<Polygon>
-      const sectionFeature: Feature<Polygon> = {
+      // Convert paddock geometry (daily strip) to Feature<Polygon>
+      const paddockFeature: Feature<Polygon> = {
         type: 'Feature',
         properties: {},
         geometry: args.sectionGeometry,
       }
 
-      // Convert paddock geometry to Feature<Polygon> (it's stored as Feature)
-      const paddockFeature = paddock.geometry as Feature<Polygon>
+      // Convert pasture geometry to Feature<Polygon> (it's stored as Feature)
+      const pastureFeature = pasture.geometry as Feature<Polygon>
 
-      // Validate: Section must be within paddock bounds
-      // Check by intersecting section with paddock - if intersection area equals section area, it's fully within
-      const intersection = intersect(featureCollection([sectionFeature, paddockFeature]))
-      
+      // Validate: Paddock must be within pasture bounds
+      // Check by intersecting paddock with pasture - if intersection area equals paddock area, it's fully within
+      const intersection = intersect(featureCollection([paddockFeature, pastureFeature]))
+
       if (!intersection) {
-        throw new Error(`Section geometry is completely outside paddock ${args.targetPaddockId} boundaries`)
+        throw new Error(`Paddock geometry is completely outside pasture ${args.targetPaddockId} boundaries`)
       }
 
-      const sectionArea = area(sectionFeature)
+      const paddockArea = area(paddockFeature)
       const intersectionArea = area(intersection as Feature<Polygon>)
-      const areaRatio = intersectionArea / sectionArea
+      const areaRatio = intersectionArea / paddockArea
 
-      // If section extends outside paddock, clip it to paddock boundary
+      // If paddock extends outside pasture, clip it to pasture boundary
       // This handles LLM imprecision in coordinate generation
       if (areaRatio < 0.99) {
-        
+
         // Use intersection as the clipped geometry
-        // intersection is guaranteed to exist here (we checked at line 462)
+        // intersection is guaranteed to exist here (we checked above)
         // Since we can calculate intersectionArea, the intersection must have valid geometry
         const intersectionFeature = intersection as Feature<Polygon>
         const intersectionGeometry = intersectionFeature?.geometry
-        
-        if (intersectionGeometry && intersectionGeometry.coordinates && intersectionGeometry.coordinates.length > 0) {
-          // Use the intersection geometry as the clipped section
-          // Cast to Polygon since we know it's the intersection of two polygons
-          finalSectionGeometry = intersectionGeometry as Polygon
 
-          log.debug(`Clipped section geometry: ${Math.round(areaRatio * 100)}% was within paddock, using intersection`, { geometryType: intersectionGeometry.type })
+        if (intersectionGeometry && intersectionGeometry.coordinates && intersectionGeometry.coordinates.length > 0) {
+          // Use the intersection geometry as the clipped paddock
+          // Cast to Polygon since we know it's the intersection of two polygons
+          finalPaddockGeometry = intersectionGeometry as Polygon
+
+          log.debug(`Clipped paddock geometry: ${Math.round(areaRatio * 100)}% was within pasture, using intersection`, { geometryType: intersectionGeometry.type })
         } else {
-          throw new Error(`Section geometry extends outside paddock ${args.targetPaddockId} boundaries (${Math.round(areaRatio * 100)}% within paddock) and cannot be clipped - intersection has no valid geometry`)
+          throw new Error(`Paddock geometry extends outside pasture ${args.targetPaddockId} boundaries (${Math.round(areaRatio * 100)}% within pasture) and cannot be clipped - intersection has no valid geometry`)
         }
       }
 
-      // Validate: Section must not overlap with previous sections
-      // Fetch previous sections directly (can't call query from mutation)
+      // Validate: Paddock must not overlap with previous paddocks
+      // Fetch previous paddocks directly (can't call query from mutation)
       const allPlans = await ctx.db
         .query('plans')
         .withIndex('by_farm', (q: any) => q.eq('farmExternalId', args.farmExternalId))
         .collect()
 
-      const previousSections = allPlans
-        .filter((plan: any) => 
-          plan.sectionGeometry && 
+      const previousPaddocks = allPlans
+        .filter((plan: any) =>
+          plan.sectionGeometry &&
           plan.primaryPaddockExternalId === args.targetPaddockId &&
           plan.date !== today &&
           plan.status !== 'rejected'
@@ -571,19 +571,19 @@ export const createPlanWithSection = mutation({
         return best
       }
 
-      let adjustedSectionGeometry = finalSectionGeometry as Polygon
+      let adjustedPaddockGeometry = finalPaddockGeometry as Polygon
       let overlapAdjusted = false
 
-      for (const prevSection of previousSections) {
+      for (const prevPaddock of previousPaddocks) {
         const currentFeature: Feature<Polygon> = {
           type: 'Feature',
           properties: {},
-          geometry: adjustedSectionGeometry,
+          geometry: adjustedPaddockGeometry,
         }
         const prevFeature: Feature<Polygon> = {
           type: 'Feature',
           properties: {},
-          geometry: prevSection.geometry,
+          geometry: prevPaddock.geometry,
         }
 
         const overlap = intersect(featureCollection([currentFeature, prevFeature]))
@@ -600,7 +600,7 @@ export const createPlanWithSection = mutation({
             const largestPolygon = differenceGeometry ? pickLargestPolygon(differenceGeometry) : null
 
             if (!largestPolygon) {
-              throw new Error(`Section geometry overlaps with previous section from ${prevSection.date} (${Math.round(overlapPercent)}% overlap) and could not be adjusted`)
+              throw new Error(`Paddock geometry overlaps with previous paddock from ${prevPaddock.date} (${Math.round(overlapPercent)}% overlap) and could not be adjusted`)
             }
 
             const adjustedArea = area({
@@ -610,10 +610,10 @@ export const createPlanWithSection = mutation({
             })
 
             if (!Number.isFinite(adjustedArea) || adjustedArea === 0) {
-              throw new Error(`Section geometry overlaps with previous section from ${prevSection.date} (${Math.round(overlapPercent)}% overlap) and produced an invalid adjusted section`)
+              throw new Error(`Paddock geometry overlaps with previous paddock from ${prevPaddock.date} (${Math.round(overlapPercent)}% overlap) and produced an invalid adjusted paddock`)
             }
 
-            adjustedSectionGeometry = largestPolygon
+            adjustedPaddockGeometry = largestPolygon
             overlapAdjusted = true
           } else if (overlapPercent > 0) {
             // Log allowed overlap for debugging
@@ -622,12 +622,12 @@ export const createPlanWithSection = mutation({
         }
       }
 
-      finalSectionGeometry = adjustedSectionGeometry
+      finalPaddockGeometry = adjustedPaddockGeometry
 
-      log.debug('Section validation passed', {
-        withinPaddock: true,
+      log.debug('Paddock validation passed', {
+        withinPasture: true,
         noOverlaps: true,
-        previousSectionsCount: previousSections.length,
+        previousPaddocksCount: previousPaddocks.length,
         overlapAdjusted,
       })
     }
@@ -644,11 +644,11 @@ export const createPlanWithSection = mutation({
         planId: todayPlan._id.toString(),
         date: todayPlan.date,
         currentStatus: todayPlan.status,
-        hasSectionGeometry: !!args.sectionGeometry,
+        hasPaddockGeometry: !!args.sectionGeometry,
         targetPaddockId: args.targetPaddockId,
         confidenceScore,
       })
-      
+
       // Build patch object, only including optional fields when they have values
       const patchData: any = {
         primaryPaddockExternalId: args.targetPaddockId,
@@ -657,11 +657,11 @@ export const createPlanWithSection = mutation({
         sectionAreaHectares: args.sectionAreaHectares || 0,
         updatedAt: now,
       }
-      
+
       // Only include sectionGeometry if it's defined (not null/undefined)
-      // Use finalSectionGeometry (may be clipped version)
-      if (finalSectionGeometry) {
-        patchData.sectionGeometry = finalSectionGeometry
+      // Use finalPaddockGeometry (may be clipped version)
+      if (finalPaddockGeometry) {
+        patchData.sectionGeometry = finalPaddockGeometry
       }
       if (args.sectionCentroid) {
         patchData.sectionCentroid = args.sectionCentroid
@@ -669,25 +669,25 @@ export const createPlanWithSection = mutation({
       if (args.sectionAvgNdvi !== undefined && args.sectionAvgNdvi !== null) {
         patchData.sectionAvgNdvi = args.sectionAvgNdvi
       }
-      if (sectionJustification) {
-        patchData.sectionJustification = sectionJustification
+      if (paddockJustification) {
+        patchData.sectionJustification = paddockJustification
       }
       if (args.paddockGrazedPercentage !== undefined && args.paddockGrazedPercentage !== null) {
         patchData.paddockGrazedPercentage = args.paddockGrazedPercentage
       }
-      
+
       await ctx.db.patch(todayPlan._id, patchData)
       log.debug('Plan patched successfully', { planId: todayPlan._id.toString() })
       return todayPlan._id
     }
 
     log.debug('Creating NEW plan', {
-      hasSectionGeometry: !!args.sectionGeometry,
+      hasPaddockGeometry: !!args.sectionGeometry,
       targetPaddockId: args.targetPaddockId,
       confidenceScore,
       sectionAreaHectares: args.sectionAreaHectares,
     })
-    
+
     // Build insert object, only including optional fields when they have values
     const insertData: any = {
       farmExternalId: args.farmExternalId,
@@ -701,11 +701,11 @@ export const createPlanWithSection = mutation({
       createdAt: now,
       updatedAt: now,
     }
-    
+
     // Only include optional fields if they have values (not null/undefined)
-    // Use finalSectionGeometry (may be clipped version)
-    if (finalSectionGeometry) {
-      insertData.sectionGeometry = finalSectionGeometry
+    // Use finalPaddockGeometry (may be clipped version)
+    if (finalPaddockGeometry) {
+      insertData.sectionGeometry = finalPaddockGeometry
     }
     if (args.sectionCentroid) {
       insertData.sectionCentroid = args.sectionCentroid
@@ -713,18 +713,18 @@ export const createPlanWithSection = mutation({
     if (args.sectionAvgNdvi !== undefined && args.sectionAvgNdvi !== null) {
       insertData.sectionAvgNdvi = args.sectionAvgNdvi
     }
-    if (sectionJustification) {
-      insertData.sectionJustification = sectionJustification
+    if (paddockJustification) {
+      insertData.sectionJustification = paddockJustification
     }
     if (args.paddockGrazedPercentage !== undefined && args.paddockGrazedPercentage !== null) {
       insertData.paddockGrazedPercentage = args.paddockGrazedPercentage
     }
-    
+
     const newPlanId = await ctx.db.insert('plans', insertData)
     log.debug('Plan created successfully', {
       planId: newPlanId.toString(),
       date: today,
-      hasSectionGeometry: !!args.sectionGeometry,
+      hasPaddockGeometry: !!args.sectionGeometry,
       targetPaddockId: args.targetPaddockId,
     })
     return newPlanId
@@ -760,11 +760,11 @@ export const finalizePlan = mutation({
   },
 })
 
-export const calculatePaddockGrazedPercentage = query({
+export const calculatePastureGrazedPercentage = query({
   args: { farmExternalId: v.optional(v.string()), paddockId: v.string() },
   handler: async (ctx, args): Promise<number> => {
     const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
-    
+
     const farm = await ctx.db
       .query('farms')
       .withIndex('by_externalId', (q: any) => q.eq('externalId', farmExternalId))
@@ -772,14 +772,14 @@ export const calculatePaddockGrazedPercentage = query({
 
     if (!farm) return 0
 
-    const paddock = await ctx.db
+    const pasture = await ctx.db
       .query('paddocks')
-      .withIndex('by_farm_externalId', (q: any) => 
+      .withIndex('by_farm_externalId', (q: any) =>
         q.eq('farmId', farm._id).eq('externalId', args.paddockId)
       )
       .first()
 
-    if (!paddock) return 0
+    if (!pasture) return 0
 
     const calculateAreaHectares = (geometry: any): number => {
       try {
@@ -790,8 +790,8 @@ export const calculatePaddockGrazedPercentage = query({
       }
     }
 
-    const paddockArea = paddock.area || calculateAreaHectares(paddock.geometry)
-    if (paddockArea === 0) return 0
+    const pastureArea = pasture.area || calculateAreaHectares(pasture.geometry)
+    if (pastureArea === 0) return 0
 
     const today = new Date().toISOString().split('T')[0]
     const plans = await ctx.db
@@ -801,7 +801,7 @@ export const calculatePaddockGrazedPercentage = query({
 
     let totalGrazedArea = 0
     for (const plan of plans) {
-      // Only count sections from previous days (exclude today's plan which may be regenerated)
+      // Only count paddocks from previous days (exclude today's plan which may be regenerated)
       // Also exclude rejected plans as they weren't executed
       if (
         plan.primaryPaddockExternalId === args.paddockId &&
@@ -813,6 +813,6 @@ export const calculatePaddockGrazedPercentage = query({
       }
     }
 
-    return Math.round((totalGrazedArea / paddockArea) * 100)
+    return Math.round((totalGrazedArea / pastureArea) * 100)
   },
 })

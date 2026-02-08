@@ -5,7 +5,7 @@ import MapboxDraw from '@mapbox/mapbox-gl-draw'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
 import { useGeometry, clipPolygonToPolygon } from '@/lib/geometry'
-import type { Section } from '@/lib/types'
+import type { Paddock } from '@/lib/types'
 import type { Feature, Polygon } from 'geojson'
 import { cn } from '@/lib/utils'
 import { DrawingToolbar } from '@/components/map/DrawingToolbar'
@@ -44,17 +44,17 @@ function EditIcon({ className }: { className?: string }) {
 }
 
 interface SatelliteMiniMapProps {
-  paddockId: string
-  section?: Section
-  previousSections?: Section[]
+  pastureId: string
+  paddock?: Paddock
+  previousPaddocks?: Paddock[]
   className?: string
   editable?: boolean
   editMode?: boolean
-  onSectionUpdate?: (section: Section) => void
+  onPaddockUpdate?: (paddock: Paddock) => void
   showEditButton?: boolean
 }
 
-// Draw styles for section editing
+// Draw styles for paddock editing
 const drawStyles = [
   {
     id: 'gl-draw-polygon-fill-active',
@@ -136,13 +136,13 @@ const drawStyles = [
 ]
 
 export function SatelliteMiniMap({
-  paddockId,
-  section,
-  previousSections = [],
+  pastureId,
+  paddock,
+  previousPaddocks = [],
   className,
   editable = false,
   editMode = false,
-  onSectionUpdate,
+  onPaddockUpdate,
   showEditButton = true,
 }: SatelliteMiniMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
@@ -154,15 +154,15 @@ export function SatelliteMiniMap({
   const [selectedFeatureIds, setSelectedFeatureIds] = useState<string[]>([])
   const [isDrawing, setIsDrawing] = useState(false)
 
-  const { getPaddockById, addSection, updateSection } = useGeometry()
-  const paddock = getPaddockById(paddockId)
+  const { getPastureById, addPaddock, updatePaddock } = useGeometry()
+  const pasture = getPastureById(pastureId)
 
   const isEditActive = editable && editMode
 
-  const paddockBounds = useMemo(() => {
-    if (!paddock) return null
+  const pastureBounds = useMemo(() => {
+    if (!pasture) return null
 
-    const coords = (paddock.geometry.geometry as GeoJSON.Polygon).coordinates[0]
+    const coords = (pasture.geometry.geometry as GeoJSON.Polygon).coordinates[0]
     let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
 
     coords.forEach(([lng, lat]) => {
@@ -173,11 +173,11 @@ export function SatelliteMiniMap({
     })
 
     return new maplibregl.LngLatBounds([minLng, minLat], [maxLng, maxLat])
-  }, [paddock])
+  }, [pasture])
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || !paddock || !paddockBounds) return
+    if (!mapContainer.current || !pasture || !pastureBounds) return
 
     const map = new maplibregl.Map({
       container: mapContainer.current,
@@ -203,7 +203,7 @@ export function SatelliteMiniMap({
           },
         ],
       },
-      bounds: paddockBounds,
+      bounds: pastureBounds,
       fitBoundsOptions: {
         padding: 40,
       },
@@ -219,28 +219,28 @@ export function SatelliteMiniMap({
     map.on('load', () => {
       mapRef.current = map
 
-      // Add paddock outline source
-      const paddockGeojson: GeoJSON.FeatureCollection = {
+      // Add pasture outline source
+      const pastureGeojson: GeoJSON.FeatureCollection = {
         type: 'FeatureCollection',
         features: [{
-          ...paddock.geometry,
+          ...pasture.geometry,
           properties: {
-            id: paddock.id,
-            name: paddock.name,
+            id: pasture.id,
+            name: pasture.name,
           },
         }],
       }
 
-      map.addSource('paddock', {
+      map.addSource('pasture', {
         type: 'geojson',
-        data: paddockGeojson,
+        data: pastureGeojson,
       })
 
-      // Paddock outline
+      // Pasture outline
       map.addLayer({
-        id: 'paddock-outline',
+        id: 'pasture-outline',
         type: 'line',
-        source: 'paddock',
+        source: 'pasture',
         paint: {
           'line-color': '#ffffff',
           'line-width': 2,
@@ -248,11 +248,11 @@ export function SatelliteMiniMap({
         },
       })
 
-      // Add previous (grazed) sections
-      if (previousSections.length > 0) {
-        const grazedSectionsGeojson: GeoJSON.FeatureCollection = {
+      // Add previous (grazed) paddocks
+      if (previousPaddocks.length > 0) {
+        const grazedPaddocksGeojson: GeoJSON.FeatureCollection = {
           type: 'FeatureCollection',
-          features: previousSections.map((s, index) => ({
+          features: previousPaddocks.map((s, index) => ({
             ...s.geometry,
             properties: {
               id: s.id,
@@ -261,15 +261,15 @@ export function SatelliteMiniMap({
           })),
         }
 
-        map.addSource('sections-grazed', {
+        map.addSource('paddocks-grazed', {
           type: 'geojson',
-          data: grazedSectionsGeojson,
+          data: grazedPaddocksGeojson,
         })
 
         map.addLayer({
-          id: 'sections-grazed-fill',
+          id: 'paddocks-grazed-fill',
           type: 'fill',
-          source: 'sections-grazed',
+          source: 'paddocks-grazed',
           paint: {
             'fill-color': '#6b7280',
             'fill-opacity': 0.4,
@@ -277,9 +277,9 @@ export function SatelliteMiniMap({
         })
 
         map.addLayer({
-          id: 'sections-grazed-outline',
+          id: 'paddocks-grazed-outline',
           type: 'line',
-          source: 'sections-grazed',
+          source: 'paddocks-grazed',
           paint: {
             'line-color': '#9ca3af',
             'line-width': 1,
@@ -287,28 +287,28 @@ export function SatelliteMiniMap({
         })
       }
 
-      // Add current section (only if not in edit mode - Draw will handle it)
-      if (section && !isEditActive) {
-        const currentSectionGeojson: GeoJSON.FeatureCollection = {
+      // Add current paddock (only if not in edit mode - Draw will handle it)
+      if (paddock && !isEditActive) {
+        const currentPaddockGeojson: GeoJSON.FeatureCollection = {
           type: 'FeatureCollection',
           features: [{
-            ...section.geometry,
+            ...paddock.geometry,
             properties: {
-              id: section.id,
-              area: section.targetArea,
+              id: paddock.id,
+              area: paddock.targetArea,
             },
           }],
         }
 
-        map.addSource('section-current', {
+        map.addSource('paddock-current', {
           type: 'geojson',
-          data: currentSectionGeojson,
+          data: currentPaddockGeojson,
         })
 
         map.addLayer({
-          id: 'section-current-fill',
+          id: 'paddock-current-fill',
           type: 'fill',
-          source: 'section-current',
+          source: 'paddock-current',
           paint: {
             'fill-color': '#22c55e',
             'fill-opacity': 0.5,
@@ -316,9 +316,9 @@ export function SatelliteMiniMap({
         })
 
         map.addLayer({
-          id: 'section-current-outline',
+          id: 'paddock-current-outline',
           type: 'line',
-          source: 'section-current',
+          source: 'paddock-current',
           paint: {
             'line-color': '#22c55e',
             'line-width': 3,
@@ -336,7 +336,7 @@ export function SatelliteMiniMap({
       }
       setIsMapLoaded(false)
     }
-  }, [paddock, paddockBounds, previousSections, section, isEditActive])
+  }, [pasture, pastureBounds, previousPaddocks, paddock, isEditActive])
 
   useEffect(() => {
     if (!mapRef.current || !isMapLoaded) return
@@ -384,9 +384,9 @@ export function SatelliteMiniMap({
     mapRef.current.addControl(draw as any)
     drawRef.current = draw
 
-    // Load existing section into draw
-    if (section) {
-      const feature = { ...section.geometry, id: section.id }
+    // Load existing paddock into draw
+    if (paddock) {
+      const feature = { ...paddock.geometry, id: paddock.id }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       draw.add(feature as any)
     }
@@ -396,8 +396,8 @@ export function SatelliteMiniMap({
       const feature = e.features[0]
       if (!feature || feature.geometry.type !== 'Polygon') return
 
-      const newId = addSection(paddockId, feature as Feature<Polygon>, {
-        reasoning: ['User-defined section'],
+      const newId = addPaddock(pastureId, feature as Feature<Polygon>, {
+        reasoning: ['User-defined paddock'],
       })
 
       // Update feature ID
@@ -417,13 +417,13 @@ export function SatelliteMiniMap({
         if (!feature.id || feature.geometry.type !== 'Polygon') return
         let nextGeometry = feature as Feature<Polygon>
 
-        if (paddock) {
-          const clipped = clipPolygonToPolygon(nextGeometry, paddock.geometry)
+        if (pasture) {
+          const clipped = clipPolygonToPolygon(nextGeometry, pasture.geometry)
           if (!clipped) return
           nextGeometry = clipped
         }
 
-        updateSection(String(feature.id), nextGeometry)
+        updatePaddock(String(feature.id), nextGeometry)
       })
     }
 
@@ -458,7 +458,7 @@ export function SatelliteMiniMap({
         drawRef.current = null
       }
     }
-  }, [isMapLoaded, isEditActive, section, paddockId, paddock, addSection, updateSection, onSectionUpdate])
+  }, [isMapLoaded, isEditActive, paddock, pastureId, pasture, addPaddock, updatePaddock, onPaddockUpdate])
 
   useEffect(() => {
     if (!mapRef.current || !drawRef.current || !isMapLoaded || !isEditActive) return
@@ -561,39 +561,39 @@ export function SatelliteMiniMap({
     }
   }, [])
 
-  if (!paddock) {
+  if (!pasture) {
     return (
       <div className={cn('bg-muted flex items-center justify-center', className)}>
-        <span className="text-muted-foreground text-sm">Paddock not found</span>
+        <span className="text-muted-foreground text-sm">Pasture not found</span>
       </div>
     )
   }
 
   return (
     <div className={cn('relative w-full h-full', className)}>
-      <div 
-        ref={mapContainer} 
+      <div
+        ref={mapContainer}
         className="w-full h-full touch-none"
         style={{ cursor: isEditActive ? 'crosshair' : 'grab' }}
       />
-      
+
       {/* Edit button - links to map page with edit mode */}
       {!isEditActive && isMapLoaded && showEditButton && (
         <Link
           to="/app/map"
           search={{
             edit: true,
-            paddockId,
-            entityType: 'section',
-            ...(section?.id ? { sectionId: section.id } : {}),
+            paddockId: pastureId,
+            entityType: 'paddock',
+            ...(paddock?.id ? { paddockId: paddock.id } : {}),
           }}
           className="absolute bottom-2 right-2 z-10 flex items-center gap-1.5 rounded-md bg-background/90 backdrop-blur-sm border border-border px-2.5 py-1.5 text-xs font-medium text-foreground shadow-sm hover:bg-accent transition-colors"
         >
           <EditIcon />
-          <span>Edit Section</span>
+          <span>Edit Paddock</span>
         </Link>
       )}
-      
+
       {isEditActive && isMapLoaded && (
         <div className="absolute top-2 left-2 z-10">
           <DrawingToolbar
@@ -603,7 +603,7 @@ export function SatelliteMiniMap({
             onSetMode={setMode}
             onDeleteSelected={deleteSelected}
             onCancelDrawing={cancelDrawing}
-            entityType="section"
+            entityType="paddock"
             compact={true}
           />
         </div>

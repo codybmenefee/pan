@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-OpenPasture - an open-source AI-powered decision support system that translates satellite-derived vegetation data into daily grazing recommendations. The core experience is a "Morning Farm Brief" that recommends which paddock to graze today.
+OpenPasture - an open-source AI-powered decision support system that translates satellite-derived vegetation data into daily grazing recommendations. The core experience is a "Morning Farm Brief" that recommends which pasture to graze today.
 
 ## Commands
 
@@ -69,7 +69,7 @@ const { BraintrustSpanProcessor } = dynamicRequire('@braintrust/otel')
 
 ## Key Types
 
-Domain types in `src/lib/types.ts`: `Plan`, `Paddock`, `Farm`, `Section`, `Observation`, `GrazingEvent`
+Domain types in `src/lib/types.ts`: `Plan`, `Pasture`, `Farm`, `Paddock`, `Observation`, `GrazingEvent`
 
 ## Environment Variables
 
@@ -133,6 +133,63 @@ Note: The app requires authentication. Set `VITE_DEV_AUTH=true` in `.env.local` 
 ## Style Guidelines
 
 **No emojis.** Never use emojis in code, comments, commit messages, PR descriptions, documentation, or any other output. This is a strict project rule.
+
+## Design System: Olive Cobalt
+
+**Philosophy:** Terminal/CLI aesthetic meets organic earth tones meets brutalist design.
+
+### Color Palette
+
+| Token | Hex | Usage |
+|-------|-----|-------|
+| `--olive` | `#4a6a2e` | Primary actions, nav active states, CTAs |
+| `--olive-bright` | `#5a7a38` | Hover states |
+| `--olive-muted` | `#c0d0a8` | Subtle accents, card hover shadows |
+| `--olive-light` | `#f2f6ee` | Secondary backgrounds, input fills |
+| `--terracotta` | `#a83a32` | Accent, destructive, attention, warning |
+| `--terracotta-muted` | `#c06a62` | Muted accent |
+| `--cobalt` | `#0047AB` | Data viz, analytics emphasis, info |
+| `--cobalt-muted` | `#4a7abf` | Muted data viz |
+| `--dark` | `#1a1e18` | Text, borders, window bars |
+| `--charcoal` | `#2a3028` | Sidebar background |
+| `--cream` | `#f6f8f4` | Main background (aliased as `--background`) |
+| `--border` | `#c4d0c0` | Borders, dividers |
+
+### Typography
+
+- **Body:** JetBrains Mono (monospace)
+- **Headings:** Libre Baskerville (`.font-serif`) for marketing/landing pages
+- Responsive scaling via CSS clamp()
+
+### Rules
+
+- **All corners sharp** (0px radius) -- the Tailwind theme sets `--radius-*` to 0px, so themed `rounded-*` classes resolve to sharp. Never add explicit `rounded-*` for UI elements.
+- **Borders are 2-3px minimum** -- use `border-2` or `border-3`, never `border` (1px).
+- **Shadows are hard offset** -- use `shadow-hard`, `shadow-hard-sm`, `shadow-hard-lg`, `shadow-hard-dark`, `shadow-hard-cta`. Never use blurred shadows (`shadow-lg`, `shadow-xl`).
+- **Hover = translate-up + increase shadow** -- standard pattern: `hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard transition-all`
+- **Labels are uppercase** with `tracking-wider` and small font size.
+- **No gradients** (except dark CTA footer background).
+- **No glassmorphism/backdrop-blur** -- no `backdrop-blur-*` classes.
+- **No dark mode** -- app is light-mode only. Never use `dark:` prefixed classes.
+- **Use semantic tokens** (`bg-background`, `text-foreground`, `text-muted-foreground`, `border-border`) not raw hex values.
+- **Color semantics:** olive for positive/primary, terracotta for destructive/accent/warning, cobalt for data/info.
+
+### Shared Components
+
+| Component | File | Usage |
+|-----------|------|-------|
+| `WindowChrome` | `ui/window-chrome.tsx` | Terminal window with traffic dots + monospace title |
+| `PageSection` | `ui/page-section.tsx` | Standard section wrapper (max-width, bg variants) |
+| `SectionDivider` | `ui/section-divider.tsx` | 4px olive bar between page sections |
+| `Card` | `ui/card.tsx` | Brutalist card: border-2, shadow-hard-sm, hover lift |
+| Button `brutalist` | `ui/button.tsx` | Olive CTA with hard shadow + hover lift |
+| Badge `cli` / `cli-solid` | `ui/badge.tsx` | Uppercase monospace badges (outline / solid) |
+
+### CSS Utilities (defined in index.css)
+
+- `.rsc-*` classes: component-level styles from the design system (`.rsc-card`, `.rsc-badge`, `.rsc-grid-bg`, etc.)
+- `.shadow-hard-*` utilities: brutalist shadow variants
+- Animations: `rscBlink`, `rscFadeUp` with `prefers-reduced-motion` support
 
 ## Design Principles
 

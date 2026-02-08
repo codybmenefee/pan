@@ -316,6 +316,45 @@ export const updateLivestockSettings = mutation({
 })
 
 /**
+ * Pipeline health monitoring.
+ * Returns staleness info for all farms with settings.
+ * Useful for manual checks: npx convex run settings:getPipelineHealth
+ */
+export const getPipelineHealth = query({
+  args: {},
+  handler: async (ctx) => {
+    const allSettings = await ctx.db.query('farmSettings').collect()
+    const now = Date.now()
+
+    return allSettings.map((s) => {
+      const lastCheckMs = s.lastImageryCheckAt
+        ? new Date(s.lastImageryCheckAt).getTime()
+        : null
+      const lastImageryMs = s.lastNewImageryDate
+        ? new Date(s.lastNewImageryDate).getTime()
+        : null
+
+      const hoursSinceCheck = lastCheckMs
+        ? (now - lastCheckMs) / (1000 * 60 * 60)
+        : null
+      const daysSinceImagery = lastImageryMs
+        ? (now - lastImageryMs) / (1000 * 60 * 60 * 24)
+        : null
+
+      return {
+        farmExternalId: s.farmExternalId,
+        lastImageryCheckAt: s.lastImageryCheckAt ?? null,
+        lastNewImageryDate: s.lastNewImageryDate ?? null,
+        hoursSinceCheck: hoursSinceCheck !== null ? Math.round(hoursSinceCheck * 10) / 10 : null,
+        daysSinceImagery: daysSinceImagery !== null ? Math.round(daysSinceImagery * 10) / 10 : null,
+        checkStale: hoursSinceCheck === null || hoursSinceCheck > 48,
+        imageryStale: daysSinceImagery === null || daysSinceImagery > 7,
+      }
+    })
+  },
+})
+
+/**
  * Get livestock settings for a farm
  */
 export const getLivestockSettings = query({

@@ -166,9 +166,9 @@ export function BugReportModal({ open, onOpenChange }: BugReportModalProps) {
                     className={cn(
                       'cursor-pointer transition-colors',
                       severity === option.value && option.value === 'critical' && 'bg-destructive',
-                      severity === option.value && option.value === 'high' && 'bg-orange-500',
-                      severity === option.value && option.value === 'medium' && 'bg-yellow-500',
-                      severity === option.value && option.value === 'low' && 'bg-green-500'
+                      severity === option.value && option.value === 'high' && 'bg-terracotta',
+                      severity === option.value && option.value === 'medium' && 'bg-terracotta-muted',
+                      severity === option.value && option.value === 'low' && 'bg-olive'
                     )}
                     onClick={() => !isSubmitting && setSeverity(option.value)}
                   >

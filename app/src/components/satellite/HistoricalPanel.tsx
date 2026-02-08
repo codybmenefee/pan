@@ -169,7 +169,7 @@ export function HistoricalPanel({
               visible={true}
               opacity={0.8}
               layerId="historical-rgb"
-              beforeLayerId="paddocks-fill"
+              beforeLayerId="pastures-fill"
             />
           )}
 

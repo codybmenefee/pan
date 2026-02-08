@@ -26,6 +26,7 @@ import type * as intelligenceActions from "../intelligenceActions.js";
 import type * as internal_ from "../internal.js";
 import type * as lib_areaConstants from "../lib/areaConstants.js";
 import type * as lib_logger from "../lib/logger.js";
+import type * as lib_s3Signer from "../lib/s3Signer.js";
 import type * as livestock from "../livestock.js";
 import type * as migrations_deleteBadFarmSettings from "../migrations/deleteBadFarmSettings.js";
 import type * as migrations_migrateToClerkOrgs from "../migrations/migrateToClerkOrgs.js";
@@ -71,6 +72,7 @@ declare const fullApi: ApiFromModules<{
   internal: typeof internal_;
   "lib/areaConstants": typeof lib_areaConstants;
   "lib/logger": typeof lib_logger;
+  "lib/s3Signer": typeof lib_s3Signer;
   livestock: typeof livestock;
   "migrations/deleteBadFarmSettings": typeof migrations_deleteBadFarmSettings;
   "migrations/migrateToClerkOrgs": typeof migrations_migrateToClerkOrgs;

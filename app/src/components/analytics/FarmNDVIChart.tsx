@@ -75,7 +75,7 @@ export function FarmNDVIChart({
                     return (
                       <div className="rounded-lg border bg-background p-3 shadow-lg">
                         <p className="text-sm font-medium">{data.date}</p>
-                        <p className="text-sm text-green-600">
+                        <p className="text-sm text-olive">
                           NDVI: {data.ndvi.toFixed(2)}
                         </p>
                       </div>

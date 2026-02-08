@@ -75,9 +75,9 @@ const PLAN_TIERS: {
 
 const tierColorClasses: Record<SubscriptionTier, string> = {
   free: 'bg-muted text-muted-foreground',
-  homesteader: 'bg-blue-600 text-white',
-  producer: 'bg-purple-600 text-white',
-  commercial: 'bg-amber-600 text-white',
+  homesteader: 'bg-olive text-white',
+  producer: 'bg-terracotta text-white',
+  commercial: 'bg-cobalt text-white',
 }
 
 function UpgradePage() {
@@ -94,10 +94,10 @@ function UpgradePage() {
 
         <div className="text-center mb-8">
           <h1 className="text-2xl font-semibold mb-2">Choose Your Plan</h1>
-          <div className="inline-flex items-center gap-2 bg-green-500/10 text-green-400 px-3 py-1.5 rounded-full text-sm">
+          <div className="inline-flex items-center gap-2 bg-olive/10 text-olive px-3 py-1.5 text-sm border-2 border-olive/30">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-olive opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-olive"></span>
             </span>
             Beta Access: Full features unlocked for all users
           </div>
@@ -113,13 +113,13 @@ function UpgradePage() {
               key={plan.tier}
               className={cn(
                 'relative flex flex-col',
-                plan.highlighted && 'ring-2 ring-purple-500/50'
+                plan.highlighted && 'ring-2 ring-olive/50'
               )}
             >
               {plan.tier === 'free' && (
                 <Badge
-                  variant="secondary"
-                  className="absolute -top-2 left-4 bg-green-500/20 text-green-400 border-green-500/30"
+                  variant="cli"
+                  className="absolute -top-2 left-4"
                 >
                   Current Plan
                 </Badge>
@@ -129,7 +129,7 @@ function UpgradePage() {
                 <div className="flex items-center gap-2 mb-1">
                   <span
                     className={cn(
-                      'inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium',
+                      'inline-flex items-center px-2 py-0.5 text-xs font-medium',
                       tierColorClasses[plan.tier]
                     )}
                   >
@@ -149,7 +149,7 @@ function UpgradePage() {
                 <ul className="space-y-2">
                   {plan.features.map((feature, idx) => (
                     <li key={idx} className="flex items-start gap-2 text-sm">
-                      <Check className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                      <Check className="h-4 w-4 text-olive shrink-0 mt-0.5" />
                       <span>{feature}</span>
                     </li>
                   ))}
@@ -168,7 +168,7 @@ function UpgradePage() {
                 ) : (
                   <Button
                     variant="outline"
-                    className="w-full border-amber-500/50 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+                    className="w-full"
                     disabled
                   >
                     Coming Soon

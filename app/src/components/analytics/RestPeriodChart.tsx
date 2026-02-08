@@ -112,7 +112,7 @@ export function RestPeriodChart({
                           {item.count} rest period{item.count !== 1 ? 's' : ''}
                         </p>
                         {item.isTarget && (
-                          <p className="text-xs text-green-600 mt-1">Target range</p>
+                          <p className="text-xs text-olive mt-1">Target range</p>
                         )}
                       </div>
                     )

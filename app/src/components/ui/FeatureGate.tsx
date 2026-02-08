@@ -61,7 +61,7 @@ export function FeatureGate({
     return loadingContent ? (
       <>{loadingContent}</>
     ) : (
-      <div className="animate-pulse bg-gray-100 rounded-lg h-32" />
+      <div className="animate-pulse bg-muted h-32" />
     )
   }
 
@@ -98,11 +98,11 @@ function UpgradePrompt({ featureInfo, minimumTier, currentTier }: UpgradePromptP
   }
 
   return (
-    <div className="border border-amber-200 bg-amber-50 rounded-lg p-6">
+    <div className="border-2 border-terracotta-muted bg-olive-light p-6">
       <div className="flex items-start gap-4">
         <div className="flex-shrink-0">
           <svg
-            className="h-6 w-6 text-amber-500"
+            className="h-6 w-6 text-terracotta"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -116,12 +116,12 @@ function UpgradePrompt({ featureInfo, minimumTier, currentTier }: UpgradePromptP
           </svg>
         </div>
         <div className="flex-1">
-          <h3 className="text-sm font-medium text-amber-800">
+          <h3 className="text-sm font-medium text-foreground">
             {featureInfo.name} - Upgrade Required
           </h3>
-          <p className="mt-1 text-sm text-amber-700">{featureInfo.description}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{featureInfo.description}</p>
           <div className="mt-4">
-            <p className="text-xs text-amber-600">
+            <p className="text-xs text-muted-foreground">
               This feature requires the{' '}
               <span className="font-semibold">
                 {tierDisplay[minimumTier as keyof typeof tierDisplay] ?? minimumTier}
@@ -142,7 +142,7 @@ function UpgradePrompt({ featureInfo, minimumTier, currentTier }: UpgradePromptP
           <div className="mt-4">
             <a
               href="/settings?tab=subscription"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
+              className="inline-flex items-center px-4 py-2 border-2 border-olive text-sm font-medium shadow-hard-sm text-white bg-olive hover:bg-olive-bright focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-olive"
             >
               Upgrade Plan
             </a>
@@ -179,16 +179,16 @@ export function FeatureGateInline({
  */
 export function PremiumBadge({ tier = 'starter' }: { tier?: string }) {
   const colors = {
-    starter: 'bg-blue-100 text-blue-700',
-    professional: 'bg-purple-100 text-purple-700',
-    enterprise: 'bg-amber-100 text-amber-700',
+    starter: 'bg-olive/10 text-olive',
+    professional: 'bg-terracotta/10 text-terracotta',
+    enterprise: 'bg-cobalt/10 text-cobalt',
   }
 
   const colorClass = colors[tier as keyof typeof colors] ?? colors.starter
 
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${colorClass}`}
+      className={`inline-flex items-center px-2 py-0.5 text-xs font-semibold uppercase tracking-wider ${colorClass}`}
     >
       {tier.charAt(0).toUpperCase() + tier.slice(1)}
     </span>

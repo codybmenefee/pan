@@ -24,13 +24,13 @@ export const introduction: ArticleContent = {
 The constraint is not knowledge—it's **cognitive load**.
 
 A skilled grazier manages decisions across multiple interacting variables:
-- Current forage availability across paddocks
+- Current forage availability across pastures
 - Recovery time since last grazing
 - Weather conditions affecting growth
 - Animal requirements and stocking density
 - Water access and infrastructure constraints
 
-On a small farm, a single person can hold this complexity in their head. As farm size increases, the decision surface expands combinatorially. A 20-paddock farm with 5 relevant variables creates a decision space no human can reliably optimize.
+On a small farm, a single person can hold this complexity in their head. As farm size increases, the decision surface expands combinatorially. A 20-pasture farm with 5 relevant variables creates a decision space no human can reliably optimize.
 
 The result: farmers either under-utilize rotational strategies or spend unsustainable time on daily logistics.`,
     },
@@ -40,8 +40,8 @@ The result: farmers either under-utilize rotational strategies or spend unsustai
 
 Each morning, the platform:
 1. Aggregates satellite, weather, and farm data
-2. Analyzes paddock conditions and recovery status
-3. Generates a recommended grazing section with reasoning
+2. Analyzes pasture conditions and recovery status
+3. Generates a recommended grazing paddock with reasoning
 4. Presents the recommendation for human review and approval
 
 The farmer remains the decision-maker. The platform handles data fusion, pattern recognition, and reasoning documentation—tasks that computers do well. The farmer contributes local knowledge, judgment, and accountability—tasks that humans do well.
@@ -64,7 +64,7 @@ This is not a dashboard. Dashboards display data. Morning Farm Brief makes **rec
       heading: 'Platform Thesis',
       content: `The economics of regenerative agriculture require scaling operator attention, not just land area.
 
-A farmer who can confidently manage 50 paddocks instead of 20—without proportionally increasing cognitive load—achieves leverage unavailable to traditional operations. The platform's value is not in the recommendation itself (any experienced grazier could make similar decisions) but in making that decision **faster, more consistently, and with documented reasoning**.
+A farmer who can confidently manage 50 pastures instead of 20—without proportionally increasing cognitive load—achieves leverage unavailable to traditional operations. The platform's value is not in the recommendation itself (any experienced grazier could make similar decisions) but in making that decision **faster, more consistently, and with documented reasoning**.
 
 Over time, this creates compounding advantages:
 - More land under intensive management

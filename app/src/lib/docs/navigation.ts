@@ -55,8 +55,8 @@ export const docsConfig: DocsConfig = {
       icon: Map,
       items: [
         { title: 'Modeling Philosophy', href: '/docs/farm-setup/modeling-philosophy' },
+        { title: 'Pastures', href: '/docs/farm-setup/pastures' },
         { title: 'Paddocks', href: '/docs/farm-setup/paddocks' },
-        { title: 'Sections', href: '/docs/farm-setup/sections' },
         { title: 'Water Sources', href: '/docs/farm-setup/water-sources' },
         { title: 'Importing Data', href: '/docs/farm-setup/import' },
       ],

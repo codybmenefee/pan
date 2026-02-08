@@ -44,8 +44,8 @@ export function BoundarySavedDialog({ open, onOpenChange }: BoundarySavedDialogP
       <DialogContent className="sm:max-w-md" showCloseButton={false}>
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
-              <Satellite className="h-5 w-5 text-green-600 dark:text-green-400" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-olive/10">
+              <Satellite className="h-5 w-5 text-olive" />
             </div>
             <div>
               <DialogTitle>Boundary Updated</DialogTitle>

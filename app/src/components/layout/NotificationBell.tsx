@@ -34,11 +34,11 @@ function formatTimeAgo(dateString: string): string {
 function getNotificationIcon(type: string) {
   switch (type) {
     case 'satellite_ready':
-      return <Satellite className="h-4 w-4 text-green-500" />
+      return <Satellite className="h-4 w-4 text-olive" />
     case 'satellite_failed':
-      return <AlertCircle className="h-4 w-4 text-red-500" />
+      return <AlertCircle className="h-4 w-4 text-terracotta" />
     default:
-      return <Info className="h-4 w-4 text-blue-500" />
+      return <Info className="h-4 w-4 text-cobalt" />
   }
 }
 
@@ -92,7 +92,7 @@ export function NotificationBell() {
         <button className="relative flex h-5 w-5 items-center justify-center rounded hover:bg-accent">
           <Bell className="h-3 w-3" />
           {unreadCount != null && unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 text-[8px] font-medium text-white">
+            <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-terracotta text-[8px] font-medium text-white">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
@@ -123,7 +123,7 @@ export function NotificationBell() {
             <DropdownMenuItem
               key={notification._id}
               className={`flex flex-col items-start gap-1 p-3 cursor-pointer ${
-                !notification.isRead ? 'bg-blue-50 dark:bg-blue-950/20' : ''
+                !notification.isRead ? 'bg-olive-light' : ''
               }`}
               onClick={() => handleNotificationClick(notification._id, notification.isRead)}
             >
@@ -144,14 +144,14 @@ export function NotificationBell() {
                   {notification.metadata?.actionUrl && notification.metadata?.actionLabel && (
                     <button
                       onClick={(e) => handleActionClick(notification, e)}
-                      className="mt-2 text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                      className="mt-2 text-xs text-olive hover:text-olive-bright font-medium"
                     >
                       {notification.metadata.actionLabel} &rarr;
                     </button>
                   )}
                 </div>
                 {!notification.isRead && (
-                  <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
+                  <span className="h-2 w-2 rounded-full bg-olive shrink-0" />
                 )}
               </div>
             </DropdownMenuItem>

@@ -23,7 +23,7 @@ const observationShape = {
 export const getObservations = query({
   args: {
     farmId: v.string(),
-    paddockId: v.optional(v.string()),
+    pastureId: v.optional(v.string()),
     days: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
@@ -33,8 +33,8 @@ export const getObservations = query({
 
     let observations = await q.collect()
 
-    if (args.paddockId) {
-      observations = observations.filter(o => o.paddockExternalId === args.paddockId)
+    if (args.pastureId) {
+      observations = observations.filter(o => o.paddockExternalId === args.pastureId)
     }
 
     if (args.days) {
@@ -52,13 +52,13 @@ export const getObservations = query({
 export const getLatestObservation = query({
   args: {
     farmId: v.string(),
-    paddockId: v.string(),
+    pastureId: v.string(),
   },
   handler: async (ctx, args) => {
     return await ctx.db
       .query('observations')
       .withIndex('by_paddock_date', (q) =>
-        q.eq('paddockExternalId', args.paddockId)
+        q.eq('paddockExternalId', args.pastureId)
       )
       .collect()
       .then(obs => {
@@ -175,14 +175,14 @@ export const deleteObservations = mutation({
 export const getLatestReliableObservation = query({
   args: {
     farmId: v.string(),
-    paddockId: v.string(),
+    pastureId: v.string(),
     minCloudFreePct: v.number(), // 0-1
   },
   handler: async (ctx, args) => {
     const observations = await ctx.db
       .query('observations')
       .withIndex('by_paddock_date', (q) =>
-        q.eq('paddockExternalId', args.paddockId)
+        q.eq('paddockExternalId', args.pastureId)
       )
       .collect()
 
@@ -197,20 +197,20 @@ export const getLatestReliableObservation = query({
 })
 
 /**
- * Get observation quality context for a paddock.
+ * Get observation quality context for a pasture.
  * Returns both latest and latest reliable observations with metadata.
  */
 export const getObservationQualityContext = query({
   args: {
     farmId: v.string(),
-    paddockId: v.string(),
+    pastureId: v.string(),
     minCloudFreePct: v.number(), // 0-1
   },
   handler: async (ctx, args) => {
     const observations = await ctx.db
       .query('observations')
       .withIndex('by_paddock_date', (q) =>
-        q.eq('paddockExternalId', args.paddockId)
+        q.eq('paddockExternalId', args.pastureId)
       )
       .collect()
 
@@ -239,7 +239,7 @@ export const getObservationQualityContext = query({
 
 export const getObservationsTrend = query({
   args: {
-    paddockId: v.string(),
+    pastureId: v.string(),
     days: v.number(),
   },
   handler: async (ctx, args) => {
@@ -248,7 +248,7 @@ export const getObservationsTrend = query({
 
     const observations = await ctx.db
       .query('observations')
-      .withIndex('by_paddock_date', (q) => q.eq('paddockExternalId', args.paddockId))
+      .withIndex('by_paddock_date', (q) => q.eq('paddockExternalId', args.pastureId))
       .collect()
       .then(obs =>
         obs.filter(o => new Date(o.date) >= cutoff)
@@ -310,15 +310,15 @@ export const getAvailableDates = query({
       date: string
       cloudCoverPct: number
       provider: string
-      paddockCount: number
+      pastureCount: number
       avgNdvi: number
     }>()
 
     for (const obs of observations) {
       const existing = dateMap.get(obs.date)
       if (existing) {
-        existing.paddockCount += 1
-        existing.avgNdvi = (existing.avgNdvi * (existing.paddockCount - 1) + obs.ndviMean) / existing.paddockCount
+        existing.pastureCount += 1
+        existing.avgNdvi = (existing.avgNdvi * (existing.pastureCount - 1) + obs.ndviMean) / existing.pastureCount
         // Use minimum cloud-free (maximum coverage) for the date
         existing.cloudCoverPct = Math.min(existing.cloudCoverPct, 100 - obs.cloudFreePct * 100)
       } else {
@@ -326,7 +326,7 @@ export const getAvailableDates = query({
           date: obs.date,
           cloudCoverPct: 100 - obs.cloudFreePct * 100,
           provider: obs.sourceProvider,
-          paddockCount: 1,
+          pastureCount: 1,
           avgNdvi: obs.ndviMean,
         })
       }
@@ -340,8 +340,8 @@ export const getAvailableDates = query({
 })
 
 /**
- * Get recovery tracking data for all paddocks.
- * Returns per-paddock NDVI recovery since last graze.
+ * Get recovery tracking data for all pastures.
+ * Returns per-pasture NDVI recovery since last graze.
  */
 export const getRecoveryTracker = query({
   args: { farmExternalId: v.string() },
@@ -352,8 +352,8 @@ export const getRecoveryTracker = query({
       .first()
     if (!farm) return []
 
-    // 2. Get paddocks
-    const paddocks = await ctx.db.query('paddocks')
+    // 2. Get pastures
+    const pastures = await ctx.db.query('paddocks')
       .withIndex('by_farm', q => q.eq('farmId', farm._id))
       .collect()
 
@@ -367,30 +367,30 @@ export const getRecoveryTracker = query({
       .withIndex('by_farm', q => q.eq('farmExternalId', args.farmExternalId))
       .collect()
 
-    // 5. Calculate recovery % per paddock
+    // 5. Calculate recovery % per pasture
     const now = Date.now()
-    const results = paddocks.map(paddock => {
-      // Find the most recent grazing event for this paddock
-      const paddockGrazingEvents = grazingEvents
-        .filter(e => e.paddockExternalId === paddock.externalId)
+    const results = pastures.map(pasture => {
+      // Find the most recent grazing event for this pasture
+      const pastureGrazingEvents = grazingEvents
+        .filter(e => e.paddockExternalId === pasture.externalId)
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
-      const lastGrazeEvent = paddockGrazingEvents[0]
-      const lastGrazedDate = lastGrazeEvent?.date || paddock.lastGrazed
+      const lastGrazeEvent = pastureGrazingEvents[0]
+      const lastGrazedDate = lastGrazeEvent?.date || pasture.lastGrazed
 
-      // Get paddock observations sorted by date
-      const paddockObs = observations
-        .filter(o => o.paddockExternalId === paddock.externalId && o.isValid)
+      // Get pasture observations sorted by date
+      const pastureObs = observations
+        .filter(o => o.paddockExternalId === pasture.externalId && o.isValid)
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
       // Current (most recent) NDVI
-      const currentObs = paddockObs[0]
-      const currentNdvi = currentObs?.ndviMean ?? paddock.ndvi
+      const currentObs = pastureObs[0]
+      const currentNdvi = currentObs?.ndviMean ?? pasture.ndvi
 
       // Find NDVI at time of last graze (or closest observation after)
       let ndviAtGraze: number | null = null
       if (lastGrazedDate) {
-        const obsAfterGraze = paddockObs
+        const obsAfterGraze = pastureObs
           .filter(o => new Date(o.date) >= new Date(lastGrazedDate))
           .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
         ndviAtGraze = obsAfterGraze[0]?.ndviMean ?? null
@@ -399,7 +399,7 @@ export const getRecoveryTracker = query({
       // Calculate rest days since last graze
       const restDays = lastGrazedDate
         ? Math.floor((now - new Date(lastGrazedDate).getTime()) / (1000 * 60 * 60 * 24))
-        : paddock.restDays
+        : pasture.restDays
 
       // Calculate recovery percentage
       // Recovery assumes NDVI drops after grazing and recovers toward ~0.6 (healthy pasture)
@@ -419,13 +419,13 @@ export const getRecoveryTracker = query({
       }
 
       return {
-        paddockId: paddock.externalId,
-        paddockName: paddock.name,
+        pastureId: pasture.externalId,
+        pastureName: pasture.name,
         currentNdvi: Math.round(currentNdvi * 100) / 100,
         recoveryPct: Math.round(recoveryPct),
         restDays,
         lastGrazed: lastGrazedDate || null,
-        status: paddock.status,
+        status: pasture.status,
       }
     })
 
@@ -459,7 +459,7 @@ export const getFarmNDVITrend = query({
 
     if (filtered.length === 0) return []
 
-    // Aggregate by date - average NDVI across all paddocks
+    // Aggregate by date - average NDVI across all pastures
     const dateMap = new Map<string, { total: number; count: number }>()
 
     for (const obs of filtered) {

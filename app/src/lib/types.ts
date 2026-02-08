@@ -1,6 +1,6 @@
 import type { Feature, Point, Polygon } from 'geojson'
 
-export type PaddockStatus = 'ready' | 'almost_ready' | 'recovering' | 'grazed'
+export type PastureStatus = 'ready' | 'almost_ready' | 'recovering' | 'grazed'
 
 // Livestock types
 export type AnimalType = 'cow' | 'sheep'
@@ -34,10 +34,10 @@ export interface LivestockSummary {
 
 export type PlanStatus = 'pending' | 'approved' | 'rejected' | 'executed' | 'modified'
 
-// Section: Ephemeral, AI-generated daily grazing polygon within a paddock
-export interface Section {
+// Paddock: Ephemeral, AI-generated daily grazing polygon within a pasture
+export interface Paddock {
   id: string
-  paddockId: string
+  pastureId: string
   date: string
   geometry: Feature<Polygon>
   targetArea: number // hectares
@@ -54,10 +54,10 @@ export interface Farm {
   geometry: Feature<Polygon>
 }
 
-export interface Paddock {
+export interface Pasture {
   id: string
   name: string
-  status: PaddockStatus
+  status: PastureStatus
   ndvi: number
   restDays: number
   area: number
@@ -66,8 +66,8 @@ export interface Paddock {
   geometry: Feature<Polygon>
 }
 
-// Section alternative: Another possible section polygon within the same paddock
-export interface SectionAlternative {
+// Paddock alternative: Another possible paddock polygon within the same pasture
+export interface PaddockAlternative {
   id: string
   geometry: Feature<Polygon>
   targetArea: number
@@ -75,33 +75,33 @@ export interface SectionAlternative {
   reasoning: string // Brief explanation of why this is an option
 }
 
-// Legacy paddock alternative (for paddock transitions)
-export interface PaddockAlternative {
-  paddockId: string
+// Pasture alternative (for pasture transitions)
+export interface PastureAlternative {
+  pastureId: string
   confidence: number
 }
 
 export interface Plan {
   id: string
   date: string
-  currentPaddockId: string // Where livestock are now
-  recommendedPaddockId: string
+  currentPastureId: string // Where livestock are now
+  recommendedPastureId: string
   confidence: number
   reasoning: string[]
   status: PlanStatus
   approvedAt?: string
   briefNarrative: string
-  // Section-based grazing fields
-  daysInCurrentPaddock: number // How many days spent in current paddock
-  totalDaysPlanned: number // Total days planned for current paddock rotation
-  recommendedSection: Section // The AI-drawn polygon for today
-  isPaddockTransition: boolean // True when moving to a new paddock
-  nextPaddockId?: string // Only set when isPaddockTransition is true
-  previousSections: Section[] // Sections already grazed in current paddock stay
-  // Section alternatives: other polygon options within the same paddock
-  sectionAlternatives: SectionAlternative[]
-  // Paddock alternatives: only relevant for paddock transitions
+  // Paddock-based grazing fields
+  daysInCurrentPasture: number // How many days spent in current pasture
+  totalDaysPlanned: number // Total days planned for current pasture rotation
+  recommendedPaddock: Paddock // The AI-drawn polygon for today
+  isPastureTransition: boolean // True when moving to a new pasture
+  nextPastureId?: string // Only set when isPastureTransition is true
+  previousPaddocks: Paddock[] // Paddocks already grazed in current pasture stay
+  // Paddock alternatives: other polygon options within the same pasture
   paddockAlternatives: PaddockAlternative[]
+  // Pasture alternatives: only relevant for pasture transitions
+  pastureAlternatives: PastureAlternative[]
 }
 
 export interface Observation {
@@ -128,7 +128,7 @@ export interface DataStatus {
   nextExpectedPass: string
 }
 
-// Extended observation with EVI and NDWI for paddock detail view
+// Extended observation with EVI and NDWI for pasture detail view
 export interface ExtendedObservation extends Observation {
   evi?: number
   ndwi?: number
@@ -142,46 +142,46 @@ export interface GrazingEvent {
   duration: number // days
   entryNdvi: number
   exitNdvi: number
-  sectionGeometry?: Feature<Polygon> // The section that was grazed
+  paddockGeometry?: Feature<Polygon> // The paddock that was grazed
 }
 
-// Paddock stay: A multi-day rotation through a paddock with multiple sections
-export interface PaddockStay {
+// Pasture stay: A multi-day rotation through a pasture with multiple paddocks
+export interface PastureStay {
   id: string
-  paddockId: string
-  paddockName: string
+  pastureId: string
+  pastureName: string
   entryDate: string
-  exitDate?: string // null if currently in this paddock
-  sections: Section[]
+  exitDate?: string // null if currently in this pasture
+  paddocks: Paddock[]
   totalArea: number // hectares covered
 }
 
-export type HistoryEventType = 'section_rotation' | 'paddock_transition'
+export type HistoryEventType = 'paddock_rotation' | 'pasture_transition'
 
 export interface HistoryEntry {
   id: string
   date: string
-  paddockId: string
-  paddockName: string
+  pastureId: string
+  pastureName: string
   planStatus: PlanStatus
   confidence: number
   reasoning: string
   wasModified: boolean
   userFeedback?: string
-  // Section-related fields
+  // Paddock-related fields
   eventType: HistoryEventType
-  sectionId?: string
-  sectionArea?: number // hectares
-  sectionGeometry?: Feature<Polygon>
-  fromPaddockId?: string // For paddock transitions
-  fromPaddockName?: string
-  dayInPaddock?: number // e.g., "Day 3 of 5"
-  totalDaysInPaddock?: number
+  paddockId?: string
+  paddockArea?: number // hectares
+  paddockGeometry?: Feature<Polygon>
+  fromPastureId?: string // For pasture transitions
+  fromPastureName?: string
+  dayInPasture?: number // e.g., "Day 3 of 5"
+  totalDaysInPasture?: number
 }
 
-export interface PaddockPerformance {
-  paddockId: string
-  paddockName: string
+export interface PasturePerformance {
+  pastureId: string
+  pastureName: string
   totalUses: number
   avgRestDays: number
   avgNdvi: number
@@ -225,8 +225,8 @@ export interface FarmMetrics {
 }
 
 export interface RotationEntry {
-  paddockId: string
-  paddockName: string
+  pastureId: string
+  pastureName: string
   weeklyData: boolean[] // true if grazed that week
 }
 
@@ -247,16 +247,16 @@ export interface MovementMetrics {
   ytdTrend: number // Percentage change vs same period last year
   mtd: number // Total movements month-to-date
   mtdTrend: number // Percentage change vs same period last month
-  currentPaddock: number // Days/sections in current paddock stay
-  currentPaddockTotal: number // Total planned days in current paddock
+  currentPasture: number // Days/paddocks in current pasture stay
+  currentPastureTotal: number // Total planned days in current pasture
 }
 
 // Grazing Stock (Pasture Savings Account) types
 export type ReserveStatus = 'critical' | 'low' | 'healthy' | 'abundant'
 
-export interface PaddockGrazingReserve {
-  paddockId: string
-  paddockName: string
+export interface PastureGrazingReserve {
+  pastureId: string
+  pastureName: string
   reserveDays: number // Forecasted days of grazing under stress
   status: ReserveStatus
   trend: 'up' | 'down' | 'stable'
@@ -265,11 +265,11 @@ export interface PaddockGrazingReserve {
 }
 
 export interface GrazingStock {
-  farmTotalDays: number // Total reserve days across all paddocks
+  farmTotalDays: number // Total reserve days across all pastures
   farmCapacityPercent: number // 0-100, how full the "savings account" is
   farmStatus: ReserveStatus
   farmTrend: 'up' | 'down' | 'stable'
-  byPaddock: PaddockGrazingReserve[]
+  byPasture: PastureGrazingReserve[]
   lastUpdated: string // ISO date
   assumptionNote: string // e.g., "Assumes zero precipitation and growth stall"
 }

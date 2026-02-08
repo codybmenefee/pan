@@ -13,11 +13,11 @@ interface LayerSelectorProps {
   satelliteLayer: SatelliteLayer
   onSatelliteLayerChange: (value: SatelliteLayer) => void
   layers: {
+    pastures: boolean
     paddocks: boolean
-    sections: boolean
     labels: boolean
   }
-  onToggleLayer: (layer: 'paddocks' | 'sections' | 'labels') => void
+  onToggleLayer: (layer: 'pastures' | 'paddocks' | 'labels') => void
 }
 
 export function LayerSelector({
@@ -31,10 +31,10 @@ export function LayerSelector({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-1.5 px-2 py-1 bg-gray-900/90 text-white rounded-full shadow-lg backdrop-blur hover:bg-gray-800/90 transition-colors">
+        <button className="flex items-center gap-1.5 px-2 py-1 bg-dark text-cream shadow-[2px_2px_0_var(--olive)] border-2 border-dark hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0_var(--olive)] transition-all">
           <Layers className="h-3.5 w-3.5" />
-          <span className="text-[11px] font-medium">{label}</span>
-          <ChevronDown className="h-3 w-3 text-gray-400" />
+          <span className="text-[11px] font-bold uppercase tracking-wider">{label}</span>
+          <ChevronDown className="h-3 w-3 text-cream/60" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-[100px]">
@@ -61,19 +61,19 @@ export function LayerSelector({
         {/* Visibility layers - multi-select */}
         <DropdownMenuCheckboxItem
           className="text-xs py-1"
+          checked={layers.pastures}
+          onCheckedChange={() => onToggleLayer('pastures')}
+          onSelect={(e) => e.preventDefault()}
+        >
+          Pastures
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem
+          className="text-xs py-1"
           checked={layers.paddocks}
           onCheckedChange={() => onToggleLayer('paddocks')}
           onSelect={(e) => e.preventDefault()}
         >
           Paddocks
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem
-          className="text-xs py-1"
-          checked={layers.sections}
-          onCheckedChange={() => onToggleLayer('sections')}
-          onSelect={(e) => e.preventDefault()}
-        >
-          Sections
         </DropdownMenuCheckboxItem>
         <DropdownMenuCheckboxItem
           className="text-xs py-1"

@@ -31,9 +31,9 @@ export function ScreenshotFrame({
     >
       {/* Browser chrome header */}
       <div className="absolute inset-x-0 top-0 z-10 flex h-8 items-center gap-1.5 bg-muted/80 px-3 backdrop-blur-sm">
-        <div className="h-2.5 w-2.5 rounded-full bg-red-400/80" />
-        <div className="h-2.5 w-2.5 rounded-full bg-yellow-400/80" />
-        <div className="h-2.5 w-2.5 rounded-full bg-green-400/80" />
+        <div className="h-2.5 w-2.5 rounded-full bg-terracotta-muted" />
+        <div className="h-2.5 w-2.5 rounded-full bg-terracotta-muted" />
+        <div className="h-2.5 w-2.5 rounded-full bg-olive/80" />
         <div className="ml-2 flex-1 rounded-md bg-background/50 px-2 py-0.5 text-[10px] text-muted-foreground">
           grazing.ai
         </div>

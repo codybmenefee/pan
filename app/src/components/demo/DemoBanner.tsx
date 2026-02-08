@@ -33,7 +33,7 @@ export function DemoBanner() {
   }
 
   return (
-    <div className="flex items-center justify-center gap-4 px-3 py-1 bg-amber-500/90 text-amber-950 text-xs">
+    <div className="flex items-center justify-center gap-4 px-3 py-1 bg-terracotta text-white text-xs">
       <div className="flex items-center gap-1.5">
         <FlaskConical className="h-3 w-3" />
         <span className="font-medium">Demo Mode</span>
@@ -43,7 +43,7 @@ export function DemoBanner() {
         <button
           onClick={handleReset}
           disabled={isResetting}
-          className="flex items-center gap-1 px-2 py-0.5 rounded bg-white/50 hover:bg-white/70 text-amber-900 transition-colors disabled:opacity-50"
+          className="flex items-center gap-1 px-2 py-0.5 rounded bg-white/50 hover:bg-white/70 text-terracotta transition-colors disabled:opacity-50"
         >
           <RotateCcw className={`h-3 w-3 ${isResetting ? 'animate-spin' : ''}`} />
           <span>{isResetting ? 'Resetting...' : 'Reset'}</span>
@@ -51,7 +51,7 @@ export function DemoBanner() {
 
         <Link
           to="/sign-in"
-          className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-900 hover:bg-amber-800 text-white transition-colors"
+          className="flex items-center gap-1 px-2 py-0.5 rounded bg-dark hover:bg-dark/80 text-white transition-colors"
         >
           <UserPlus className="h-3 w-3" />
           <span>Sign Up Free</span>

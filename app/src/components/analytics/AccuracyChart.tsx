@@ -11,9 +11,9 @@ export function AccuracyChart({
   title = 'Recommendation Accuracy' 
 }: AccuracyChartProps) {
   const items = [
-    { label: 'Approved as-is', value: data.approvedAsIs, color: 'bg-green-500' },
-    { label: 'Modified', value: data.modified, color: 'bg-amber-500' },
-    { label: 'Rejected', value: data.rejected, color: 'bg-red-500' },
+    { label: 'Approved as-is', value: data.approvedAsIs, color: 'bg-olive' },
+    { label: 'Modified', value: data.modified, color: 'bg-terracotta' },
+    { label: 'Rejected', value: data.rejected, color: 'bg-terracotta' },
   ]
 
   return (

@@ -34,7 +34,7 @@ export function SatelliteStatusIcon() {
     <Tooltip open={showTooltip || undefined}>
       <TooltipTrigger asChild>
         <div ref={iconRef} className="flex h-5 w-5 items-center justify-center">
-          <Satellite className="h-3 w-3 text-blue-500 animate-pulse" />
+          <Satellite className="h-3 w-3 text-cobalt animate-pulse" />
         </div>
       </TooltipTrigger>
       <TooltipContent side="bottom">

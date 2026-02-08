@@ -52,7 +52,7 @@ export function useSubmitFeatureRequest() {
 
 export const FEATURE_CATEGORY_OPTIONS: { value: FeatureCategory; label: string }[] = [
   { value: 'grazing', label: 'Grazing Recommendations' },
-  { value: 'map', label: 'Map & Paddocks' },
+  { value: 'map', label: 'Map & Pastures' },
   { value: 'satellite', label: 'Satellite Imagery' },
   { value: 'livestock', label: 'Livestock Management' },
   { value: 'analytics', label: 'Analytics & Reports' },

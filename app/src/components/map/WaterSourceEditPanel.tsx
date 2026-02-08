@@ -38,10 +38,10 @@ const statusOptions: { value: WaterSourceStatus; label: string; description: str
 ]
 
 const statusStyles: Record<WaterSourceStatus, { bg: string; border: string; text: string }> = {
-  active: { bg: 'bg-green-500/10', border: 'border-green-500/20', text: 'text-green-600 dark:text-green-400' },
-  seasonal: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', text: 'text-yellow-600 dark:text-yellow-400' },
-  maintenance: { bg: 'bg-orange-500/10', border: 'border-orange-500/20', text: 'text-orange-600 dark:text-orange-400' },
-  dry: { bg: 'bg-red-500/10', border: 'border-red-500/20', text: 'text-red-600 dark:text-red-400' },
+  active: { bg: 'bg-olive/10', border: 'border-olive/20', text: 'text-olive' },
+  seasonal: { bg: 'bg-terracotta-muted/10', border: 'border-terracotta-muted/20', text: 'text-terracotta-muted' },
+  maintenance: { bg: 'bg-terracotta/10', border: 'border-terracotta/20', text: 'text-terracotta' },
+  dry: { bg: 'bg-terracotta/10', border: 'border-terracotta/20', text: 'text-terracotta' },
 }
 
 export function WaterSourceEditPanel({
@@ -171,7 +171,7 @@ export function WaterSourceEditPanel({
           <p className={`text-xs ${currentStatusStyles.text} mt-1`}>
             {statusInfo?.description ?? 'Currently available and functioning'}
           </p>
-          <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+          <p className="text-xs text-cobalt mt-2">
             Water sources are factored into grazing recommendations to ensure livestock have adequate access.
           </p>
         </div>

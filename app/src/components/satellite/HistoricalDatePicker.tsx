@@ -242,7 +242,7 @@ export function HistoricalDatePicker({
             className={cn(
               'relative h-5 flex items-center justify-center rounded text-xs',
               day.isCurrentMonth ? 'text-foreground' : 'text-muted-foreground',
-              selectedDate === day.date && 'bg-primary text-white',
+              selectedDate === day.date && 'bg-olive text-white',
               day.hasData && !day.isRestricted && selectedDate !== day.date && 'hover:bg-muted cursor-pointer',
               (!day.hasData || day.isRestricted) && 'cursor-not-allowed',
               day.isRestricted && day.hasData && 'opacity-50'
@@ -255,10 +255,10 @@ export function HistoricalDatePicker({
                 className={cn(
                   'absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full',
                   day.cloudCover && day.cloudCover < 20
-                    ? 'bg-green-500'
+                    ? 'bg-olive'
                     : day.cloudCover && day.cloudCover < 50
-                      ? 'bg-yellow-500'
-                      : 'bg-red-500'
+                      ? 'bg-terracotta-muted'
+                      : 'bg-terracotta'
                 )}
                 title={`Cloud cover: ${day.cloudCover?.toFixed(0) ?? 'N/A'}%`}
               />
@@ -282,9 +282,9 @@ export function HistoricalDatePicker({
       {/* Compact footer: legend dots + count inline */}
       <div className="mt-1.5 flex items-center justify-between text-[10px] text-muted-foreground">
         <div className="flex items-center gap-2">
-          <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />Clear</span>
-          <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />Hazy</span>
-          <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-full bg-red-500" />Cloudy</span>
+          <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-full bg-olive" />Clear</span>
+          <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-full bg-terracotta-muted" />Hazy</span>
+          <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-full bg-terracotta" />Cloudy</span>
         </div>
         <span>{dates.length} dates</span>
       </div>
@@ -324,7 +324,7 @@ export function HistoricalDateList({
           onClick={() => onDateSelect(d.date)}
           className={`w-full flex items-center justify-between px-3 py-2 rounded text-sm ${
             selectedDate === d.date
-              ? 'bg-green-100 text-green-800'
+              ? 'bg-olive/10 text-olive'
               : 'hover:bg-gray-50'
           }`}
         >
@@ -333,10 +333,10 @@ export function HistoricalDateList({
             <span
               className={`text-xs ${
                 d.cloudCoverPct < 20
-                  ? 'text-green-600'
+                  ? 'text-olive'
                   : d.cloudCoverPct < 50
-                    ? 'text-yellow-600'
-                    : 'text-red-600'
+                    ? 'text-terracotta-muted'
+                    : 'text-terracotta'
               }`}
             >
               {d.cloudCoverPct.toFixed(0)}% clouds

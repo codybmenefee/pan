@@ -20,7 +20,7 @@ export const partialData: ArticleContent = {
 - Forecasts degrade rapidly beyond 3 days
 
 **Ground truth** is expensive:
-- Walking every paddock takes time
+- Walking every pasture takes time
 - Biomass sampling is labor-intensive
 - Records depend on consistent entry
 
@@ -30,10 +30,10 @@ The platform is designed for this reality. It expects gaps and handles them expl
       heading: 'Data as Confidence, Not Truth',
       content: `Each data point carries a confidence level reflecting:
 - **Recency**: How old is this reading?
-- **Coverage**: What percentage of the paddock was visible?
+- **Coverage**: What percentage of the pasture was visible?
 - **Agreement**: Do multiple signals align?
 
-Consider NDVI for a paddock:
+Consider NDVI for a pasture:
 
 **High confidence scenario**:
 - Clear observation 2 days ago
@@ -69,7 +69,7 @@ The platform embraces this constraint. It always produces a recommendation, even
 
 **Graceful Degradation**
 When data quality declines, recommendations become more conservative:
-- Prefer paddocks with recent, clear observations
+- Prefer pastures with recent, clear observations
 - Reduce confidence scores to signal uncertainty
 - Include explicit notes about data limitations
 
@@ -92,7 +92,7 @@ const normalizeConfidenceScore = (value: number | undefined): number => {
     },
     {
       heading: 'Cloud-Free Percentage',
-      content: `The \`cloudFreePct\` field in observations indicates what portion of the paddock was visible:`,
+      content: `The \`cloudFreePct\` field in observations indicates what portion of the pasture was visible:`,
       codeExample: {
         language: 'typescript',
         filename: 'observations schema',
@@ -102,7 +102,7 @@ const normalizeConfidenceScore = (value: number | undefined): number => {
   date: v.string(),
   ndviMean: v.number(),
   ndviStd: v.number(),
-  cloudFreePct: v.number(), // 0-100, percent of paddock visible
+  cloudFreePct: v.number(), // 0-100, percent of pasture visible
   pixelCount: v.number(),
   isValid: v.boolean(),
   sourceProvider: v.string(),

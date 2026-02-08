@@ -21,10 +21,10 @@ The distinction matters. Reports inform over time. Briefings enable immediate de
       heading: 'The Daily Question',
       content: `Every morning, the platform answers:
 
-**"Which paddock and which section should the herd graze today?"**
+**"Which pasture and which paddock should the herd graze today?"**
 
 This question incorporates:
-- Current forage conditions (NDVI across paddocks)
+- Current forage conditions (NDVI across pastures)
 - Recovery status (days since last grazing)
 - Utilization history (what's been grazed already)
 - Constraint satisfaction (water access, rest requirements)
@@ -36,9 +36,9 @@ The answer comes as a specific recommendation with supporting reasoning.`,
       content: `Each morning brief contains:
 
 **Primary Recommendation**
-- Target paddock (e.g., "Paddock 3 - North Field")
-- Recommended section (polygon on map)
-- Action type: "continue grazing" or "move to new paddock"
+- Target pasture (e.g., "Pasture 3 - North Field")
+- Recommended paddock (polygon on map)
+- Action type: "continue grazing" or "move to new pasture"
 
 **Confidence Score**
 - Numeric indicator (0-100)
@@ -50,14 +50,14 @@ The answer comes as a specific recommendation with supporting reasoning.`,
 - Factors considered and how they influenced the choice
 - Any warnings or caveats
 
-**Section Details**
+**Paddock Details**
 - Area in hectares
-- Estimated NDVI for section
+- Estimated NDVI for paddock
 - Position relative to previous grazing
 - Detailed justification text
 
 **Alternatives** (when relevant)
-- Other paddocks that could work
+- Other pastures that could work
 - Why primary choice was preferred`,
     },
     {
@@ -73,7 +73,7 @@ Does this make sense? Any local factors the system doesn't know?
 **3. Decide**
 - **Approve**: Accept the recommendation. System records your decision.
 - **Reject**: Decline with optional feedback. System notes the rejection.
-- **Modify**: Adjust the section or paddock before approval.
+- **Modify**: Adjust the paddock or pasture before approval.
 
 **4. Execute**
 Move animals according to your decision. The platform doesn't control execution.

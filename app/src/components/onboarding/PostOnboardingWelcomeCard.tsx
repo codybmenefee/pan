@@ -23,7 +23,7 @@ export function PostOnboardingWelcomeCard({ onContinue }: PostOnboardingWelcomeC
               <h2 className="text-xl font-semibold">Welcome to OpenPasture!</h2>
               <p className="text-sm text-muted-foreground">
                 Thanks for joining! OpenPasture is currently in{' '}
-                <span className="inline-flex items-center rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400 ring-1 ring-inset ring-amber-500/30">
+                <span className="inline-flex items-center rounded-full bg-terracotta/20 px-2 py-0.5 text-xs font-medium text-terracotta ring-1 ring-inset ring-terracotta/30">
                   beta
                 </span>{' '}
                 as we refine the AI-powered grazing recommendations. We're actively

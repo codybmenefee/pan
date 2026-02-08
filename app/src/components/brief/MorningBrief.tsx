@@ -10,17 +10,18 @@ import { PlanModifyView } from './PlanModifyView'
 import { BriefSkeleton } from '@/components/ui/loading'
 import { LowConfidenceWarning } from '@/components/ui/error'
 import { getFormattedDate } from '@/data/mock/plan'
-import type { PlanStatus, Section } from '@/lib/types'
+import type { PlanStatus, Paddock } from '@/lib/types'
 import { useGeometry } from '@/lib/geometry'
 import { useTodayPlan } from '@/lib/convex/usePlan'
 import { NoPlanState } from './NoPlanState'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { getGrassQuality } from '@/lib/grassQuality'
+import { useAnalytics } from '@/lib/analytics'
 
 const LOW_CONFIDENCE_THRESHOLD = 70
 
-/** Plan document fields used by planSectionToSection */
+/** Plan document fields used by planDocToPaddock */
 interface PlanDocument {
   _id: string
   date: string
@@ -34,20 +35,20 @@ interface MorningBriefProps {
   farmExternalId: string
   compact?: boolean
   onClose?: () => void
-  onZoomToSection?: (geometry: Geometry) => void
-  onEnterModifyMode?: (geometry: Geometry, paddockId: string) => void
+  onZoomToPaddock?: (geometry: Geometry) => void
+  onEnterModifyMode?: (geometry: Geometry, pastureId: string) => void
   modifyModeActive?: boolean
   onSaveModification?: (feedback: string) => void
   onCancelModify?: () => void
 }
 
-function planSectionToSection(plan: PlanDocument | null | undefined): Section | undefined {
+function planDocToPaddock(plan: PlanDocument | null | undefined): Paddock | undefined {
   if (!plan?.sectionGeometry) {
     return undefined
   }
 
   // Convert raw Polygon to GeoJSON Feature
-  const sectionFeature = {
+  const paddockFeature = {
     type: 'Feature' as const,
     properties: {},
     geometry: plan.sectionGeometry,
@@ -55,9 +56,9 @@ function planSectionToSection(plan: PlanDocument | null | undefined): Section | 
 
   return {
     id: plan._id,
-    paddockId: plan.primaryPaddockExternalId || '',
+    pastureId: plan.primaryPaddockExternalId || '',
     date: plan.date,
-    geometry: sectionFeature,
+    geometry: paddockFeature,
     targetArea: plan.sectionAreaHectares || 0,
     reasoning: plan.reasoning || [],
   }
@@ -67,14 +68,15 @@ export function MorningBrief({
   farmExternalId,
   compact = false,
   onClose: _onClose,
-  onZoomToSection: _onZoomToSection,
+  onZoomToPaddock: _onZoomToPaddock,
   onEnterModifyMode,
   modifyModeActive = false,
   onSaveModification,
   onCancelModify,
 }: MorningBriefProps) {
-  const { getPaddockById } = useGeometry()
+  const { getPastureById } = useGeometry()
   const { plan, isLoading, isError, generatePlan, approvePlan, submitFeedback } = useTodayPlan(farmExternalId)
+  const { trackPlanGenerated, trackPlanApproved, trackPlanModified } = useAnalytics()
 
   const [planStatus, setPlanStatus] = useState<PlanStatus>('pending')
   const [feedbackOpen, setFeedbackOpen] = useState(false)
@@ -105,6 +107,7 @@ export function MorningBrief({
     setIsGenerating(true)
     try {
       await generatePlan()
+      trackPlanGenerated({ farmId: farmExternalId, triggeredBy: 'user' })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to generate a plan.'
       setGenerationError(message)
@@ -115,6 +118,12 @@ export function MorningBrief({
 
   const handleApprove = async () => {
     if (plan) {
+      const pasture = getPastureById(plan.primaryPaddockExternalId || '')
+      trackPlanApproved({
+        planId: plan._id,
+        confidenceScore: plan.confidenceScore,
+        pastureName: pasture?.name,
+      })
       setPlanStatus('approved')
       setApprovedAt(new Date().toLocaleTimeString('en-US', {
         hour: 'numeric',
@@ -135,6 +144,7 @@ export function MorningBrief({
 
   const handleFeedbackSubmit = async (feedback: string) => {
     if (plan) {
+      trackPlanModified({ planId: plan._id, hasFeedback: !!feedback })
       setPlanStatus('modified')
       setFeedbackOpen(false)
       setApprovedAt(new Date().toLocaleTimeString('en-US', {
@@ -187,17 +197,17 @@ export function MorningBrief({
 
   // If a plan exists, render it immediately. Generation animations should not gate the dashboard.
 
-  const recommendedPaddock = getPaddockById(plan.primaryPaddockExternalId || '')
+  const recommendedPasture = getPastureById(plan.primaryPaddockExternalId || '')
 
-  // Compute grass quality from paddock NDVI
-  const grassQuality = recommendedPaddock ? getGrassQuality(recommendedPaddock.ndvi) : undefined
+  // Compute grass quality from pasture NDVI
+  const grassQuality = recommendedPasture ? getGrassQuality(recommendedPasture.ndvi) : undefined
 
   // Generate summary reason from first reasoning item or justification
   const summaryReason = plan.sectionJustification
     || (plan.reasoning && plan.reasoning.length > 0
       ? plan.reasoning[0]
-      : recommendedPaddock
-        ? `Best forage available after ${recommendedPaddock.restDays} days rest`
+      : recommendedPasture
+        ? `Best forage available after ${recommendedPasture.restDays} days rest`
         : 'Analyzing pasture conditions')
 
   // Use remaining reasoning items as expandable details
@@ -208,14 +218,14 @@ export function MorningBrief({
   if (planStatus === 'approved' || planStatus === 'modified') {
     return (
       <ApprovedState
-        paddock={recommendedPaddock!}
-        currentPaddockId={plan.primaryPaddockExternalId || ''}
+        pasture={recommendedPasture!}
+        currentPastureId={plan.primaryPaddockExternalId || ''}
         approvedAt={approvedAt!}
         wasModified={planStatus === 'modified'}
-        section={planSectionToSection(plan)}
-        daysInCurrentPaddock={2}
+        paddock={planDocToPaddock(plan)}
+        daysInCurrentPasture={2}
         totalDaysPlanned={4}
-        previousSections={[]}
+        previousPaddocks={[]}
         grassQuality={grassQuality}
         summaryReason={summaryReason}
       />
@@ -228,7 +238,7 @@ export function MorningBrief({
     if (modifyModeActive && onSaveModification && onCancelModify) {
       return (
         <PlanModifyView
-          paddockName={recommendedPaddock?.name ?? 'Unknown'}
+          pastureName={recommendedPasture?.name ?? 'Unknown'}
           onSave={onSaveModification}
           onCancel={onCancelModify}
         />
@@ -250,16 +260,16 @@ export function MorningBrief({
             />
           )}
 
-          {recommendedPaddock && (
+          {recommendedPasture && (
             <BriefCard
-              currentPaddockId={plan.primaryPaddockExternalId || ''}
-              paddock={recommendedPaddock}
+              currentPastureId={plan.primaryPaddockExternalId || ''}
+              pasture={recommendedPasture}
               onApprove={handleApprove}
               onReject={handleReject}
-              section={planSectionToSection(plan)}
-              daysInCurrentPaddock={2}
+              paddock={planDocToPaddock(plan)}
+              daysInCurrentPasture={2}
               totalDaysPlanned={4}
-              previousSections={[]}
+              previousPaddocks={[]}
               grassQuality={grassQuality}
               summaryReason={summaryReason}
               reasoningDetails={reasoningDetails}
@@ -352,16 +362,16 @@ export function MorningBrief({
             />
           )}
 
-          {recommendedPaddock && (
+          {recommendedPasture && (
             <BriefCard
-              currentPaddockId={plan.primaryPaddockExternalId || ''}
-              paddock={recommendedPaddock}
+              currentPastureId={plan.primaryPaddockExternalId || ''}
+              pasture={recommendedPasture}
               onApprove={handleApprove}
               onReject={handleReject}
-              section={planSectionToSection(plan)}
-              daysInCurrentPaddock={2}
+              paddock={planDocToPaddock(plan)}
+              daysInCurrentPasture={2}
               totalDaysPlanned={4}
-              previousSections={[]}
+              previousPaddocks={[]}
               grassQuality={grassQuality}
               summaryReason={summaryReason}
               reasoningDetails={reasoningDetails}

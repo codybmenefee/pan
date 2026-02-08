@@ -28,7 +28,7 @@ Remote sensing provides objective, consistent measurement of vegetation vigor. T
 - It updates regularly (daily to weekly depending on provider)
 
 **Recovery Time**
-Days since last grazing event. Calculated from recorded grazing events in the system. Recovery is a hard constraint—paddocks need minimum rest regardless of current NDVI.
+Days since last grazing event. Calculated from recorded grazing events in the system. Recovery is a hard constraint—pastures need minimum rest regardless of current NDVI.
 
 **Weather History**
 Recent temperature and precipitation affect expected growth rates. The platform weights actual conditions over forecasts since forecasts are unreliable beyond a few days.
@@ -40,16 +40,16 @@ Observations, overrides, and feedback. Local knowledge about water access, fence
       heading: 'Actions: What the System Recommends',
       content: `The platform generates three types of recommendations:
 
-**Target Paddock Selection**
-Which paddock should animals graze today? Selection considers:
+**Target Pasture Selection**
+Which pasture should animals graze today? Selection considers:
 - NDVI relative to threshold (default: 0.40)
 - Recovery days relative to minimum (default: 21 days)
 - Previous utilization (what percentage has been grazed)
 
-**Section Geometry**
-Where within the paddock should grazing occur? Sections are approximately 20% of paddock area, positioned to:
-- Avoid overlap with previously grazed sections
-- Stay within paddock boundaries
+**Paddock Geometry**
+Where within the pasture should grazing occur? Paddocks are approximately 20% of pasture area, positioned to:
+- Avoid overlap with previously grazed paddocks
+- Stay within pasture boundaries
 - Maintain practical aspect ratios for fencing
 
 **Confidence Assessment**
@@ -88,7 +88,7 @@ Longer-term indicator affected by:
 **Automatic Feedback**
 - Subsequent NDVI readings show recovery (or lack thereof)
 - Rest day calculations update after each grazing event
-- Paddock status changes reflect current conditions
+- Pasture status changes reflect current conditions
 
 **Farmer Feedback**
 - Plan approval/rejection signals recommendation quality
@@ -97,7 +97,7 @@ Longer-term indicator affected by:
 
 **Learning Over Time**
 The platform accumulates history at the farm level:
-- Which paddocks consistently perform well or poorly
+- Which pastures consistently perform well or poorly
 - How long recovery actually takes in your conditions
 - Patterns in your rotation that work or don't
 
@@ -107,13 +107,13 @@ This feedback loop is what distinguishes a control system from a static rule eng
       heading: 'Why Traditional Management Fails at Scale',
       content: `A skilled grazier running this control system manually can succeed on a small operation. The limiting factor is cognitive bandwidth.
 
-Consider a 20-paddock farm:
-- 20 paddocks × 5 key variables = 100 data points to track
+Consider a 20-pasture farm:
+- 20 pastures × 5 key variables = 100 data points to track
 - Daily decisions compound—today's choice affects tomorrow's options
 - Weather introduces stochastic variation requiring constant adjustment
 - Fatigue and distraction increase error rates
 
-The decision surface expands combinatorially with farm size. A 40-paddock farm doesn't require twice the attention—it requires exponentially more.
+The decision surface expands combinatorially with farm size. A 40-pasture farm doesn't require twice the attention—it requires exponentially more.
 
 The platform addresses this by:
 - Automating data collection and aggregation

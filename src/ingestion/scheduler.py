@@ -5,15 +5,15 @@ Job queue processor with three modes:
 - --hourly: Process boundary_update and manual jobs only
 - --daily: Check imagery availability + process all pending jobs
 - --single farm-id: Ad-hoc trigger for testing
-- --smart: Auto-select mode based on time of day (daily at 6 AM, hourly otherwise)
-- --loop: Run continuously, executing --smart mode every hour
+- --smart: Auto-select mode based on farm staleness (daily if farms need check, hourly otherwise)
+- --loop: Run continuously, executing --smart mode on configurable interval (default 4h)
 
 Usage:
     python scheduler.py --hourly     # Process user-triggered jobs (one-time)
     python scheduler.py --daily      # Full daily run with imagery check (one-time)
     python scheduler.py --single farm-1  # Process single farm
-    python scheduler.py --smart      # Auto-select based on time (one-time)
-    python scheduler.py --loop       # Run continuously, --smart every hour (for Docker)
+    python scheduler.py --smart      # Auto-select based on staleness (one-time)
+    python scheduler.py --loop       # Run continuously (for Docker, default 4h interval)
 """
 import argparse
 import logging
@@ -154,42 +154,79 @@ class Scheduler:
         logger.info(f"=== Single Farm Mode Complete: {'success' if success else 'failed'} ===")
         return success
 
-    def run_smart(self) -> int:
+    def run_smart(self) -> dict:
         """
-        Smart mode: Auto-select based on time of day.
-        Runs daily check at 6 AM UTC, hourly check otherwise.
+        Smart mode: Auto-select based on farm staleness.
+        If any farms need imagery checks (not checked in 24h), run daily mode.
+        Otherwise run hourly mode to process boundary/manual jobs.
 
         Returns:
-            Number of jobs processed
+            Dict with mode, farms_checked, and jobs_processed
         """
-        current_hour = datetime.utcnow().hour
+        farms_needing_check = self.convex.get_farms_needing_imagery_check()
 
-        if current_hour == 6:
-            logger.info("Smart mode: 6 AM UTC, running daily check")
-            return self.run_daily()
+        if farms_needing_check:
+            logger.info(f"Smart mode: {len(farms_needing_check)} farms need imagery check, running daily mode")
+            processed = self.run_daily()
+            return {"mode": "daily", "farms_checked": len(farms_needing_check), "jobs_processed": processed}
         else:
-            logger.info(f"Smart mode: {current_hour}:00 UTC, running hourly check")
-            return self.run_hourly()
+            logger.info("Smart mode: all farms recently checked, running hourly mode")
+            processed = self.run_hourly()
+            return {"mode": "hourly", "farms_checked": 0, "jobs_processed": processed}
+
+    def _ensure_farm_settings_exist(self, farm_external_id: str):
+        """
+        Ensure a farmSettings row exists for the given farm.
+        If missing, calls updateImageryCheckTime with an ancient timestamp
+        so the farm appears in getFarmsNeedingImageryCheck results.
+        """
+        settings = self.convex.get_settings(farm_external_id)
+        if settings is not None:
+            logger.info(f"Pre-flight: farmSettings already exists for {farm_external_id}")
+            return
+
+        logger.info(f"Pre-flight: creating farmSettings for {farm_external_id}")
+        self.convex.update_imagery_check_time(
+            farm_external_id=farm_external_id,
+            check_timestamp="2000-01-01T00:00:00.000Z",
+        )
+        logger.info(f"Pre-flight: farmSettings created for {farm_external_id}")
 
     def run_loop(self):
         """
-        Loop mode: Run continuously, executing smart mode every hour.
+        Loop mode: Run continuously, executing smart mode on a configurable interval.
         Designed for Docker deployments.
+
+        Interval controlled by SCHEDULER_LOOP_INTERVAL_HOURS env var (default: 4).
         """
+        interval_hours = float(os.environ.get("SCHEDULER_LOOP_INTERVAL_HOURS", "4"))
+        interval_seconds = interval_hours * 3600
+
         logger.info("=== Starting Loop Mode ===")
-        logger.info("Will run smart mode every hour")
+        logger.info(f"Loop interval: {interval_hours} hours ({interval_seconds:.0f}s)")
+
+        # Pre-flight: ensure demo farm has settings so it's visible to the scheduler
+        try:
+            self._ensure_farm_settings_exist("farm-1")
+        except Exception as e:
+            logger.error(f"Pre-flight farm settings check failed: {e}", exc_info=True)
 
         while True:
             try:
                 logger.info("--- Starting scheduled run ---")
-                self.run_smart()
+                result = self.run_smart()
                 logger.info("--- Scheduled run complete ---")
+                logger.info(
+                    f"PIPELINE_STATUS: mode={result['mode']}, "
+                    f"farms_checked={result['farms_checked']}, "
+                    f"jobs_processed={result['jobs_processed']}"
+                )
             except Exception as e:
                 logger.error(f"Error in scheduled run: {e}", exc_info=True)
+                logger.info("PIPELINE_STATUS: mode=error, farms_checked=0, jobs_processed=0")
 
-            # Sleep until next hour
-            logger.info("Sleeping for 1 hour until next run...")
-            time.sleep(3600)  # 1 hour
+            logger.info(f"Sleeping for {interval_hours} hours until next run...")
+            time.sleep(interval_seconds)
 
     def _check_imagery_for_all_farms(self):
         """Check imagery availability for all farms that need it."""
@@ -480,9 +517,8 @@ class ConvexClient:
         return self._query("farms:getByExternalId", {"externalId": external_id})
 
     def get_paddocks(self, farm_external_id: str) -> list[dict]:
-        """Get paddocks for a farm by external ID."""
-        # listPaddocksByFarm takes the farm's external ID
-        return self._query("paddocks:listPaddocksByFarm", {"farmId": farm_external_id}) or []
+        """Get paddocks (pastures) for a farm by external ID."""
+        return self._query("paddocks:listPasturesByFarm", {"farmId": farm_external_id}) or []
 
     def get_settings(self, farm_external_id: str) -> Optional[dict]:
         """Get settings for a farm."""
@@ -522,12 +558,12 @@ Examples:
     group.add_argument(
         "--smart",
         action="store_true",
-        help="Auto-select mode based on time (daily at 6 AM, hourly otherwise) (one-time)"
+        help="Auto-select mode based on farm staleness (one-time)"
     )
     group.add_argument(
         "--loop",
         action="store_true",
-        help="Run continuously, executing --smart mode every hour (for Docker)"
+        help="Run continuously on configurable interval (default 4h, for Docker)"
     )
 
     args = parser.parse_args()
@@ -548,8 +584,8 @@ Examples:
             sys.exit(0 if success else 1)
 
         elif args.smart:
-            processed = scheduler.run_smart()
-            sys.exit(0 if processed >= 0 else 1)
+            result = scheduler.run_smart()
+            sys.exit(0 if result['jobs_processed'] >= 0 else 1)
 
         elif args.loop:
             # Loop mode never exits (runs continuously)

@@ -1,26 +1,34 @@
 import { Link } from '@tanstack/react-router'
-import { BookOpen } from 'lucide-react'
+import { Terminal, BookOpen, ArrowRight } from 'lucide-react'
 import { DemoFarmSelector } from './DemoFarmSelector'
 import { DemoDailyPlanButton } from './DemoDailyPlanButton'
 import { DemoDevToolsDropdown } from './DemoDevToolsDropdown'
 
 export function DemoHeader() {
   return (
-    <header className="relative flex h-10 items-center border-b border-border bg-background pl-1 pr-3 py-2 gap-2">
+    <header className="relative flex h-10 items-center border-b-2 border-border bg-white pl-1 pr-3 py-2 gap-2">
       {/* Left side */}
-      <DemoFarmSelector />
-      <DemoDailyPlanButton />
-
-      {/* Centered logo - absolutely positioned */}
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center">
-        <span className="text-sm font-semibold tracking-tight">OpenPasture</span>
-        <span className="ml-1.5 text-[10px] font-medium text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded">demo</span>
+      <div className="flex items-center gap-2">
+        <div className="w-6 h-6 border-2 border-dark bg-olive flex items-center justify-center">
+          <Terminal className="w-3 h-3 text-white" strokeWidth={2.5} />
+        </div>
+        <DemoFarmSelector />
+        <DemoDailyPlanButton />
       </div>
 
-      {/* Right side - pushed to far right */}
+      {/* Centered logo */}
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+        <span className="text-xs font-bold tracking-tight">openpasture</span>
+        <span className="text-[9px] text-muted-foreground">v0.9.2</span>
+        <span className="inline-block px-1.5 py-0.5 border-2 border-olive text-olive text-[8px] font-semibold uppercase tracking-widest">
+          demo
+        </span>
+      </div>
+
+      {/* Right side */}
       <div className="flex-1" />
       <div className="flex items-center gap-2">
-        <Link to="/docs" className="flex h-5 w-5 items-center justify-center rounded hover:bg-accent" title="Documentation">
+        <Link to="/docs" className="flex h-5 w-5 items-center justify-center hover:bg-olive-light transition-colors" title="Documentation">
           <BookOpen className="h-3 w-3" />
         </Link>
 
@@ -28,9 +36,10 @@ export function DemoHeader() {
 
         <Link
           to="/sign-in"
-          className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold text-white bg-olive hover:bg-olive-bright uppercase tracking-wider transition-colors shadow-[2px_2px_0_var(--dark)] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0_var(--dark)] group"
         >
-          Sign Up
+          ./signup
+          <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" strokeWidth={2.5} />
         </Link>
       </div>
     </header>

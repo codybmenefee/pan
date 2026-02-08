@@ -9,7 +9,7 @@ This document details the system architecture for the Grazing Intelligence Demo.
 │                           USER INTERFACE                                 │
 │  ┌─────────────────┐  ┌──────────────────┐  ┌────────────────────────┐  │
 │  │   Map View      │  │  Morning Brief   │  │  Feedback Interface    │  │
-│  │   (Paddocks)    │  │  (Narrative)     │  │  (Approval/Adjust)     │  │
+│  │   (Pastures)    │  │  (Narrative)     │  │  (Approval/Adjust)     │  │
 │  └─────────────────┘  └──────────────────┘  └────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
@@ -26,7 +26,7 @@ This document details the system architecture for the Grazing Intelligence Demo.
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                       INTELLIGENCE LAYER                                 │
 │  ┌─────────────────┐  ┌──────────────────┐  ┌────────────────────────┐  │
-│  │   Paddock       │  │  Recovery        │  │  Change                │  │
+│  │   Pasture       │  │  Recovery        │  │  Change                │  │
 │  │   Scorer        │  │  Modeler         │  │  Detector              │  │
 │  └─────────────────┘  └──────────────────┘  └────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -91,7 +91,7 @@ This document details the system architecture for the Grazing Intelligence Demo.
 **Cloud Masking**
 - Uses Sentinel-2 SCL (Scene Classification Layer)
 - Removes clouds, shadows, snow, water
-- Tracks percentage of usable pixels per paddock
+- Tracks percentage of usable pixels per pasture
 
 **Index Computation**
 - NDVI: `(NIR - Red) / (NIR + Red)`
@@ -99,7 +99,7 @@ This document details the system architecture for the Grazing Intelligence Demo.
 - NDWI: `(NIR - SWIR) / (NIR + SWIR)`
 
 **Zonal Statistics**
-- For each paddock polygon, computes:
+- For each pasture polygon, computes:
   - Mean/median index values
   - Standard deviation (uniformity indicator)
   - Pixel count (coverage indicator)
@@ -107,13 +107,13 @@ This document details the system architecture for the Grazing Intelligence Demo.
 
 ### Intelligence Layer
 
-**Paddock Scorer**
-- Ranks paddocks by grazing readiness
+**Pasture Scorer**
+- Ranks pastures by grazing readiness
 - Configurable scoring weights
 - Outputs ranked list with scores and reasoning
 
 **Recovery Modeler**
-- Tracks time since last graze per paddock
+- Tracks time since last graze per pasture
 - Computes NDVI recovery trajectory
 - Estimates days until graze-ready
 
@@ -142,9 +142,9 @@ This document details the system architecture for the Grazing Intelligence Demo.
 ### User Interface
 
 **Map View**
-- Interactive paddock visualization
+- Interactive pasture visualization
 - Color-coded by current status
-- Click for paddock details
+- Click for pasture details
 
 **Morning Brief**
 - Narrative text summary
@@ -169,7 +169,7 @@ This document details the system architecture for the Grazing Intelligence Demo.
 }
 ```
 
-### Paddock
+### Pasture
 ```json
 {
   "id": "uuid",
@@ -185,7 +185,7 @@ This document details the system architecture for the Grazing Intelligence Demo.
 ```json
 {
   "id": "uuid",
-  "paddock_id": "uuid",
+  "pasture_id": "uuid",
   "observed_at": "timestamp",
   "source": "sentinel-2",
   "ndvi_mean": "number",
@@ -202,7 +202,7 @@ This document details the system architecture for the Grazing Intelligence Demo.
 ```json
 {
   "id": "uuid",
-  "paddock_id": "uuid",
+  "pasture_id": "uuid",
   "started_at": "timestamp",
   "ended_at": "timestamp",
   "herd_count": "integer",
@@ -216,13 +216,13 @@ This document details the system architecture for the Grazing Intelligence Demo.
   "id": "uuid",
   "farm_id": "uuid",
   "for_date": "date",
-  "recommended_paddock_id": "uuid",
+  "recommended_pasture_id": "uuid",
   "confidence": "number (0-1)",
   "reasoning": "string",
   "assumptions": ["string"],
   "alternatives": [
     {
-      "paddock_id": "uuid",
+      "pasture_id": "uuid",
       "score": "number",
       "note": "string"
     }
@@ -243,8 +243,8 @@ GET    /farms/{id}
 PUT    /farms/{id}
 DELETE /farms/{id}
 
-GET    /farms/{id}/paddocks
-POST   /farms/{id}/paddocks
+GET    /farms/{id}/pastures
+POST   /farms/{id}/pastures
 ```
 
 ### Intelligence
@@ -259,8 +259,8 @@ POST   /farms/{id}/plan/feedback      # Submit feedback/adjustment
 
 ### Observations
 ```
-GET    /paddocks/{id}/observations    # Historical observations
-GET    /paddocks/{id}/current         # Current status
+GET    /pastures/{id}/observations    # Historical observations
+GET    /pastures/{id}/current         # Current status
 ```
 
 ### Export
@@ -289,7 +289,7 @@ GET    /plans/{id}/export/text        # Copy-ready instructions
 ### Partial Cloud Cover
 - Use median compositing over time window
 - Report percentage of usable data
-- Flag paddocks with insufficient coverage
+- Flag pastures with insufficient coverage
 
 ### Processing Failures
 - Retry with exponential backoff
@@ -300,5 +300,5 @@ GET    /plans/{id}/export/text        # Copy-ready instructions
 
 - Farm boundaries are sensitive data (property information)
 - All API endpoints require authentication
-- Paddock data scoped to authenticated user
+- Pasture data scoped to authenticated user
 - No PII stored beyond account basics

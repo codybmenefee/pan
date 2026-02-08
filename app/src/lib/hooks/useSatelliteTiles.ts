@@ -15,11 +15,12 @@ function getConvexSiteUrl(): string {
 }
 
 /**
- * Transform an R2 URL to use the Convex tile proxy for CORS support.
+ * Get a tile-serving URL by document ID.
+ * Uses the on-demand /tiles/serve endpoint which generates fresh presigned URLs.
  */
-function getProxiedTileUrl(r2Url: string): string {
+function getServedTileUrl(tileId: string): string {
   const siteUrl = getConvexSiteUrl()
-  return `${siteUrl}/tiles/proxy?url=${encodeURIComponent(r2Url)}`
+  return `${siteUrl}/tiles/serve?id=${encodeURIComponent(tileId)}`
 }
 
 export interface SatelliteTile {
@@ -162,12 +163,12 @@ export function useSatelliteTile(
       : 'skip'
   )
 
-  // Transform the R2 URL to use the CORS proxy
+  // Generate a served URL using tile ID (never expires)
   const tile = useMemo(() => {
     if (!rawTile) return null
     return {
       ...(rawTile as SatelliteTile),
-      r2Url: getProxiedTileUrl((rawTile as SatelliteTile).r2Url),
+      r2Url: getServedTileUrl((rawTile as SatelliteTile)._id),
     }
   }, [rawTile])
 

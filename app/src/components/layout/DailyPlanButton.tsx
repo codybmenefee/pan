@@ -32,7 +32,7 @@ export function DailyPlanButton() {
         variant="default"
         size="sm"
         onClick={() => setBriefOpen(true)}
-        className="gap-1 h-6 text-xs bg-green-600 hover:bg-green-700"
+        className="gap-1 h-6 text-xs bg-olive hover:bg-olive-bright"
       >
         <CheckCircle className="h-3.5 w-3.5" />
         Approved

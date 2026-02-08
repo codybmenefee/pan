@@ -3,8 +3,8 @@ import { Leaf, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface RecoveryData {
-  paddockId: string
-  paddockName: string
+  pastureId: string
+  pastureName: string
   currentNdvi: number
   recoveryPct: number
   restDays: number
@@ -18,21 +18,21 @@ interface RecoveryTrackerProps {
 }
 
 function getRecoveryColor(pct: number): string {
-  if (pct >= 80) return 'bg-green-500'
-  if (pct >= 60) return 'bg-lime-500'
-  if (pct >= 40) return 'bg-amber-500'
-  if (pct >= 20) return 'bg-orange-500'
-  return 'bg-red-500'
+  if (pct >= 80) return 'bg-olive'
+  if (pct >= 60) return 'bg-olive'
+  if (pct >= 40) return 'bg-terracotta'
+  if (pct >= 20) return 'bg-terracotta-muted'
+  return 'bg-terracotta'
 }
 
 function getStatusBadge(status: string) {
   const statusMap: Record<string, { label: string; className: string }> = {
-    ready: { label: 'Ready', className: 'bg-green-100 text-green-700' },
-    almost_ready: { label: 'Almost Ready', className: 'bg-lime-100 text-lime-700' },
-    recovering: { label: 'Recovering', className: 'bg-amber-100 text-amber-700' },
-    grazed: { label: 'Grazed', className: 'bg-slate-100 text-slate-700' },
+    ready: { label: 'Ready', className: 'bg-olive/10 text-olive' },
+    almost_ready: { label: 'Almost Ready', className: 'bg-olive-light text-olive' },
+    recovering: { label: 'Recovering', className: 'bg-terracotta/10 text-terracotta' },
+    grazed: { label: 'Grazed', className: 'bg-muted text-muted-foreground' },
   }
-  const config = statusMap[status] || { label: status, className: 'bg-slate-100 text-slate-700' }
+  const config = statusMap[status] || { label: status, className: 'bg-muted text-muted-foreground' }
   return (
     <span className={cn('text-xs px-1.5 py-0.5 rounded font-medium', config.className)}>
       {config.label}
@@ -42,7 +42,7 @@ function getStatusBadge(status: string) {
 
 export function RecoveryTracker({
   data,
-  title = 'Paddock Recovery'
+  title = 'Pasture Recovery'
 }: RecoveryTrackerProps) {
   if (data.length === 0) {
     return (
@@ -74,26 +74,26 @@ export function RecoveryTracker({
       </CardHeader>
       <CardContent>
         <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-          {data.map((paddock) => (
-            <div key={paddock.paddockId} className="space-y-1.5">
+          {data.map((pasture) => (
+            <div key={pasture.pastureId} className="space-y-1.5">
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">{paddock.paddockName}</span>
-                  {getStatusBadge(paddock.status)}
+                  <span className="font-medium">{pasture.pastureName}</span>
+                  {getStatusBadge(pasture.status)}
                 </div>
                 <div className="flex items-center gap-3 text-muted-foreground text-xs">
-                  <span>NDVI: {paddock.currentNdvi}</span>
-                  <span>{paddock.restDays}d rest</span>
-                  <span className="font-medium text-foreground">{paddock.recoveryPct}%</span>
+                  <span>NDVI: {pasture.currentNdvi}</span>
+                  <span>{pasture.restDays}d rest</span>
+                  <span className="font-medium text-foreground">{pasture.recoveryPct}%</span>
                 </div>
               </div>
               <div className="relative h-2 w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className={cn(
                     'absolute h-full transition-all',
-                    getRecoveryColor(paddock.recoveryPct)
+                    getRecoveryColor(pasture.recoveryPct)
                   )}
-                  style={{ width: `${paddock.recoveryPct}%` }}
+                  style={{ width: `${pasture.recoveryPct}%` }}
                 />
               </div>
             </div>

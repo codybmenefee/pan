@@ -16,7 +16,7 @@ type PlanGenerationData = {
   settings: any | null
   farm: any | null
   mostRecentGrazingEvent: any | null
-  paddocks: any[] | null
+  pastures: any[] | null
 }
 
 export const generateDailyPlan = action({
@@ -45,13 +45,13 @@ export const generateDailyPlan = action({
     }
 
     // Check if we have basic data to work with
-    if (!data.paddocks || data.paddocks.length === 0) {
-      log.debug('No paddocks found for farm', { farmExternalId })
+    if (!data.pastures || data.pastures.length === 0) {
+      log.debug('No pastures found for farm', { farmExternalId })
       return null
     }
 
     log.debug('Plan generation data fetched', {
-      paddocksCount: data.paddocks.length,
+      pasturesCount: data.pastures.length,
       hasFarm: !!data.farm,
       hasSettings: !!data.settings,
       observationsCount: data.observations?.length || 0,
@@ -123,9 +123,9 @@ export const runDailyBriefGeneration = action({
           continue
         }
 
-        // Skip farms without paddocks
-        if (!data.paddocks || data.paddocks.length === 0) {
-          log.debug('No paddocks found for farm', { farmExternalId: farm.externalId })
+        // Skip farms without pastures
+        if (!data.pastures || data.pastures.length === 0) {
+          log.debug('No pastures found for farm', { farmExternalId: farm.externalId })
           results.push({ farmId: farm.externalId, success: true })
           continue
         }

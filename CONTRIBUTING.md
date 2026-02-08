@@ -165,7 +165,7 @@ npm run format
 ### Branch Naming
 
 Use descriptive branch names:
-- `feat/add-paddock-editing` - New features
+- `feat/add-pasture-editing` - New features
 - `fix/map-zoom-issue` - Bug fixes
 - `docs/update-setup-guide` - Documentation
 - `refactor/simplify-auth-flow` - Code improvements
@@ -175,7 +175,7 @@ Use descriptive branch names:
 Write clear, concise commit messages:
 
 ```
-feat: add paddock boundary editing
+feat: add pasture boundary editing
 
 - Add drag handles for boundary vertices
 - Implement save confirmation dialog

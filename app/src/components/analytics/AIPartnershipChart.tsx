@@ -55,9 +55,9 @@ export function AIPartnershipChart({
   const rejectedPct = Math.round((totals.rejected / reviewed) * 100)
 
   const items = [
-    { label: 'Approved as-is', value: approvedPct, count: totals.approved, color: 'bg-green-500' },
-    { label: 'Modified', value: modifiedPct, count: totals.modified, color: 'bg-amber-500' },
-    { label: 'Rejected', value: rejectedPct, count: totals.rejected, color: 'bg-red-500' },
+    { label: 'Approved as-is', value: approvedPct, count: totals.approved, color: 'bg-olive' },
+    { label: 'Modified', value: modifiedPct, count: totals.modified, color: 'bg-terracotta' },
+    { label: 'Rejected', value: rejectedPct, count: totals.rejected, color: 'bg-terracotta' },
   ]
 
   return (

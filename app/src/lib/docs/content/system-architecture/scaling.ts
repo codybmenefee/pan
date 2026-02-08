@@ -16,7 +16,7 @@ The web interface is one consumer of the API. Other interfaces (mobile apps, har
 Automated systems can interact without human presence. Scheduled jobs, sensor triggers, and external events can invoke platform functionality.
 
 **Composability**
-Multiple systems can combine platform capabilities. A farm management system might query paddock status while a virtual fencing system consumes section geometry.
+Multiple systems can combine platform capabilities. A farm management system might query pasture status while a virtual fencing system consumes paddock geometry.
 
 **Evolution**
 New interfaces can be built without backend changes. Today's web UI can become tomorrow's voice interface or AR overlay—the API remains stable.`,
@@ -32,7 +32,7 @@ New interfaces can be built without backend changes. Today's web UI can become t
 - Water flow meters monitoring infrastructure
 
 **Autonomous Systems**
-- Virtual fencing receiving section boundaries
+- Virtual fencing receiving paddock boundaries
 - Drone surveys augmenting satellite data
 - Robotic inspection documenting conditions
 - Automated gates following rotation plans
@@ -103,7 +103,7 @@ Researchers can query historical data for analysis:
 
 **Export Capabilities**
 Data can be extracted for offline analysis:
-- GeoJSON paddock boundaries
+- GeoJSON pasture boundaries
 - CSV observation records
 - JSON plan archives
 
@@ -125,17 +125,17 @@ Cross-farm comparisons (with consent) enable:
 
 **Traditional scaling:**
 - More land → proportionally more labor
-- More paddocks → proportionally more management time
+- More pastures → proportionally more management time
 - Growth limited by available attention
 
 **Platform-enabled scaling:**
 - More land → same cognitive load (platform handles data)
-- More paddocks → incremental complexity (thresholds to configure)
+- More pastures → incremental complexity (thresholds to configure)
 - Growth limited by capital and land availability
 
 This creates economic leverage:
 
-**Farmer with 20 paddocks (manual)**
+**Farmer with 20 pastures (manual)**
 - ~30 minutes daily on grazing decisions
 - Cognitive load limits expansion
 - Each additional paddock adds burden

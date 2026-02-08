@@ -4,9 +4,9 @@ import { dataStatus } from '@/data/mock/farm'
 
 export function DataStatusCard() {
   const qualityColors = {
-    good: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20',
-    limited: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
-    poor: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
+    good: 'bg-olive/10 text-olive border-olive/20',
+    limited: 'bg-terracotta/10 text-terracotta border-terracotta/20',
+    poor: 'bg-terracotta/10 text-terracotta border-terracotta/20',
   }
 
   return (

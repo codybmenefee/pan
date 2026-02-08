@@ -7,14 +7,14 @@ import {
   DEFAULT_USER_EXTERNAL_ID,
   defaultFarmSettings,
   sampleFarm,
-  samplePaddocks,
+  samplePastures,
   sampleGrazingEvents,
   sampleObservations,
   sampleWaterSources,
   sampleNoGrazeZones,
   sampleLivestock,
   generateSamplePlans,
-  tutorialDemoPaddocks,
+  tutorialDemoPastures,
   generateTutorialDemoGrazingEvents,
   generateTutorialDemoObservations,
 } from './seedData'
@@ -112,47 +112,47 @@ export const seedSampleFarm = mutation({
       return { seeded: false, reason: 'Farm insert failed.' }
     }
 
-    const existingPaddocks = await ctx.db
+    const existingPastures = await ctx.db
       .query('paddocks')
       .withIndex('by_farm', (q) => q.eq('farmId', farm._id))
       .collect()
 
-    let paddocksSeeded = false
-    if (existingPaddocks.length === 0) {
-      for (const paddock of samplePaddocks) {
+    let pasturesSeeded = false
+    if (existingPastures.length === 0) {
+      for (const pasture of samplePastures) {
         await ctx.db.insert('paddocks', {
           farmId: farm._id,
-          externalId: paddock.externalId,
-          name: paddock.name,
-          status: paddock.status,
-          ndvi: paddock.ndvi,
-          restDays: paddock.restDays,
-          area: paddock.area,
-          waterAccess: paddock.waterAccess,
-          lastGrazed: paddock.lastGrazed,
-          geometry: paddock.geometry,
+          externalId: pasture.externalId,
+          name: pasture.name,
+          status: pasture.status,
+          ndvi: pasture.ndvi,
+          restDays: pasture.restDays,
+          area: pasture.area,
+          waterAccess: pasture.waterAccess,
+          lastGrazed: pasture.lastGrazed,
+          geometry: pasture.geometry,
           createdAt: now,
           updatedAt: now,
         })
       }
 
       await ctx.db.patch(farm._id, {
-        paddockCount: samplePaddocks.length,
+        paddockCount: samplePastures.length,
         updatedAt: now,
       })
 
-      paddocksSeeded = true
+      pasturesSeeded = true
 
     }
 
-    if (!paddocksSeeded && farm.paddockCount !== existingPaddocks.length) {
+    if (!pasturesSeeded && farm.paddockCount !== existingPastures.length) {
       await ctx.db.patch(farm._id, {
-        paddockCount: existingPaddocks.length,
+        paddockCount: existingPastures.length,
         updatedAt: now,
       })
     }
 
-    const paddockCount = paddocksSeeded ? samplePaddocks.length : existingPaddocks.length
+    const pastureCount = pasturesSeeded ? samplePastures.length : existingPastures.length
 
     let userSeeded = false
     if (args.seedUser) {
@@ -308,7 +308,7 @@ export const seedSampleFarm = mutation({
       livestockSeeded = true
     }
 
-    // Seed plans with sections (for strip grazing demo)
+    // Seed plans with paddocks (for strip grazing demo)
     let plansSeeded = false
     const existingPlans = await ctx.db
       .query('plans')
@@ -340,9 +340,9 @@ export const seedSampleFarm = mutation({
     return {
       farmId: farm._id,
       farmExternalId: externalId,
-      paddockCount,
+      pastureCount,
       seededFarm: farmSeeded,
-      seededPaddocks: paddocksSeeded,
+      seededPastures: pasturesSeeded,
       seededUser: userSeeded,
       seededSettings: settingsSeeded,
       seededGrazingEvents: grazingEventsSeeded,
@@ -456,8 +456,8 @@ export const listAllWithSettings = query({
           .withIndex('by_farm', (q: any) => q.eq('farmId', farm._id))
           .first()
 
-        // Get paddocks
-        const paddocks = await ctx.db
+        // Get pastures
+        const pastures = await ctx.db
           .query('paddocks')
           .withIndex('by_farm', (q) => q.eq('farmId', farm._id))
           .collect()
@@ -466,7 +466,7 @@ export const listAllWithSettings = query({
           ...farm,
           settings: settings ?? null,
           subscription: subscription ?? null,
-          paddocks,
+          pastures,
         }
       })
     )
@@ -502,14 +502,14 @@ export const exportFarmData = query({
       return { error: `Farm not found: ${externalId}` }
     }
 
-    // Get paddocks (filter out "New Paddock" - only p1-p8)
-    const allPaddocks = await ctx.db
+    // Get pastures (filter out "New Pasture" - only p1-p8)
+    const allPastures = await ctx.db
       .query('paddocks')
       .withIndex('by_farm', (q) => q.eq('farmId', farm._id))
       .collect()
 
-    const paddocks = allPaddocks
-      .filter((p) => p.externalId.startsWith('p') && !p.name.includes('New Paddock'))
+    const pastures = allPastures
+      .filter((p) => p.externalId.startsWith('p') && !p.name.includes('New Pasture'))
       .map((p) => ({
         externalId: p.externalId,
         name: p.name,
@@ -603,7 +603,7 @@ export const exportFarmData = query({
         coordinates: farm.coordinates,
         geometry: farm.geometry,
       },
-      paddocks,
+      pastures,
       waterSources: waterSourceData,
       noGrazeZones: noGrazeZoneData,
       livestock: livestockData,
@@ -625,11 +625,11 @@ export const exportFarmData = query({
 
 /**
  * Setup tutorial demo data for compelling screenshots.
- * Updates farm name, paddock NDVI/restDays, grazing events, and observations.
+ * Updates farm name, pasture NDVI/restDays, grazing events, and observations.
  */
 /**
  * Import farm data from an export (for syncing dev to prod).
- * Upserts paddocks by externalId, replaces water sources/zones/livestock/plans.
+ * Upserts pastures by externalId, replaces water sources/zones/livestock/plans.
  * Run with: npx convex run farms:importFarmData '{"targetFarmExternalId": "farm-1", "data": {...}}'
  */
 export const importFarmData = mutation({
@@ -639,7 +639,7 @@ export const importFarmData = mutation({
   },
   handler: async (ctx, args) => {
     const now = new Date().toISOString()
-    const { farm, paddocks, waterSources, noGrazeZones, livestock, plans, settings } = args.data
+    const { farm, pastures, waterSources, noGrazeZones, livestock, plans, settings } = args.data
 
     // 1. Find target farm
     let targetFarm = await ctx.db
@@ -668,52 +668,52 @@ export const importFarmData = mutation({
       updatedAt: now,
     })
 
-    // 3. Upsert paddocks by externalId
-    let paddocksUpdated = 0
-    let paddocksCreated = 0
-    for (const paddock of paddocks) {
+    // 3. Upsert pastures by externalId
+    let pasturesUpdated = 0
+    let pasturesCreated = 0
+    for (const pasture of pastures) {
       const existing = await ctx.db
         .query('paddocks')
         .withIndex('by_farm_externalId', (q: any) =>
-          q.eq('farmId', targetFarm._id).eq('externalId', paddock.externalId)
+          q.eq('farmId', targetFarm._id).eq('externalId', pasture.externalId)
         )
         .first()
 
       if (existing) {
         await ctx.db.patch(existing._id, {
-          name: paddock.name,
-          status: paddock.status,
-          ndvi: paddock.ndvi,
-          restDays: paddock.restDays,
-          area: paddock.area,
-          waterAccess: paddock.waterAccess,
-          lastGrazed: paddock.lastGrazed,
-          geometry: paddock.geometry,
+          name: pasture.name,
+          status: pasture.status,
+          ndvi: pasture.ndvi,
+          restDays: pasture.restDays,
+          area: pasture.area,
+          waterAccess: pasture.waterAccess,
+          lastGrazed: pasture.lastGrazed,
+          geometry: pasture.geometry,
           updatedAt: now,
         })
-        paddocksUpdated++
+        pasturesUpdated++
       } else {
         await ctx.db.insert('paddocks', {
           farmId: targetFarm._id,
-          externalId: paddock.externalId,
-          name: paddock.name,
-          status: paddock.status,
-          ndvi: paddock.ndvi,
-          restDays: paddock.restDays,
-          area: paddock.area,
-          waterAccess: paddock.waterAccess,
-          lastGrazed: paddock.lastGrazed,
-          geometry: paddock.geometry,
+          externalId: pasture.externalId,
+          name: pasture.name,
+          status: pasture.status,
+          ndvi: pasture.ndvi,
+          restDays: pasture.restDays,
+          area: pasture.area,
+          waterAccess: pasture.waterAccess,
+          lastGrazed: pasture.lastGrazed,
+          geometry: pasture.geometry,
           createdAt: now,
           updatedAt: now,
         })
-        paddocksCreated++
+        pasturesCreated++
       }
     }
 
-    // Update paddock count on farm
+    // Update pasture count on farm
     await ctx.db.patch(targetFarm._id, {
-      paddockCount: paddocks.length,
+      paddockCount: pastures.length,
       updatedAt: now,
     })
 
@@ -845,8 +845,8 @@ export const importFarmData = mutation({
     return {
       success: true,
       farmId: targetFarm._id,
-      paddocksUpdated,
-      paddocksCreated,
+      pasturesUpdated,
+      pasturesCreated,
       waterSourcesReplaced: waterSources.length,
       noGrazeZonesReplaced: noGrazeZones.length,
       livestockReplaced: livestock.length,
@@ -858,7 +858,7 @@ export const importFarmData = mutation({
 
 /**
  * Setup tutorial demo data for compelling screenshots.
- * Updates farm name, paddock NDVI/restDays, grazing events, and observations.
+ * Updates farm name, pasture NDVI/restDays, grazing events, and observations.
  */
 export const setupTutorialDemo = mutation({
   args: { farmExternalId: v.optional(v.string()) },
@@ -890,16 +890,16 @@ export const setupTutorialDemo = mutation({
       updatedAt: now,
     })
 
-    // 3. Update each paddock with tutorial demo data
-    const allPaddocks = await ctx.db
+    // 3. Update each pasture with tutorial demo data
+    const allPastures = await ctx.db
       .query('paddocks')
       .withIndex('by_farm', (q) => q.eq('farmId', farm._id))
       .collect()
 
-    for (const demoData of tutorialDemoPaddocks) {
-      const paddock = allPaddocks.find(p => p.externalId === demoData.externalId)
+    for (const demoData of tutorialDemoPastures) {
+      const pasture = allPastures.find(p => p.externalId === demoData.externalId)
 
-      if (paddock) {
+      if (pasture) {
         // Calculate lastGrazed based on restDays
         const lastGrazedDate = new Date()
         lastGrazedDate.setDate(lastGrazedDate.getDate() - demoData.restDays)
@@ -908,7 +908,7 @@ export const setupTutorialDemo = mutation({
           day: 'numeric',
         })
 
-        await ctx.db.patch(paddock._id, {
+        await ctx.db.patch(pasture._id, {
           name: demoData.name,
           ndvi: demoData.ndvi,
           restDays: demoData.restDays,
@@ -973,7 +973,7 @@ export const setupTutorialDemo = mutation({
     return {
       success: true,
       farmName: 'Hillcrest Station',
-      paddocksUpdated: tutorialDemoPaddocks.length,
+      pasturesUpdated: tutorialDemoPastures.length,
       grazingEventsInserted: demoEvents.length,
       observationsInserted: demoObservations.length,
       planDeleted: !!todayPlan,
