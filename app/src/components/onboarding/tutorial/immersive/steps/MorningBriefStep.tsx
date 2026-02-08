@@ -24,26 +24,26 @@ export function MorningBriefStep() {
           <div className="w-10 h-10 bg-olive-light border-2 border-olive/30 flex items-center justify-center mx-auto mb-2">
             <Leaf className="h-5 w-5 text-olive" />
           </div>
-          <div className="text-sm font-bold mb-1">Best Pasture</div>
-          <div className="text-xs text-muted-foreground">Based on NDVI satellite data</div>
-        </div>
-
-        <div className="text-center">
-          <div className="w-10 h-10 bg-cobalt/10 border-2 border-cobalt/30 flex items-center justify-center mx-auto mb-2">
-            <Calendar className="h-5 w-5 text-cobalt" />
-          </div>
-          <div className="text-sm font-bold mb-1">Rest Periods</div>
-          <div className="text-xs text-muted-foreground">Tracks days since last grazed</div>
-        </div>
-
-        <div className="text-center">
-          <div className="w-10 h-10 bg-terracotta/10 border-2 border-terracotta/30 flex items-center justify-center mx-auto mb-2">
-            <Brain className="h-5 w-5 text-terracotta" />
-          </div>
-          <div className="text-sm font-bold mb-1">Clear Reasoning</div>
-          <div className="text-xs text-muted-foreground">Explains why it chose this pasture</div>
-        </div>
+        <div className="text-sm font-bold mb-1">Best Pasture</div>
+        <div className="text-xs text-muted-foreground">Based on NDVI satellite data</div>
       </div>
+
+      <div className="text-center">
+        <div className="w-10 h-10 bg-cobalt/10 border-2 border-cobalt/30 flex items-center justify-center mx-auto mb-2">
+          <Calendar className="h-5 w-5 text-cobalt" />
+        </div>
+        <div className="text-sm font-bold mb-1">Rest Periods</div>
+        <div className="text-xs text-muted-foreground">Tracks days since last grazed</div>
+      </div>
+
+      <div className="text-center">
+        <div className="w-10 h-10 bg-terracotta/10 border-2 border-terracotta/30 flex items-center justify-center mx-auto mb-2">
+          <Brain className="h-5 w-5 text-terracotta" />
+        </div>
+        <div className="text-sm font-bold mb-1">Clear Reasoning</div>
+        <div className="text-xs text-muted-foreground">Explains why it chose this pasture</div>
+      </div>
+    </div>
 
       {/* Example recommendation */}
       <div className="border-t-2 border-border pt-5">
