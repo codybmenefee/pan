@@ -127,7 +127,7 @@ function SubscribePageContent() {
   return (
     <div className="min-h-screen bg-background flex flex-col relative">
       {/* Header */}
-      <header className="relative z-10 border-b-2 border-border px-6 py-4 flex items-center justify-between">
+      <header className="border-b-2 border-border px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 bg-olive flex items-center justify-center">
             <Terminal className="h-4 w-4 text-white" />
@@ -157,7 +157,7 @@ function SubscribePageContent() {
       </header>
 
       {/* Main content */}
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-6">
+      <main className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="max-w-3xl w-full text-center mb-8">
           <h1 className="font-serif text-3xl md:text-4xl font-bold mb-3 text-foreground">
             {user ? 'Subscribe to Continue' : 'Get Early Access'}
@@ -214,7 +214,7 @@ function SubscribePagePreview() {
       </div>
 
       {/* Header */}
-      <header className="relative z-10 border-b-2 border-border px-6 py-4 flex items-center justify-between">
+      <header className="border-b-2 border-border px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 bg-olive flex items-center justify-center">
             <Terminal className="h-4 w-4 text-white" />
@@ -232,7 +232,7 @@ function SubscribePagePreview() {
       </header>
 
       {/* Main content */}
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-6">
+      <main className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="max-w-3xl w-full text-center mb-8">
           <h1 className="font-serif text-3xl md:text-4xl font-bold mb-3 text-foreground">
             Get Early Access
