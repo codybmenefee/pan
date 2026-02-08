@@ -311,6 +311,43 @@
   .rsc-d1 { animation-delay: 0.1s; opacity: 0; }
   .rsc-d2 { animation-delay: 0.2s; opacity: 0; }
   .rsc-d3 { animation-delay: 0.3s; opacity: 0; }
+
+  /* Clerk PricingTable -- Olive Cobalt overrides */
+  .cl-pricingTableCard {
+    position: relative;
+    z-index: 1;
+    background: var(--panel) !important;
+    background-image: none !important;
+    border: 2px solid var(--dark) !important;
+    box-shadow: 4px 4px 0 var(--olive) !important;
+  }
+  .cl-pricingTableCard:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0 var(--olive) !important;
+  }
+  .cl-pricingTableCardFooterButton {
+    box-shadow: 3px 3px 0 var(--dark) !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    font-weight: 700 !important;
+  }
+  .cl-pricingTableCardFooterButton:hover {
+    transform: translate(-1px, -1px) !important;
+    box-shadow: 4px 4px 0 var(--dark) !important;
+  }
+  .cl-pricingTableCardTitle {
+    font-family: 'JetBrains Mono', monospace !important;
+  }
+
+  /* Clerk checkout panel -- must stack above pricing cards */
+  [class*="cl-checkout"],
+  [class*="cl-commerce"],
+  [class*="cl-Checkout"],
+  .cl-modalBackdrop,
+  .cl-modal {
+    z-index: 50 !important;
+  }
 }
 
 @layer utilities {

@@ -86,6 +86,40 @@ export const clerkAppearance = {
     dividerText: {
       color: '#647060',
     },
+    // Pricing table cards
+    pricingTableCard: {
+      backgroundColor: '#ffffff',
+      border: '2px solid #1a1e18',
+      boxShadow: '4px 4px 0 #4a6a2e',
+      backgroundImage: 'none',
+    },
+    pricingTableCardTitle: {
+      fontFamily: "'JetBrains Mono', monospace",
+    },
+    pricingTableCardFee: {
+      color: '#1a1e18',
+    },
+    pricingTableCardFeePeriod: {
+      color: '#647060',
+    },
+    pricingTableCardFeePeriodNotice: {
+      color: '#647060',
+    },
+    pricingTableCardFooterButton: {
+      backgroundColor: '#4a6a2e',
+      color: '#ffffff',
+      borderRadius: '0px',
+      fontFamily: "'JetBrains Mono', monospace",
+      fontWeight: '700',
+      textTransform: 'uppercase' as const,
+      letterSpacing: '0.05em',
+      boxShadow: '3px 3px 0 #1a1e18',
+      '&:hover': {
+        backgroundColor: '#5a7a38',
+        transform: 'translate(-1px, -1px)',
+        boxShadow: '4px 4px 0 #1a1e18',
+      },
+    },
     // Footer
     footerActionLink: {
       color: '#a83a32',

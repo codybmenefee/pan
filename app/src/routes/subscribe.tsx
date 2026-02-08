@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { useUser, useClerk, useAuth, PricingTable } from '@clerk/clerk-react'
 import { useQuery } from 'convex/react'
 import { useEffect, useCallback } from 'react'
@@ -8,14 +8,22 @@ import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
 import { useAppAuth } from '@/lib/auth'
 import { useAnalytics } from '@/lib/analytics'
 import { api } from '../../convex/_generated/api'
+import { z } from 'zod'
 
 export const Route = createFileRoute('/subscribe')({
+  validateSearch: z.object({ preview: z.boolean().optional() }),
   component: SubscribePage,
 })
 
 function SubscribePage() {
   const { isDevAuth } = useAppAuth()
   const navigate = useNavigate()
+  const { preview } = useSearch({ from: '/subscribe' })
+
+  // ?preview=true renders a mock page for local styling work
+  if (preview) {
+    return <SubscribePagePreview />
+  }
 
   // In dev mode, redirect to app (no Clerk provider available)
   useEffect(() => {
@@ -162,7 +170,7 @@ function SubscribePageContent() {
         </div>
 
         {/* Clerk's PricingTable component handles plan display and checkout */}
-        <div className="w-full max-w-5xl flex justify-center [&_.cl-pricingTable]:bg-transparent [&_.cl-pricingTableCard]:bg-white [&_.cl-pricingTableCard]:border-2 [&_.cl-pricingTableCard]:border-border [&_.cl-pricingTableCard]:text-foreground [&_.cl-pricingTableCard]:shadow-hard-sm [&_.cl-pricingTableCardTitle]:text-foreground [&_.cl-pricingTableCardPrice]:text-foreground [&_.cl-pricingTableCardDescription]:text-muted-foreground [&_.cl-pricingTableCardFeatureItem]:text-muted-foreground">
+        <div className="w-full max-w-5xl flex justify-center">
           <PricingTable />
         </div>
 
@@ -178,6 +186,77 @@ function SubscribePageContent() {
             </Button>
           </div>
         )}
+
+        <div className="mt-8 text-center text-sm text-muted-foreground">
+          <p>
+            Questions?{' '}
+            <a
+              href="mailto:support@openpasture.com"
+              className="text-terracotta hover:underline"
+            >
+              Contact us
+            </a>
+          </p>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+function SubscribePagePreview() {
+  const navigate = useNavigate()
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col relative">
+      {/* Dev banner */}
+      <div className="bg-cobalt text-white text-center text-xs font-mono py-1 tracking-wider uppercase">
+        Subscribe page preview -- styling only
+      </div>
+
+      {/* Header */}
+      <header className="relative z-10 border-b-2 border-border px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 bg-olive flex items-center justify-center">
+            <Terminal className="h-4 w-4 text-white" />
+          </div>
+          <span className="font-semibold text-lg text-foreground">OpenPasture</span>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate({ to: '/app' })}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          Back to app
+        </Button>
+      </header>
+
+      {/* Main content */}
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-6">
+        <div className="max-w-3xl w-full text-center mb-8">
+          <h1 className="font-serif text-3xl md:text-4xl font-bold mb-3 text-foreground">
+            Get Early Access
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            Join OpenPasture and get AI-powered grazing recommendations
+          </p>
+        </div>
+
+        {/* Clerk PricingTable from dev environment */}
+        <div className="w-full max-w-5xl flex justify-center">
+          <PricingTable />
+        </div>
+
+        {/* Continue button */}
+        <div className="mt-6 flex justify-center">
+          <Button
+            variant="brutalist"
+            size="lg"
+            onClick={() => navigate({ to: '/app' })}
+          >
+            Continue to App
+          </Button>
+        </div>
 
         <div className="mt-8 text-center text-sm text-muted-foreground">
           <p>
