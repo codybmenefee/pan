@@ -491,7 +491,7 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
             // Continue with section creation even if NDVI validation fails
           }
 
-              const planId = await ctx.runMutation(api.grazingAgentTools.createPlanWithPaddock, args as any)
+              const planId = await ctx.runMutation(api.grazingAgentTools.createPlanWithPaddock, { ...args, farmExternalId } as any)
               createdPlanId = planId
 
               // Log successful tool call to Braintrust
