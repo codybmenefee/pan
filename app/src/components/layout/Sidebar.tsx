@@ -9,6 +9,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { useAppAuth } from '@/lib/auth'
+import { useResolvedBillingAccess } from '@/lib/auth/useResolvedBillingAccess'
 import { hasAgentDashboardAccess } from '@/lib/agentAccess'
 
 interface NavItem {
@@ -32,7 +33,14 @@ export function Sidebar() {
   const navItems = getNavItems(isDemo)
   const settingsPath = isDemo ? '/demo/settings' : '/app/settings'
   const { hasFeature, hasPlan, isDevAuth } = useAppAuth()
-  const canAccessAgentDashboard = hasAgentDashboardAccess({ hasFeature, hasPlan, isDevAuth })
+  const billingAccess = useResolvedBillingAccess()
+  const canAccessAgentDashboard = hasAgentDashboardAccess({
+    hasFeature,
+    hasPlan,
+    isDevAuth,
+    resolvedFeatureSlugs: billingAccess.subscriptionFeatureSlugs,
+    resolvedPlanSlugs: billingAccess.subscriptionPlanSlugs,
+  })
 
   return (
     <TooltipProvider delayDuration={0}>

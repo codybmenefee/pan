@@ -4,12 +4,20 @@ import type { Id } from '../../../convex/_generated/dataModel'
 import { useFarmContext } from '@/lib/farm'
 import { useAppAuth } from '@/lib/auth'
 import { hasAgentDashboardAccess } from '@/lib/agentAccess'
+import { useResolvedBillingAccess } from '@/lib/auth/useResolvedBillingAccess'
 import type { AgentBehaviorConfig, AgentProfileId, AgentTriggerType } from '@/lib/types'
 
 export function useAgentDashboard() {
   const { activeFarmId, isLoading: farmLoading } = useFarmContext()
   const { hasFeature, hasPlan, isDevAuth } = useAppAuth()
-  const canAccess = hasAgentDashboardAccess({ hasFeature, hasPlan, isDevAuth })
+  const billingAccess = useResolvedBillingAccess()
+  const canAccess = hasAgentDashboardAccess({
+    hasFeature,
+    hasPlan,
+    isDevAuth,
+    resolvedFeatureSlugs: billingAccess.subscriptionFeatureSlugs,
+    resolvedPlanSlugs: billingAccess.subscriptionPlanSlugs,
+  })
 
   const dashboardState = useQuery(
     api.agentAdmin.getDashboardState,
