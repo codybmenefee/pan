@@ -10,7 +10,7 @@ import { useEffect } from 'react'
 import { TutorialProvider, TutorialOverlay } from '@/components/onboarding/tutorial'
 import { SatelliteAnimationProvider } from '@/lib/satellite-animation'
 import { SatelliteCollapseAnimation } from '@/components/layout/SatelliteCollapseAnimation'
-import { hasBillingAccess } from '@/lib/auth/billing'
+import { useResolvedBillingAccess } from '@/lib/auth/useResolvedBillingAccess'
 
 export const Route = createFileRoute('/app')({
   component: AppLayout,
@@ -23,27 +23,33 @@ function AppLayout() {
     isDevAuth,
     needsOnboarding,
     isOrgLoaded,
-    hasPlan: checkPlan,
-    hasFeature: checkFeature,
-    isPlanLoaded,
   } = useAppAuth()
   const navigate = useNavigate()
   const location = useRouterState({ select: (s) => s.location })
   const isOnboarding = location.pathname === '/app/onboarding'
+  const billingAccess = useResolvedBillingAccess()
 
   // Paywall is enabled by default, can be disabled via env var (useful for dev)
   const paywallDisabled = import.meta.env.VITE_PAYWALL_DISABLED === 'true'
   const paywallEnabled = !paywallDisabled
 
-  // B2C billing source of truth: Clerk plans/features via has().
-  const isSubscriptionLoaded = isPlanLoaded
+  // B2C billing source of truth: explicit user billing subscription + session claim fallback.
+  const isSubscriptionLoaded = billingAccess.isLoaded
   const hasPlan = paywallEnabled
-    ? (isSubscriptionLoaded
-        ? hasBillingAccess({ hasPlan: checkPlan, hasFeature: checkFeature })
-        : false)
+    ? (isSubscriptionLoaded ? billingAccess.hasAccess : false)
     : true
 
-  console.log('[AppLayout] Rendering with auth:', { isLoaded, isSignedIn, isDevAuth, needsOnboarding, hasPlan, pathname: location.pathname })
+  console.log('[AppLayout] Rendering with auth:', {
+    isLoaded,
+    isSignedIn,
+    isDevAuth,
+    needsOnboarding,
+    hasPlan,
+    billingSource: billingAccess.source,
+    subscriptionPlanSlugs: billingAccess.subscriptionPlanSlugs,
+    subscriptionFeatureSlugs: billingAccess.subscriptionFeatureSlugs,
+    pathname: location.pathname,
+  })
 
   // Handle auth redirect in component when auth loads
   useEffect(() => {

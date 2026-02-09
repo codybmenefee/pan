@@ -25,14 +25,35 @@ function parseSlugList(raw: string | undefined): string[] {
 }
 
 function normalizeSlug(value: string): string {
-  return value.trim().toLowerCase().replace(/^u:/, '').replace(/^o:/, '').replace(/-/g, '_')
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/^user:/, '')
+    .replace(/^org:/, '')
+    .replace(/^u:/, '')
+    .replace(/^o:/, '')
+    .replace(/-/g, '_')
 }
 
 function expandScopedSlug(slug: string): string[] {
   const trimmed = slug.trim()
   if (!trimmed) return []
-  if (trimmed.startsWith('u:') || trimmed.startsWith('o:')) return [trimmed]
-  return [trimmed, `u:${trimmed}`, `o:${trimmed}`]
+  if (
+    trimmed.startsWith('user:') ||
+    trimmed.startsWith('org:') ||
+    trimmed.startsWith('u:') ||
+    trimmed.startsWith('o:')
+  ) {
+    return [trimmed]
+  }
+  return [
+    trimmed,
+    `user:${trimmed}`,
+    `org:${trimmed}`,
+    // Back-compat for older short-form claim prefixes.
+    `u:${trimmed}`,
+    `o:${trimmed}`,
+  ]
 }
 
 function collectClaimEntries(claim: unknown): string[] {

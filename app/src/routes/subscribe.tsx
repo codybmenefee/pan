@@ -1,12 +1,13 @@
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { useUser, useClerk, PricingTable } from '@clerk/clerk-react'
-import { useEffect, useCallback, useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Terminal, LogOut } from 'lucide-react'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
 import { useAppAuth } from '@/lib/auth'
 import { useAnalytics } from '@/lib/analytics'
-import { getAppBillingFeatureSlugs, getAppBillingPlanSlugs, hasBillingAccess } from '@/lib/auth/billing'
+import { getAppBillingFeatureSlugs, getAppBillingPlanSlugs } from '@/lib/auth/billing'
+import { useResolvedBillingAccess } from '@/lib/auth/useResolvedBillingAccess'
 import { z } from 'zod'
 
 export const Route = createFileRoute('/subscribe')({
@@ -43,26 +44,13 @@ function SubscribePage() {
 
 function SubscribePageContent() {
   const { user, isLoaded: isUserLoaded } = useUser()
-  const {
-    hasPlan: checkPlan,
-    hasFeature: checkFeature,
-    isPlanLoaded,
-  } = useAppAuth()
+  const { isPlanLoaded, hasPlan: checkPlan, hasFeature: checkFeature } = useAppAuth()
   const { signOut } = useClerk()
   const navigate = useNavigate()
   const { trackSubscriptionStarted } = useAnalytics()
+  const billingAccess = useResolvedBillingAccess()
   const billingPlanSlugs = useMemo(() => getAppBillingPlanSlugs(), [])
   const billingFeatureSlugs = useMemo(() => getAppBillingFeatureSlugs(), [])
-
-  // B2C billing source of truth: Clerk plans/features via has().
-  const checkHasPlan = useCallback(() => {
-    return hasBillingAccess({
-      hasPlan: checkPlan,
-      hasFeature: checkFeature,
-      planSlugs: billingPlanSlugs,
-      featureSlugs: billingFeatureSlugs,
-    })
-  }, [checkPlan, checkFeature, billingPlanSlugs, billingFeatureSlugs])
 
   // Debug: log active entitlement checks using same source as /app.
   useEffect(() => {
@@ -76,14 +64,31 @@ function SubscribePageContent() {
         '[Subscribe] Clerk feature checks:',
         billingFeatureSlugs.map((feature) => [feature, checkFeature(feature)])
       )
+      console.log('[Subscribe] Resolved billing access:', {
+        hasAccess: billingAccess.hasAccess,
+        source: billingAccess.source,
+        subscriptionPlanSlugs: billingAccess.subscriptionPlanSlugs,
+        subscriptionFeatureSlugs: billingAccess.subscriptionFeatureSlugs,
+      })
     }
-  }, [isUserLoaded, user, checkPlan, checkFeature, billingPlanSlugs, billingFeatureSlugs])
+  }, [
+    isUserLoaded,
+    user,
+    checkPlan,
+    checkFeature,
+    billingPlanSlugs,
+    billingFeatureSlugs,
+    billingAccess.hasAccess,
+    billingAccess.source,
+    billingAccess.subscriptionPlanSlugs,
+    billingAccess.subscriptionFeatureSlugs,
+  ])
 
   // Paywall is enabled by default, can be disabled via env var (useful for dev)
   const paywallDisabled = import.meta.env.VITE_PAYWALL_DISABLED === 'true'
   const paywallEnabled = !paywallDisabled
-  const isSubscriptionLoaded = isPlanLoaded && isUserLoaded
-  const hasPlan = isSubscriptionLoaded ? checkHasPlan() : false
+  const isSubscriptionLoaded = isPlanLoaded && isUserLoaded && billingAccess.isLoaded
+  const hasPlan = isSubscriptionLoaded ? billingAccess.hasAccess : false
 
   // If paywall disabled or user already has a plan, redirect to main app
   useEffect(() => {
