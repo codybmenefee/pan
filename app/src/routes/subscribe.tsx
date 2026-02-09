@@ -57,11 +57,11 @@ function SubscribePageContent() {
     if (isUserLoaded && user) {
       console.log('[Subscribe] User ID:', user.id)
       console.log(
-        '[Subscribe] Clerk plan checks:',
+        '[Subscribe] Clerk session plan checks (claims-based):',
         billingPlanSlugs.map((plan) => [plan, checkPlan(plan)])
       )
       console.log(
-        '[Subscribe] Clerk feature checks:',
+        '[Subscribe] Clerk session feature checks (claims-based):',
         billingFeatureSlugs.map((feature) => [feature, checkFeature(feature)])
       )
       console.log('[Subscribe] Resolved billing access:', {

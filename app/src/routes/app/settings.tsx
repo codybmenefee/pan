@@ -16,6 +16,7 @@ import { useFarmSettings } from '@/lib/convex/useFarmSettings'
 import { useFarmContext } from '@/lib/farm'
 import type { FarmSettings } from '@/lib/types'
 import { useAppAuth } from '@/lib/auth'
+import { useResolvedBillingAccess } from '@/lib/auth/useResolvedBillingAccess'
 import { hasAgentDashboardAccess } from '@/lib/agentAccess'
 
 export const Route = createFileRoute('/app/settings')({
@@ -26,9 +27,16 @@ function SettingsPage() {
   const { settings, isLoading, saveSettings, resetSettings } = useFarmSettings()
   const { activeFarmId } = useFarmContext()
   const { hasFeature, hasPlan, isDevAuth } = useAppAuth()
+  const billingAccess = useResolvedBillingAccess()
   const [pendingSettings, setPendingSettings] = useState<FarmSettings | null>(null)
   const [saved, setSaved] = useState(false)
-  const canAccessAgentDashboard = hasAgentDashboardAccess({ hasFeature, hasPlan, isDevAuth })
+  const canAccessAgentDashboard = hasAgentDashboardAccess({
+    hasFeature,
+    hasPlan,
+    isDevAuth,
+    resolvedFeatureSlugs: billingAccess.subscriptionFeatureSlugs,
+    resolvedPlanSlugs: billingAccess.subscriptionPlanSlugs,
+  })
 
   const displaySettings = pendingSettings ?? settings
   const hasChanges = pendingSettings !== null
