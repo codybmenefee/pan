@@ -738,6 +738,9 @@ export const getAllPaddocks = query({
   },
 })
 
+// Backward-compatible alias for pre-rename clients.
+export const getAllSections = getAllPaddocks
+
 
 /**
  * Get recent plans for a farm.
@@ -872,6 +875,9 @@ export const updatePlanPaddockGeometry = mutation({
   },
 })
 
+// Backward-compatible alias for pre-rename clients.
+export const updatePlanSectionGeometry = updatePlanPaddockGeometry
+
 /**
  * Delete old plans (paddocks) older than a specified date.
  */
@@ -935,6 +941,9 @@ export const backdatePaddocks = mutation({
   },
 })
 
+// Backward-compatible alias for pre-rename clients.
+export const backdateSections = backdatePaddocks
+
 /**
  * Update a single paddock's date. Dev tool for testing historical patterns.
  */
@@ -956,6 +965,9 @@ export const updatePaddockDate = mutation({
     return args.planId
   },
 })
+
+// Backward-compatible alias for pre-rename clients.
+export const updateSectionDate = updatePaddockDate
 
 /**
  * Get rest period distribution for analytics.
