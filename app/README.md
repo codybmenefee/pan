@@ -18,6 +18,7 @@ Required env vars (set in `app/.env.local`):
 - `VITE_CONVEX_URL` - Convex deployment URL
 - `VITE_DEV_AUTH=true` - bypass Clerk sign-in locally
 - `VITE_CLERK_PUBLISHABLE_KEY` - required when `VITE_DEV_AUTH` is not set
+- `CLERK_JWT_ISSUER_DOMAIN` - Clerk issuer domain used by `convex/auth.config.ts`
 
 ## Scripts
 
