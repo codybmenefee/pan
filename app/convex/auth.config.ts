@@ -1,35 +1,24 @@
-import { AuthConfig } from "convex/server";
+import type { AuthConfig } from 'convex/server'
 
 function normalizeIssuerDomain(value: string): string {
-  return value.trim().replace(/\/+$/, "");
+  return value.trim().replace(/\/+$/, '')
 }
 
-const issuerDomain = normalizeIssuerDomain(
-  process.env.CLERK_JWT_ISSUER_DOMAIN ||
-    // Common fallback in Clerk setups.
-    process.env.CLERK_FRONTEND_API_URL ||
-    // Workspace default fallback for this app.
-    "https://clerk.themodernstrategy.com"
-);
+const issuerDomainRaw =
+  process.env.CLERK_JWT_ISSUER_DOMAIN ?? process.env.CLERK_FRONTEND_API_URL ?? ''
+const issuerDomain = normalizeIssuerDomain(issuerDomainRaw)
 
-const issuerVariants = Array.from(new Set([issuerDomain, `${issuerDomain}/`]));
-
-const providers: AuthConfig["providers"] = [
-  // Preferred path: Clerk "convex" JWT template with aud=convex.
-  {
-    domain: issuerDomain,
-    applicationID: "convex",
-  },
-  // Compatibility path: accept Clerk-issued JWTs without requiring aud=convex.
-  // Include both issuer variants because some setups emit a trailing slash.
-  ...issuerVariants.map((issuer) => ({
-    type: "customJwt" as const,
-    issuer,
-    jwks: `${issuerDomain}/.well-known/jwks.json`,
-    algorithm: "RS256" as const,
-  })),
-];
+if (!issuerDomain) {
+  throw new Error(
+    'Missing Clerk issuer domain. Set CLERK_JWT_ISSUER_DOMAIN (or CLERK_FRONTEND_API_URL) in Convex environment variables.'
+  )
+}
 
 export default {
-  providers,
-} satisfies AuthConfig;
+  providers: [
+    {
+      domain: issuerDomain,
+      applicationID: 'convex',
+    },
+  ],
+} satisfies AuthConfig

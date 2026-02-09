@@ -31,6 +31,7 @@ interface ClerkSubscriptionItem {
     amount: number
     currency: string
     is_recurring: boolean
+    features?: Array<{ slug: string }>
   }
   status: 'active' | 'ended' | 'past_due' | 'canceled' | 'incomplete' | 'upcoming' | 'trialing'
   period_start: number
@@ -109,6 +110,9 @@ function normalizeUserSubscription(data: UserSubscriptionData) {
 
   // Get plan slug from active item - defensive null checks
   const planSlug = activeItem?.plan?.slug || data.planId || data.plan_id || ''
+  const featureSlugs = Array.isArray(activeItem?.plan?.features)
+    ? activeItem.plan.features.map((feature) => feature.slug)
+    : []
 
   // Get period end from active item - handle both ms and seconds timestamps
   let periodEnd: string
@@ -137,6 +141,7 @@ function normalizeUserSubscription(data: UserSubscriptionData) {
     userId,
     customerId: data.payer_id || data.customerId || data.customer_id || '',
     planId: planSlug,
+    featureSlugs,
     status,
     currentPeriodEnd: periodEnd,
     hasActivePlan: !!activeItem,
@@ -151,10 +156,19 @@ const PLAN_TO_TIER: Record<string, 'free' | 'starter' | 'professional' | 'enterp
   'plan_enterprise': 'enterprise',
 }
 
-function hasAgentDashboardEntitlement(planId: string | undefined): boolean {
-  if (!planId) return false
-  const normalized = planId.toLowerCase()
+function hasAgentDashboardEntitlement(planId: string | undefined, featureSlugs: string[] = []): boolean {
+  const normalized = planId?.toLowerCase() ?? ''
+  const normalizedFeatures = featureSlugs.map((slug) => slug.toLowerCase())
+  const hasFeatureEntitlement = normalizedFeatures.some(
+    (feature) => feature.includes('agent_dashboard') || feature.includes('agent_monitor')
+  )
+
   return (
+    hasFeatureEntitlement ||
+    normalized.includes('early_access') ||
+    normalized.includes('early-access') ||
+    normalized.includes('starter') ||
+    normalized.includes('homesteader') ||
     normalized.includes('producer') ||
     normalized.includes('commercial') ||
     normalized.includes('professional') ||
@@ -282,7 +296,10 @@ async function handleUserSubscriptionUpdate(
       planId: normalized.planId,
       status: normalized.status,
       currentPeriodEnd: normalized.currentPeriodEnd,
-      agentDashboardEnabled: hasAgentDashboardEntitlement(normalized.planId),
+      agentDashboardEnabled: hasAgentDashboardEntitlement(
+        normalized.planId,
+        normalized.featureSlugs
+      ),
     })
 
     log(`User subscription synced for ${normalized.userId}: ${normalized.planId} (${normalized.status})`)

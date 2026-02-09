@@ -14,6 +14,10 @@ export function hasPlanLevelAccess(planId?: string): boolean {
   if (!planId) return false
   const normalized = planId.toLowerCase()
   return (
+    normalized.includes('early_access') ||
+    normalized.includes('early-access') ||
+    normalized.includes('starter') ||
+    normalized.includes('homesteader') ||
     normalized.includes('producer') ||
     normalized.includes('commercial') ||
     normalized.includes('professional') ||

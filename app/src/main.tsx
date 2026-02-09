@@ -1,8 +1,9 @@
 /* eslint-disable react-refresh/only-export-components */
-import { StrictMode, useCallback, useMemo, useRef } from 'react'
+import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
-import { ConvexProviderWithAuth, ConvexReactClient } from 'convex/react'
+import { ConvexProvider, ConvexReactClient } from 'convex/react'
+import { ConvexProviderWithClerk } from 'convex/react-clerk'
 import { PostHogProvider } from 'posthog-js/react'
 import { Toaster } from 'sonner'
 import { AppAuthProvider, useAppAuth } from '@/lib/auth'
@@ -16,6 +17,7 @@ import './index.css'
 const convexUrl = import.meta.env.VITE_CONVEX_URL
 const convexClient = convexUrl ? new ConvexReactClient(convexUrl) : null
 const posthogClient = initAnalytics()
+const devAuthEnabled = import.meta.env.VITE_DEV_AUTH === 'true'
 
 // Create router with context placeholder
 const router = createRouter({
@@ -43,71 +45,21 @@ function InnerApp() {
   )
 }
 
-function ConvexClerkAuthBridge({ children }: { children: React.ReactNode }) {
-  const { isLoaded, isSignedIn, getToken, orgId, orgRole } = useAuth()
-  const templateName = import.meta.env.VITE_CLERK_CONVEX_TEMPLATE as string | undefined
-  const templateSupportedRef = useRef(true)
-
-  const fetchAccessToken = useCallback(
-    async ({ forceRefreshToken }: { forceRefreshToken: boolean }) => {
-      if (templateSupportedRef.current && templateName) {
-        try {
-          return await getToken({
-            template: templateName,
-            skipCache: forceRefreshToken,
-          })
-        } catch (error) {
-          const status = typeof error === 'object' && error && 'status' in error
-            ? (error as { status?: unknown }).status
-            : undefined
-
-          if (status === 404) {
-            templateSupportedRef.current = false
-            console.warn(
-              `[ConvexAuth] Clerk JWT template "${templateName}" not found; falling back to default session token.`
-            )
-          } else {
-            return null
-          }
-        }
-      }
-
-      try {
-        return await getToken({
-          skipCache: forceRefreshToken,
-        })
-      } catch {
-        return null
-      }
-    },
-    // Rebuild token fetcher when org context changes so org claims stay in sync.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [getToken, orgId, orgRole, templateName]
-  )
-
-  const useAuthForConvex = useMemo(
-    () => () => ({
-      isLoading: !isLoaded,
-      isAuthenticated: isSignedIn ?? false,
-      fetchAccessToken,
-    }),
-    [isLoaded, isSignedIn, fetchAccessToken]
-  )
-
-  return (
-    <ConvexProviderWithAuth client={convexClient!} useAuth={useAuthForConvex}>
-      {children}
-    </ConvexProviderWithAuth>
-  )
-}
-
 function AppTree() {
   return convexClient ? (
-    <AppAuthProvider>
-      <ConvexClerkAuthBridge>
-        <InnerApp />
-      </ConvexClerkAuthBridge>
-    </AppAuthProvider>
+    devAuthEnabled ? (
+      <ConvexProvider client={convexClient}>
+        <AppAuthProvider>
+          <InnerApp />
+        </AppAuthProvider>
+      </ConvexProvider>
+    ) : (
+      <AppAuthProvider>
+        <ConvexProviderWithClerk client={convexClient} useAuth={useAuth}>
+          <InnerApp />
+        </ConvexProviderWithClerk>
+      </AppAuthProvider>
+    )
   ) : (
     <ErrorState
       title="Convex configuration missing"
