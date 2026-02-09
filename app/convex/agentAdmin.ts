@@ -2,8 +2,8 @@ import { action, internalMutation, internalQuery, mutation, query } from './_gen
 import { v } from 'convex/values'
 import { api } from './_generated/api'
 import type { Doc } from './_generated/dataModel'
-import type { MutationCtx, QueryCtx } from './_generated/server'
-import { AGENT_DASHBOARD_FEATURE_KEY, assertAgentDashboardAccess, hasPlanLevelAccess } from './lib/agentAccess'
+import type { ActionCtx, MutationCtx, QueryCtx } from './_generated/server'
+import { assertAgentDashboardAccess, hasPlanLevelAccess } from './lib/agentAccess'
 import { DEFAULT_GRAZING_PRINCIPLES } from './lib/grazingPrinciples'
 import { DEFAULT_FARM_EXTERNAL_ID, DEFAULT_USER_EXTERNAL_ID } from './seedData'
 
@@ -89,6 +89,72 @@ const DEFAULT_BEHAVIOR_CONFIG = {
   forageSensitivity: 50,
   movementBias: 50,
   enableWeatherSignals: true,
+}
+
+function getIdentityFarmExternalId(identity: Record<string, unknown> | null | undefined): string | null {
+  if (!identity) return null
+  const orgId =
+    (typeof identity.org_id === 'string' && identity.org_id) ||
+    (typeof identity.orgId === 'string' && identity.orgId) ||
+    null
+  return orgId
+}
+
+async function assertAgentDashboardAccessForAction(
+  ctx: ActionCtx,
+  farmExternalId: string
+): Promise<string> {
+  const identity = await ctx.auth.getUserIdentity()
+  let userExternalId = identity?.subject || identity?.tokenIdentifier
+  if (!userExternalId && farmExternalId === DEFAULT_FARM_EXTERNAL_ID) {
+    userExternalId = DEFAULT_USER_EXTERNAL_ID
+  }
+  if (!userExternalId) {
+    throw new Error('Unauthorized')
+  }
+
+  if (userExternalId === DEFAULT_USER_EXTERNAL_ID) {
+    const devUser: Doc<'users'> | null = await ctx.runQuery(api.users.getUserByExternalId, {
+      externalId: DEFAULT_USER_EXTERNAL_ID,
+    })
+    const canAccessFarm =
+      devUser?.activeFarmExternalId === farmExternalId ||
+      devUser?.farmExternalId === farmExternalId
+    if (devUser && !canAccessFarm) {
+      throw new Error('Farm access denied')
+    }
+    return userExternalId
+  }
+
+  const user: Doc<'users'> | null = await ctx.runQuery(api.users.getUserByExternalId, {
+    externalId: userExternalId,
+  })
+
+  if (!user) {
+    const identityFarmId = getIdentityFarmExternalId(identity as Record<string, unknown> | null)
+    if (identityFarmId && identityFarmId !== farmExternalId) {
+      throw new Error('Farm access denied')
+    }
+    return userExternalId
+  }
+
+  const canAccessFarm =
+    user.activeFarmExternalId === farmExternalId || user.farmExternalId === farmExternalId
+  if (!canAccessFarm) {
+    throw new Error('Farm access denied')
+  }
+
+  const hasMirroredEntitlementFields =
+    user.agentDashboardEnabled !== undefined || !!user.subscriptionPlanId
+  if (hasMirroredEntitlementFields) {
+    const hasEntitlement =
+      user.agentDashboardEnabled === true || hasPlanLevelAccess(user.subscriptionPlanId)
+    if (!hasEntitlement) {
+      throw new Error('Agent dashboard access denied')
+    }
+  }
+
+  return userExternalId
 }
 
 function serializeStructuredRules(principles: GrazingPrinciplesDoc | null | undefined): string[] {
@@ -597,40 +663,7 @@ export const simulateRun = action({
     profileOverride: v.optional(profileValidator),
   },
   handler: async (ctx, args): Promise<SimulateRunResult> => {
-    const identity = await ctx.auth.getUserIdentity()
-    let userExternalId = identity?.subject || identity?.tokenIdentifier
-    if (!userExternalId && args.farmExternalId === DEFAULT_FARM_EXTERNAL_ID) {
-      userExternalId = DEFAULT_USER_EXTERNAL_ID
-    }
-    if (!userExternalId) throw new Error('Unauthorized')
-
-    if (userExternalId !== DEFAULT_USER_EXTERNAL_ID) {
-      const user: Doc<'users'> | null = await ctx.runQuery(api.users.getUserByExternalId, {
-        externalId: userExternalId,
-      })
-      if (!user) throw new Error('User record not found')
-      const hasEntitlement =
-        user.agentDashboardEnabled === true || hasPlanLevelAccess(user.subscriptionPlanId)
-      if (!hasEntitlement) {
-        throw new Error(`Feature "${AGENT_DASHBOARD_FEATURE_KEY}" not enabled`)
-      }
-
-      const canAccessFarm =
-        user.activeFarmExternalId === args.farmExternalId || user.farmExternalId === args.farmExternalId
-      if (!canAccessFarm) {
-        throw new Error('Farm access denied')
-      }
-    } else {
-      const devUser: Doc<'users'> | null = await ctx.runQuery(api.users.getUserByExternalId, {
-        externalId: DEFAULT_USER_EXTERNAL_ID,
-      })
-      const canAccessFarm =
-        devUser?.activeFarmExternalId === args.farmExternalId ||
-        devUser?.farmExternalId === args.farmExternalId
-      if (!canAccessFarm) {
-        throw new Error('Farm access denied')
-      }
-    }
+    const userExternalId = await assertAgentDashboardAccessForAction(ctx, args.farmExternalId)
 
     const farm: Doc<'farms'> | null = await ctx.runQuery(api.intelligence.getFarmByExternalId, {
       externalId: args.farmExternalId,

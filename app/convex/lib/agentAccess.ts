@@ -3,6 +3,7 @@ import type { MutationCtx, QueryCtx } from '../_generated/server'
 import { DEFAULT_FARM_EXTERNAL_ID, DEFAULT_USER_EXTERNAL_ID } from '../seedData'
 
 export const AGENT_DASHBOARD_FEATURE_KEY = 'agent_dashboard'
+export const AGENT_MONITOR_FEATURE_KEY = 'agent_monitor'
 
 type GuardCtx = {
   auth: QueryCtx['auth'] | MutationCtx['auth']
@@ -17,8 +18,18 @@ export function hasPlanLevelAccess(planId?: string): boolean {
     normalized.includes('commercial') ||
     normalized.includes('professional') ||
     normalized.includes('enterprise') ||
-    normalized.includes(AGENT_DASHBOARD_FEATURE_KEY)
+    normalized.includes(AGENT_DASHBOARD_FEATURE_KEY) ||
+    normalized.includes(AGENT_MONITOR_FEATURE_KEY)
   )
+}
+
+function getIdentityFarmExternalId(identity: Record<string, unknown> | null | undefined): string | null {
+  if (!identity) return null
+  const orgId =
+    (typeof identity.org_id === 'string' && identity.org_id) ||
+    (typeof identity.orgId === 'string' && identity.orgId) ||
+    null
+  return orgId
 }
 
 export async function assertAgentDashboardAccess(
@@ -49,14 +60,17 @@ export async function assertAgentDashboardAccess(
     .withIndex('by_externalId', (q) => q.eq('externalId', userExternalId))
     .first()
 
+  // B2C billing source of truth is Clerk has() in the app layer.
+  // Convex mirrors are best-effort and can lag/miss during rollout; do not hard-fail
+  // solely because mirrored entitlement fields are absent.
   if (!user) {
-    throw new Error('User record not found')
-  }
-
-  const entitlementEnabled =
-    user.agentDashboardEnabled === true || hasPlanLevelAccess(user.subscriptionPlanId)
-  if (!entitlementEnabled) {
-    throw new Error('Agent dashboard access denied')
+    if (farmExternalId) {
+      const identityFarmId = getIdentityFarmExternalId(identity as Record<string, unknown> | null)
+      if (identityFarmId && identityFarmId !== farmExternalId) {
+        throw new Error('Farm access denied')
+      }
+    }
+    return { user: null, userExternalId }
   }
 
   if (farmExternalId) {
@@ -65,6 +79,16 @@ export async function assertAgentDashboardAccess(
       user.farmExternalId === farmExternalId
     if (!canAccessFarm) {
       throw new Error('Farm access denied')
+    }
+  }
+
+  const hasMirroredEntitlementFields =
+    user.agentDashboardEnabled !== undefined || !!user.subscriptionPlanId
+  if (hasMirroredEntitlementFields) {
+    const entitlementEnabled =
+      user.agentDashboardEnabled === true || hasPlanLevelAccess(user.subscriptionPlanId)
+    if (!entitlementEnabled) {
+      throw new Error('Agent dashboard access denied')
     }
   }
 

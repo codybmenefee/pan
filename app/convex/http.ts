@@ -159,7 +159,8 @@ function hasAgentDashboardEntitlement(planId: string | undefined): boolean {
     normalized.includes('commercial') ||
     normalized.includes('professional') ||
     normalized.includes('enterprise') ||
-    normalized.includes('agent_dashboard')
+    normalized.includes('agent_dashboard') ||
+    normalized.includes('agent_monitor')
   )
 }
 

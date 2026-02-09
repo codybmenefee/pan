@@ -1,5 +1,4 @@
 import { createFileRoute, Outlet, useRouterState, useNavigate } from '@tanstack/react-router'
-import { useQuery } from 'convex/react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Header } from '@/components/layout/Header'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
@@ -11,33 +10,27 @@ import { useEffect } from 'react'
 import { TutorialProvider, TutorialOverlay } from '@/components/onboarding/tutorial'
 import { SatelliteAnimationProvider } from '@/lib/satellite-animation'
 import { SatelliteCollapseAnimation } from '@/components/layout/SatelliteCollapseAnimation'
-import { api } from '../../convex/_generated/api'
+import { APP_BILLING_PLAN_SLUGS, hasAnyPlan } from '@/lib/auth/billing'
 
 export const Route = createFileRoute('/app')({
   component: AppLayout,
 })
 
 function AppLayout() {
-  const { isLoaded, isSignedIn, isDevAuth, needsOnboarding, isOrgLoaded, userId, hasPlan: checkPlan, isPlanLoaded } = useAppAuth()
+  const { isLoaded, isSignedIn, isDevAuth, needsOnboarding, isOrgLoaded, hasPlan: checkPlan, isPlanLoaded } = useAppAuth()
   const navigate = useNavigate()
   const location = useRouterState({ select: (s) => s.location })
   const isOnboarding = location.pathname === '/app/onboarding'
-
-  // Check subscription status from Convex (set by webhook)
-  const convexSubscription = useQuery(
-    api.users.getUserSubscription,
-    userId && !isDevAuth ? { externalId: userId } : 'skip'
-  )
 
   // Paywall is enabled by default, can be disabled via env var (useful for dev)
   const paywallDisabled = import.meta.env.VITE_PAYWALL_DISABLED === 'true'
   const paywallEnabled = !paywallDisabled
 
-  // Check subscription from multiple sources
-  const isSubscriptionLoaded = isPlanLoaded && (isDevAuth || convexSubscription !== undefined)
+  // B2C billing source of truth: Clerk plans/features via has().
+  const isSubscriptionLoaded = isPlanLoaded
   const hasPlan = paywallEnabled
     ? (isSubscriptionLoaded
-        ? (convexSubscription?.hasAccess || checkPlan('early_access'))
+        ? hasAnyPlan(checkPlan, APP_BILLING_PLAN_SLUGS)
         : false)
     : true
 

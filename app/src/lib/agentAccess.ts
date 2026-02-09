@@ -1,4 +1,4 @@
-export const AGENT_DASHBOARD_FEATURE_KEY = 'agent_dashboard'
+import { AGENT_MONITOR_FEATURE_SLUGS, hasAnyFeature, hasAnyPlan } from '@/lib/auth/billing'
 
 export function hasAgentDashboardAccess(args: {
   hasFeature: (featureKey: string) => boolean
@@ -7,10 +7,7 @@ export function hasAgentDashboardAccess(args: {
 }): boolean {
   if (args.isDevAuth) return true
   return (
-    args.hasFeature(AGENT_DASHBOARD_FEATURE_KEY) ||
-    args.hasPlan('producer') ||
-    args.hasPlan('commercial') ||
-    args.hasPlan('professional') ||
-    args.hasPlan('enterprise')
+    hasAnyFeature(args.hasFeature, AGENT_MONITOR_FEATURE_SLUGS) ||
+    hasAnyPlan(args.hasPlan, ['producer', 'commercial', 'professional', 'enterprise'])
   )
 }
