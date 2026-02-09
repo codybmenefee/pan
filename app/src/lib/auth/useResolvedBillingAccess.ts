@@ -1,5 +1,4 @@
 import { useClerk, useUser } from '@clerk/clerk-react'
-import type { BillingSubscriptionResource } from '@clerk/shared/types'
 import { useEffect, useMemo, useState } from 'react'
 import { useAppAuth } from '@/lib/auth'
 import { getAppBillingFeatureSlugs, getAppBillingPlanSlugs, hasBillingAccess } from '@/lib/auth/billing'
@@ -25,6 +24,26 @@ interface SubscriptionFetchState {
   entitlement: SubscriptionEntitlementResult | null
 }
 
+interface BillingFeatureLike {
+  slug: string
+}
+
+interface BillingPlanLike {
+  slug: string
+  isDefault: boolean
+  forPayerType: string
+  features: BillingFeatureLike[]
+}
+
+interface BillingSubscriptionItemLike {
+  status: string
+  plan: BillingPlanLike
+}
+
+interface BillingSubscriptionLike {
+  subscriptionItems: BillingSubscriptionItemLike[]
+}
+
 function normalizeSlug(value: string): string {
   return value
     .trim()
@@ -37,7 +56,7 @@ function normalizeSlug(value: string): string {
 }
 
 function getSubscriptionEntitlement(
-  subscription: BillingSubscriptionResource,
+  subscription: BillingSubscriptionLike,
   allowedPlanSlugs: readonly string[],
   allowedFeatureSlugs: readonly string[]
 ): SubscriptionEntitlementResult {
