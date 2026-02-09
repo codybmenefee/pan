@@ -10,14 +10,23 @@ import { useEffect } from 'react'
 import { TutorialProvider, TutorialOverlay } from '@/components/onboarding/tutorial'
 import { SatelliteAnimationProvider } from '@/lib/satellite-animation'
 import { SatelliteCollapseAnimation } from '@/components/layout/SatelliteCollapseAnimation'
-import { APP_BILLING_PLAN_SLUGS, hasAnyPlan } from '@/lib/auth/billing'
+import { hasBillingAccess } from '@/lib/auth/billing'
 
 export const Route = createFileRoute('/app')({
   component: AppLayout,
 })
 
 function AppLayout() {
-  const { isLoaded, isSignedIn, isDevAuth, needsOnboarding, isOrgLoaded, hasPlan: checkPlan, isPlanLoaded } = useAppAuth()
+  const {
+    isLoaded,
+    isSignedIn,
+    isDevAuth,
+    needsOnboarding,
+    isOrgLoaded,
+    hasPlan: checkPlan,
+    hasFeature: checkFeature,
+    isPlanLoaded,
+  } = useAppAuth()
   const navigate = useNavigate()
   const location = useRouterState({ select: (s) => s.location })
   const isOnboarding = location.pathname === '/app/onboarding'
@@ -30,7 +39,7 @@ function AppLayout() {
   const isSubscriptionLoaded = isPlanLoaded
   const hasPlan = paywallEnabled
     ? (isSubscriptionLoaded
-        ? hasAnyPlan(checkPlan, APP_BILLING_PLAN_SLUGS)
+        ? hasBillingAccess({ hasPlan: checkPlan, hasFeature: checkFeature })
         : false)
     : true
 

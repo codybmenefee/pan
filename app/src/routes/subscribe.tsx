@@ -1,12 +1,12 @@
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { useUser, useClerk, useAuth, PricingTable } from '@clerk/clerk-react'
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Terminal, LogOut } from 'lucide-react'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
 import { useAppAuth } from '@/lib/auth'
 import { useAnalytics } from '@/lib/analytics'
-import { APP_BILLING_PLAN_SLUGS, hasAnyPlan } from '@/lib/auth/billing'
+import { getAppBillingFeatureSlugs, getAppBillingPlanSlugs, hasBillingAccess } from '@/lib/auth/billing'
 import { z } from 'zod'
 
 export const Route = createFileRoute('/subscribe')({
@@ -47,15 +47,19 @@ function SubscribePageContent() {
   const { signOut } = useClerk()
   const navigate = useNavigate()
   const { trackSubscriptionStarted } = useAnalytics()
+  const billingPlanSlugs = useMemo(() => getAppBillingPlanSlugs(), [])
+  const billingFeatureSlugs = useMemo(() => getAppBillingFeatureSlugs(), [])
 
   // B2C billing source of truth: Clerk plans/features via has().
   const checkHasPlan = useCallback(() => {
     if (!has) return false
-    return hasAnyPlan(
-      (plan) => has({ plan }),
-      APP_BILLING_PLAN_SLUGS
-    )
-  }, [has])
+    return hasBillingAccess({
+      hasPlan: (plan) => has({ plan }),
+      hasFeature: (feature) => has({ feature }),
+      planSlugs: billingPlanSlugs,
+      featureSlugs: billingFeatureSlugs,
+    })
+  }, [has, billingPlanSlugs, billingFeatureSlugs])
 
   // Debug: log active plan checks
   useEffect(() => {
@@ -63,10 +67,14 @@ function SubscribePageContent() {
       console.log('[Subscribe] User ID:', user.id)
       console.log(
         '[Subscribe] Clerk plan checks:',
-        APP_BILLING_PLAN_SLUGS.map((plan) => [plan, has?.({ plan })])
+        billingPlanSlugs.map((plan) => [plan, has?.({ plan })])
+      )
+      console.log(
+        '[Subscribe] Clerk feature checks:',
+        billingFeatureSlugs.map((feature) => [feature, has?.({ feature })])
       )
     }
-  }, [isUserLoaded, user, has])
+  }, [isUserLoaded, user, has, billingPlanSlugs, billingFeatureSlugs])
 
   // Paywall is enabled by default, can be disabled via env var (useful for dev)
   const paywallDisabled = import.meta.env.VITE_PAYWALL_DISABLED === 'true'
