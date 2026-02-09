@@ -71,24 +71,70 @@ function byFarmExternalId(q: any, farmId: unknown, externalId: unknown) {
   return q.eq('farmId', farmId).eq('externalId', externalId)
 }
 
+async function findFarmByExternalId(ctx: any, farmExternalId: string) {
+  try {
+    const byExternal = await ctx.db
+      .query('farms')
+      .withIndex('by_externalId', (q: any) => q.eq('externalId', farmExternalId))
+      .first()
+    if (byExternal) return byExternal
+  } catch {
+    // Fallback for mixed deployments where index changes may be propagating.
+  }
+
+  try {
+    const byLegacy = await ctx.db
+      .query('farms')
+      .withIndex('by_legacyExternalId', (q: any) => q.eq('legacyExternalId', farmExternalId))
+      .first()
+    if (byLegacy) return byLegacy
+  } catch {
+    // Ignore and fallback to collection scan.
+  }
+
+  const allFarms = await ctx.db.query('farms').collect()
+  return allFarms.find((farm: any) => farm.externalId === farmExternalId || farm.legacyExternalId === farmExternalId) ?? null
+}
+
+async function listPasturesByFarmDocId(ctx: any, farmDocId: unknown) {
+  try {
+    return await ctx.db
+      .query('paddocks')
+      .withIndex('by_farm', (q: any) => q.eq('farmId', farmDocId))
+      .collect()
+  } catch {
+    const allPastures = await ctx.db.query('paddocks').collect()
+    return allPastures.filter((pasture: any) => pasture.farmId === farmDocId)
+  }
+}
+
+async function findPastureByFarmExternalId(ctx: any, farmDocId: unknown, pastureExternalId: string) {
+  try {
+    return await ctx.db
+      .query('paddocks')
+      .withIndex('by_farm_externalId', (q: any) => byFarmExternalId(q, farmDocId, pastureExternalId))
+      .first()
+  } catch {
+    const farmPastures = await listPasturesByFarmDocId(ctx, farmDocId)
+    return farmPastures.find((pasture: any) => pasture.externalId === pastureExternalId) ?? null
+  }
+}
+
 export const listPasturesByFarm = query({
   args: { farmId: v.string() },
   handler: async (ctx, args) => {
-    const farm = await ctx.db
-      .query('farms')
-      .withIndex('by_externalId', (q) => q.eq('externalId', args.farmId))
-      .first()
+    const farm = await findFarmByExternalId(ctx, args.farmId)
 
     if (!farm) {
       return []
     }
 
-    return ctx.db
-      .query('paddocks')
-      .withIndex('by_farm', (q) => q.eq('farmId', farm._id))
-      .collect()
+    return await listPasturesByFarmDocId(ctx, farm._id)
   },
 })
+
+// Backward-compatible alias for pre-rename clients.
+export const listPaddocksByFarm = listPasturesByFarm
 
 export const applyPastureChanges = mutation({
   args: {
@@ -96,10 +142,7 @@ export const applyPastureChanges = mutation({
     changes: v.array(geometryChange),
   },
   handler: async (ctx, args) => {
-    const farm = await ctx.db
-      .query('farms')
-      .withIndex('by_externalId', (q) => q.eq('externalId', args.farmId))
-      .first()
+    const farm = await findFarmByExternalId(ctx, args.farmId)
 
     if (!farm) {
       throw new Error('Farm not found.')
@@ -110,12 +153,9 @@ export const applyPastureChanges = mutation({
     let applied = 0
 
     for (const change of args.changes) {
-      if (change.entityType !== 'pasture') continue
+      if (change.entityType !== 'pasture' && change.entityType !== 'paddock') continue
 
-      const existing = await ctx.db
-        .query('paddocks')
-        .withIndex('by_farm_externalId', (q) => byFarmExternalId(q, farm._id, change.id))
-        .first()
+      const existing = await findPastureByFarmExternalId(ctx, farm._id, change.id)
 
       if (change.changeType === 'delete') {
         if (existing) {
@@ -174,10 +214,7 @@ export const applyPastureChanges = mutation({
     }
 
     if (countNeedsRefresh) {
-      const pastureCount = await ctx.db
-        .query('paddocks')
-        .withIndex('by_farm', (q) => q.eq('farmId', farm._id))
-        .collect()
+      const pastureCount = await listPasturesByFarmDocId(ctx, farm._id)
 
       await ctx.db.patch(farm._id, {
         paddockCount: pastureCount.length,
@@ -189,6 +226,9 @@ export const applyPastureChanges = mutation({
   },
 })
 
+// Backward-compatible alias for pre-rename clients.
+export const applyPaddockChanges = applyPastureChanges
+
 /**
  * Get a pasture by farm and pasture external IDs.
  * Used by NDVI grid generation for coordinate bounds.
@@ -199,34 +239,18 @@ export const getPastureByExternalId = query({
     paddockExternalId: v.string(),
   },
   handler: async (ctx, args) => {
-    // First find the farm
-    let farm = await ctx.db
-      .query('farms')
-      .withIndex('by_externalId', (q) => q.eq('externalId', args.farmExternalId))
-      .first()
-
-    // Also check legacyExternalId for migration support
-    if (!farm) {
-      farm = await ctx.db
-        .query('farms')
-        .withIndex('by_legacyExternalId', (q: any) => q.eq('legacyExternalId', args.farmExternalId))
-        .first()
-    }
+    const farm = await findFarmByExternalId(ctx, args.farmExternalId)
 
     if (!farm) {
       return null
     }
 
-    // Find the pasture using helper to satisfy TypeScript
-    const farmId = farm._id
-    const pasture = await ctx.db
-      .query('paddocks')
-      .withIndex('by_farm_externalId', (q) => byFarmExternalId(q, farmId, args.paddockExternalId))
-      .first()
-
-    return pasture
+    return await findPastureByFarmExternalId(ctx, farm._id, args.paddockExternalId)
   },
 })
+
+// Backward-compatible alias for pre-rename clients.
+export const getPaddockByExternalId = getPastureByExternalId
 
 export const updatePastureMetadata = mutation({
   args: {
@@ -243,19 +267,13 @@ export const updatePastureMetadata = mutation({
     }),
   },
   handler: async (ctx, args) => {
-    const farm = await ctx.db
-      .query('farms')
-      .withIndex('by_externalId', (q) => q.eq('externalId', args.farmId))
-      .first()
+    const farm = await findFarmByExternalId(ctx, args.farmId)
 
     if (!farm) {
       throw new Error('Farm not found.')
     }
 
-    const pasture = await ctx.db
-      .query('paddocks')
-      .withIndex('by_farm_externalId', (q) => byFarmExternalId(q, farm._id, args.paddockId))
-      .first()
+    const pasture = await findPastureByFarmExternalId(ctx, farm._id, args.paddockId)
 
     if (!pasture) {
       throw new Error('Pasture not found.')
@@ -275,3 +293,6 @@ export const updatePastureMetadata = mutation({
     return { updated: true }
   },
 })
+
+// Backward-compatible alias for pre-rename clients.
+export const updatePaddockMetadata = updatePastureMetadata
